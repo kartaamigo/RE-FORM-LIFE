@@ -13,7 +13,7 @@ from typing import Any
 
 from flask import Flask, Response, g, jsonify, redirect, render_template, request, url_for
 
-from eve_agent import configure_autostart, native_agent_status, perform_external_action
+from eve_agent import configure_autostart, input_devices, native_agent_status, perform_external_action, transcribe_pcm
 from eve_assistant import choose_command_candidate, normalize_text, parse_command
 from eve_local import (
     DEFAULT_OLLAMA_MODEL,
@@ -47,6 +47,7 @@ DEFAULT_ASSISTANT_SETTINGS = {
     "wake_word": "эва",
     "voice_lang": "ru-RU",
     "voice_name": "",
+    "microphone_device": "",
     "assistant_provider": "local",
     "local_llm_enabled": "1",
     "local_tts_enabled": "1",
@@ -296,6 +297,14 @@ CREATE TABLE IF NOT EXISTS assistant_history (
 );
 CREATE INDEX IF NOT EXISTS idx_assistant_history_id ON assistant_history(id);
 
+CREATE TABLE IF NOT EXISTS assistant_chat_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    role TEXT NOT NULL CHECK(role IN ('user','assistant')),
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_assistant_chat_history_id ON assistant_chat_history(id);
+
 CREATE TABLE IF NOT EXISTS assistant_memories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     fact TEXT NOT NULL,
@@ -474,6 +483,24 @@ def record_assistant_message(role: str, text: Any) -> None:
     db.execute(
         "DELETE FROM assistant_history WHERE id NOT IN "
         "(SELECT id FROM assistant_history ORDER BY id DESC LIMIT 2000)"
+    )
+    db.commit()
+
+
+def record_assistant_chat_message(role: str, text: Any) -> None:
+    if role not in {"user", "assistant"}:
+        return
+    message = str(text or "").strip()
+    if not message:
+        return
+    db = get_db()
+    db.execute(
+        "INSERT INTO assistant_chat_history(role,text,created_at) VALUES(?,?,?)",
+        (role, message, now_iso()),
+    )
+    db.execute(
+        "DELETE FROM assistant_chat_history WHERE id NOT IN "
+        "(SELECT id FROM assistant_chat_history ORDER BY id DESC LIMIT 2000)"
     )
     db.commit()
 
@@ -854,7 +881,7 @@ def confirmed_action_path(value: str) -> Path:
     try:
         path.relative_to(home)
     except ValueError as exc:
-        raise ValueError("Для создания папки укажи путь внутри домашней папки пользователя.") from exc
+        raise ValueError("Для создания файла или папки укажи путь внутри домашней папки пользователя.") from exc
     return path
 
 
@@ -864,6 +891,16 @@ def execute_pending_action(pending: dict[str, Any]) -> dict[str, Any]:
         path = confirmed_action_path(str(pending.get("target") or ""))
         path.mkdir(parents=True, exist_ok=True)
         return {"action": "create_folder", "reply": f"Папка создана: {path.name}.", "path": str(path)}
+    if kind == "create_file":
+        path = confirmed_action_path(str(pending.get("target") or ""))
+        if path.exists():
+            raise ValueError("Такой файл уже существует. Я не стала его перезаписывать.")
+        if not path.name or path.suffix == "":
+            path = path.with_suffix(".txt")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        content = str(pending.get("content") or "")[:5000]
+        path.write_text(content, encoding="utf-8")
+        return {"action": "create_file", "reply": f"Файл создан: {path.name}.", "path": str(path)}
     if kind == "run_terminal":
         raise ValueError("EVE не исполняет произвольные команды терминала или скрипты.")
     if kind in {"toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
@@ -985,6 +1022,7 @@ def api_assistant_status():
             "enabled": settings["enabled"],
             "auto_start": settings["auto_start"],
             "native": native,
+            "microphones": input_devices(),
             "voice": settings["voice_lang"],
             "voice_name": settings["voice_name"],
             "voices": local["tts"].get("voices", []),
@@ -1022,6 +1060,18 @@ def api_assistant_tts():
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-EVE-TTS"] = str(tts_status().get("backend", "local"))
     return response
+
+
+@app.post("/api/assistant/transcribe")
+def api_assistant_transcribe():
+    try:
+        sample_rate = int(request.args.get("sample_rate", "16000"))
+        if sample_rate != 16000:
+            return json_error("EVE ожидает запись с частотой 16 кГц.")
+        text = transcribe_pcm(request.get_data(cache=False), sample_rate)
+        return jsonify({"ok": True, "text": text})
+    except (OSError, RuntimeError, ValueError) as exc:
+        return json_error(str(exc), 503)
 
 
 @app.get("/api/assistant/settings")
@@ -1064,6 +1114,12 @@ def api_assistant_settings_patch():
                 if not re.match(r"^[a-z]{2}(?:-[A-Z]{2})?$", voice_lang):
                     raise ValueError("Некорректный язык голоса.")
                 values[key] = voice_lang
+            elif key == "microphone_device":
+                microphone = optional_text(value, 120)
+                available = {item["id"] for item in input_devices()}
+                if microphone and microphone not in available:
+                    raise ValueError("Выбранный микрофон больше недоступен.")
+                values[key] = microphone
             elif key == "local_llm_model":
                 model = optional_text(value, 120) or DEFAULT_OLLAMA_MODEL
                 if not LOCAL_LLM_MODEL_RE.fullmatch(model):
@@ -1107,6 +1163,56 @@ def api_assistant_history_delete():
     db.execute("DELETE FROM assistant_history")
     db.commit()
     return jsonify({"ok": True})
+
+
+@app.get("/api/assistant/chat/history")
+def api_assistant_chat_history_get():
+    try:
+        limit = max(1, min(2000, int(request.args.get("limit", 80))))
+    except (TypeError, ValueError):
+        limit = 80
+    rows = get_db().execute(
+        "SELECT id,role,text,created_at FROM assistant_chat_history ORDER BY id DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    return jsonify({"ok": True, "messages": [row_dict(row) for row in reversed(rows)]})
+
+
+@app.delete("/api/assistant/chat/history")
+def api_assistant_chat_history_delete():
+    db = get_db()
+    db.execute("DELETE FROM assistant_chat_history")
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.post("/api/assistant/chat")
+def api_assistant_chat():
+    """Pure conversation endpoint: it never parses or executes commands."""
+    try:
+        data = body()
+        text = require_text(data.get("text"), "Сообщение", 1000)
+        settings = assistant_settings_payload()
+        rows = get_db().execute(
+            "SELECT role,text FROM assistant_chat_history ORDER BY id DESC LIMIT 20"
+        ).fetchall()
+        history = [dict(row) for row in reversed(rows)]
+        memories = [item["fact"] for item in assistant_memories()] if settings["personalization_enabled"] else []
+        if settings["assistant_provider"] == "cloud":
+            reply = generate_cloud_reply(text, history, memories)
+            provider = "openai-compatible"
+        elif settings["local_llm_enabled"]:
+            reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
+            provider = "ollama"
+        else:
+            return json_error("Разговорная модель выключена в настройках EVE.", 503)
+        record_assistant_chat_message("user", text)
+        record_assistant_chat_message("assistant", reply)
+        return jsonify({"ok": True, "action": "conversation_reply", "provider": provider, "reply": reply})
+    except LocalProviderError as exc:
+        return json_error(str(exc), 503)
+    except ValueError as exc:
+        return json_error(str(exc))
 
 
 @app.get("/api/assistant/memories")
@@ -1186,7 +1292,7 @@ def api_assistant_command():
                 return jsonify({"ok": True, "action": "list_memories", "memories": [], "reply": "Пока я не сохраняла фактов о тебе."})
             facts = "; ".join(item["fact"] for item in memories[-12:])
             return jsonify({"ok": True, "action": "list_memories", "memories": memories, "reply": f"Я помню: {facts}."})
-        if parsed.intent in {"open_explorer", "open_browser", "open_application", "open_url", "search_web", "set_volume", "mute_audio", "minimize_window", "wifi_status"}:
+        if parsed.intent in {"open_explorer", "open_browser", "open_application", "open_url", "search_web", "set_volume", "adjust_volume", "mute_audio", "set_brightness", "adjust_brightness", "minimize_window", "wifi_status"}:
             try:
                 if parsed.intent in {"open_browser", "open_url", "search_web"}:
                     opened = perform_external_action(
@@ -1219,15 +1325,17 @@ def api_assistant_command():
                 }
                 reply = f"Открываю Проводник: {labels.get(opened['location'], opened['location'])}."
             return jsonify({"ok": True, "action": parsed.intent, "target": opened["location"], "reply": reply})
-        if parsed.intent in {"create_folder", "toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
+        if parsed.intent in {"create_folder", "create_file", "toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
             confirmation_id = uuid.uuid4().hex
             assistant_pending_actions[confirmation_id] = {
                 "kind": parsed.intent,
                 "target": parsed.target,
+                "content": parsed.content,
                 "created_at": datetime.now().timestamp(),
             }
             labels = {
                 "create_folder": f"создать папку «{parsed.target}»",
+                "create_file": f"создать файл «{parsed.target}»",
                 "toggle_wifi": f"{'включить' if parsed.target == 'on' else 'выключить'} Wi‑Fi",
                 "close_window": "закрыть текущее окно",
                 "shutdown": "выключить компьютер",

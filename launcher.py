@@ -38,6 +38,7 @@ def start_eve_agent(port: int) -> threading.Thread:
                 server_url=f"http://127.0.0.1:{port}",
                 wake_word=str(settings.get("wake_word") or "эва"),
                 continuous_dialog=bool(settings.get("continuous_dialog", True)),
+                device=settings.get("microphone_device"),
             )
         except Exception:
             # A microphone/model problem must never prevent the planner window
@@ -65,7 +66,6 @@ if __name__ == "__main__":
     t = threading.Thread(target=start_flask, args=(port,), daemon=True)
     t.start()
     wait_for_server(port)
-    start_eve_agent(port)
     window = webview.create_window(
         title="RE:FORM LIFE",
         url=f"http://127.0.0.1:{port}",
@@ -75,6 +75,9 @@ if __name__ == "__main__":
         resizable=True,
         background_color="#070b12"
     )
+
+    # The offline speech model is intentionally loaded after the page appears.
+    webview.events.loaded += lambda: start_eve_agent(port)
 
     # Запуск приложения (окно)
     webview.start()

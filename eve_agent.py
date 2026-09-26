@@ -23,6 +23,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import wave
+from functools import lru_cache
 from pathlib import Path
 from difflib import SequenceMatcher
 from typing import Any
@@ -277,6 +278,27 @@ def _windows_audio_endpoint():
         raise OSError(f"Управление звуком Windows недоступно: {exc}") from exc
 
 
+def _windows_brightness(level: int | None = None) -> int:
+    """Read or set laptop/internal-display brightness without elevation."""
+    if level is None:
+        script = "(Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightness | Select-Object -First 1).CurrentBrightness"
+    else:
+        safe_level = max(0, min(100, int(level)))
+        script = f"$m=Get-CimInstance -Namespace root/WMI -ClassName WmiMonitorBrightnessMethods | Select-Object -First 1; Invoke-CimMethod -InputObject $m -MethodName WmiSetBrightness -Arguments @{{Timeout=1;Brightness=[byte]{safe_level}}} | Out-Null; {safe_level}"
+    completed = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
+        capture_output=True,
+        text=True,
+        timeout=12,
+        check=False,
+    )
+    output = (completed.stdout or "").strip().splitlines()
+    if completed.returncode != 0 or not output or not output[-1].strip().isdigit():
+        detail = (completed.stderr or "Монитор не поддерживает программное управление яркостью.").strip()
+        raise OSError(detail[-300:])
+    return int(output[-1].strip())
+
+
 def _windows_wifi_adapter() -> str:
     script = "Get-NetAdapter -Physical | Where-Object { $_.NdisPhysicalMedium -eq 9 } | Select-Object -First 1 -ExpandProperty Name"
     completed = subprocess.run(
@@ -412,6 +434,24 @@ def perform_external_action(
             raise ValueError("Изменение громкости голосом для этой ОС не настроено.")
         return {"location": "audio", "path": str(level), "reply": f"Громкость установлена на {level} процентов."}
 
+    if intent == "adjust_volume":
+        try:
+            delta = max(-100, min(100, int(str(target or "0"))))
+        except ValueError as exc:
+            raise ValueError("Изменение громкости должно быть числом.") from exc
+        if sys.platform == "win32":
+            endpoint = _windows_audio_endpoint()
+            level = round(endpoint.GetMasterVolumeLevelScalar() * 100)
+            level = max(0, min(100, level + delta))
+            endpoint.SetMasterVolumeLevelScalar(level / 100.0, None)
+        elif sys.platform == "darwin":
+            current = int(_run_osascript("output volume of (get volume settings)"))
+            level = max(0, min(100, current + delta))
+            _run_osascript(f"set volume output volume {level}")
+        else:
+            raise ValueError("Изменение громкости голосом для этой ОС не настроено.")
+        return {"location": "audio", "path": str(level), "reply": f"Громкость теперь {level} процентов."}
+
     if intent == "mute_audio":
         muted = str(target or "on").lower() == "on"
         if sys.platform == "darwin":
@@ -421,6 +461,20 @@ def perform_external_action(
         else:
             raise ValueError("Управление звуком голосом для этой ОС не настроено.")
         return {"location": "audio", "path": "muted" if muted else "unmuted", "reply": "Звук выключен." if muted else "Звук включён."}
+
+    if intent in {"set_brightness", "adjust_brightness"}:
+        try:
+            requested = int(str(target or "0"))
+        except ValueError as exc:
+            raise ValueError("Яркость должна быть числом от 0 до 100.") from exc
+        if sys.platform == "win32":
+            level = requested if intent == "set_brightness" else _windows_brightness() + requested
+            level = _windows_brightness(max(0, min(100, level)))
+        elif sys.platform == "darwin":
+            raise ValueError("Управление яркостью голосом на macOS пока не настроено.")
+        else:
+            raise ValueError("Управление яркостью для этой ОС пока не настроено.")
+        return {"location": "display", "path": str(level), "reply": f"Яркость установлена на {level} процентов."}
 
     if intent == "minimize_window":
         if sys.platform == "win32":
@@ -565,6 +619,52 @@ def native_agent_status() -> dict[str, Any]:
     }
 
 
+def input_devices() -> list[dict[str, Any]]:
+    """Return local microphone choices without recording audio."""
+    try:
+        import sounddevice as sd
+
+        devices = []
+        seen_names: set[str] = set()
+        for index, device in enumerate(sd.query_devices()):
+            if int(device.get("max_input_channels", 0)) < 1:
+                continue
+            name = str(device.get("name") or f"Микрофон {index}").strip()
+            normalized_name = name.casefold()
+            if normalized_name in seen_names:
+                continue
+            seen_names.add(normalized_name)
+            devices.append({
+                "id": str(index),
+                "name": name,
+                "channels": int(device.get("max_input_channels", 1)),
+                "sample_rate": int(float(device.get("default_samplerate") or 16000)),
+            })
+        return devices
+    except Exception:
+        return []
+
+
+@lru_cache(maxsize=1)
+def _shared_vosk_model():
+    from vosk import Model
+
+    return Model(str(model_path()))
+
+
+def transcribe_pcm(payload: bytes, sample_rate: int = 16000) -> str:
+    """Transcribe mono signed 16-bit PCM captured from the selected UI device."""
+    if not payload or len(payload) < 3200:
+        return ""
+    if len(payload) > 16000 * 2 * 30:
+        raise ValueError("Запись слишком длинная. Говори не дольше 30 секунд.")
+    from vosk import KaldiRecognizer
+
+    recognizer = KaldiRecognizer(_shared_vosk_model(), int(sample_rate))
+    recognizer.AcceptWaveform(payload)
+    return normalize_text(json.loads(recognizer.FinalResult()).get("text", ""))
+
+
 def application_command() -> list[str]:
     override = os.environ.get("REFORM_LIFE_AUTOSTART_COMMAND")
     if override:
@@ -654,6 +754,7 @@ def run_native_agent(
     server_url: str = "http://127.0.0.1:8765",
     wake_word: str | None = None,
     continuous_dialog: bool = True,
+    device: str | int | None = None,
     stop_event: Any = None,
 ) -> None:
     """Run a local Vosk wake-word loop until the process is stopped."""
@@ -692,7 +793,10 @@ def run_native_agent(
 
     conversation_recognizer = None
     conversation_deadline = 0.0
-    with sd.RawInputStream(samplerate=16000, blocksize=4000, dtype="int16", channels=1, callback=callback):
+    selected_device: int | str | None = None
+    if str(device or "").strip():
+        selected_device = int(str(device)) if str(device).isdigit() else str(device)
+    with sd.RawInputStream(samplerate=16000, blocksize=4000, dtype="int16", channels=1, device=selected_device, callback=callback):
         while not (stop_event and stop_event.is_set()):
             if conversation_recognizer is not None and time.monotonic() >= conversation_deadline:
                 conversation_recognizer = None

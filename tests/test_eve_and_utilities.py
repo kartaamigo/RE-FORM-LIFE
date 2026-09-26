@@ -35,7 +35,7 @@ class EveParserTests(unittest.TestCase):
 
     def test_personal_voice_profile_has_female_samples_and_valid_wav(self):
         self.assertEqual(build_profile(), "personal")
-        self.assertEqual([voice["id"] for voice in available_tts_voices()], ["xenia", "kseniya", "baya"])
+        self.assertEqual([voice["id"] for voice in available_tts_voices()], ["eve-suit", "xenia", "kseniya", "baya"])
         payload = _write_pcm_wav([0.0, 0.25, -0.25], 48000)
         import wave
         import io
@@ -96,6 +96,18 @@ class EveParserTests(unittest.TestCase):
         self.assertEqual(parse_command("поставь громкость на 40").intent, "set_volume")
         self.assertEqual(parse_command("выключи Wi-Fi").intent, "toggle_wifi")
         self.assertEqual(parse_command("выключи компьютер на Mac").intent, "shutdown")
+
+    def test_display_audio_and_file_creation_commands_are_parsed(self):
+        quieter = parse_command("убавь громкость на 10")
+        self.assertEqual((quieter.intent, quieter.target), ("adjust_volume", "-10"))
+        brighter = parse_command("увеличь яркость на 15")
+        self.assertEqual((brighter.intent, brighter.target), ("adjust_brightness", "15"))
+        brightness = parse_command("поставь яркость на 60")
+        self.assertEqual((brightness.intent, brightness.target), ("set_brightness", "60"))
+        created = parse_command("создай файл Documents/заметка.txt с текстом купить молоко")
+        self.assertEqual(created.intent, "create_file")
+        self.assertEqual(created.target, "Documents/заметка.txt")
+        self.assertEqual(created.content, "купить молоко")
 
     def test_voice_typos_and_recognition_alternatives_resolve_to_commands(self):
         typo = parse_command("аткрой ютуб")
@@ -248,6 +260,31 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         cleared = self.client.delete("/api/assistant/history")
         self.assertEqual(cleared.status_code, 200)
         self.assertEqual(self.client.get("/api/assistant/history").get_json()["messages"], [])
+
+    def test_separate_chat_never_executes_commands(self):
+        with patch.object(app_module, "generate_local_reply", return_value="Привет! У меня всё хорошо."), patch.object(
+            app_module, "perform_external_action"
+        ) as external:
+            response = self.client.post("/api/assistant/chat", json={"text": "Открой Ютуб и расскажи, как дела"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["action"], "conversation_reply")
+        external.assert_not_called()
+        history = self.client.get("/api/assistant/chat/history").get_json()["messages"]
+        self.assertEqual([item["role"] for item in history], ["user", "assistant"])
+
+    def test_brightness_volume_and_file_request_use_safe_paths(self):
+        with patch.object(app_module, "perform_external_action", return_value={"location": "display", "path": "60", "reply": "Яркость установлена."}) as external:
+            response = self.client.post("/api/assistant/command", json={"text": "поставь яркость на 60"})
+        self.assertEqual(response.get_json()["action"], "set_brightness")
+        external.assert_called_once_with("set_brightness", "60")
+
+        request = self.client.post(
+            "/api/assistant/command",
+            json={"text": "создай файл Documents/заметка.txt с текстом купить молоко"},
+        ).get_json()
+        self.assertEqual(request["action"], "needs_confirmation")
+        pending = app_module.assistant_pending_actions[request["confirmation_id"]]
+        self.assertEqual(pending["content"], "купить молоко")
 
     def test_eve_remembers_lists_forgets_and_uses_personal_facts(self):
         remembered = self.client.post(
@@ -556,7 +593,7 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.mimetype, "audio/wav")
         self.assertEqual(response.data, wav_payload)
-        synthesize.assert_called_once_with("Проверка голоса", "xenia")
+        synthesize.assert_called_once_with("Проверка голоса", "eve-suit")
 
 
 if __name__ == "__main__":

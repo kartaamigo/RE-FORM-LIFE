@@ -293,6 +293,7 @@ def build_profile() -> str:
 def available_tts_voices() -> list[dict[str, str]]:
     if build_profile() == "personal":
         return [
+            {"id": "eve-suit", "name": "EVE Suit · спокойный ироничный"},
             {"id": "xenia", "name": "Xenia · тёплый женский"},
             {"id": "kseniya", "name": "Kseniya · мягкий женский"},
             {"id": "baya", "name": "Baya · выразительный женский"},
@@ -495,6 +496,9 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
     if profile == "personal":
         model, _ = _load_silero_model(str(model_path))
         speaker = str(voice_name or "xenia").lower()
+        suit_style = speaker == "eve-suit"
+        if suit_style:
+            speaker = "xenia"
         if speaker not in SILERO_VOICES:
             raise LocalProviderError("В личной сборке доступны только выбранные женские голоса Silero.")
         try:
@@ -507,6 +511,15 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
             )
         except Exception as exc:
             raise LocalProviderError(f"Silero V5 не смог синтезировать речь: {exc}") from exc
+        if suit_style:
+            # A small, original timbre treatment: calmer/lower delivery with
+            # light compression. It does not reproduce any real actor's voice.
+            import numpy as np
+
+            values = samples.detach().float().cpu().numpy() if hasattr(samples, "detach") else np.asarray(samples)
+            source = np.arange(values.size, dtype=np.float32)
+            target = np.linspace(0, max(0, values.size - 1), int(values.size * 1.04), dtype=np.float32)
+            samples = np.tanh(np.interp(target, source, values) * 1.08) / np.tanh(1.08)
         return _write_pcm_wav(samples, 48000)
 
     import torch

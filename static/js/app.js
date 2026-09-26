@@ -1013,6 +1013,7 @@ async function initAssistantChat() {
   const historyKey = 'reform-life.eve-chat.v1';
   const maxHistoryMessages = 2000;
   const state = { log: [], pendingConfirmation: null };
+  const talkState = { log: [] };
   const status = $('#assistantStatus');
   const interim = $('#assistantInterim');
   const commandInput = $('#assistantCommand');
@@ -1021,6 +1022,7 @@ async function initAssistantChat() {
   const autoStartToggle = $('#assistantAutoStartToggle');
   const wakeWordSelect = $('#assistantWakeWord');
   const voiceLangSelect = $('#assistantVoiceLang');
+  const microphoneSelect = $('#assistantMicrophone');
   const localLlmToggle = $('#assistantLocalLlmToggle');
   const localTtsToggle = $('#assistantLocalTtsToggle');
   const continuousDialogToggle = $('#assistantContinuousDialogToggle');
@@ -1032,6 +1034,7 @@ async function initAssistantChat() {
   const nativeStatus = $('#assistantNativeStatus');
   const localStatus = $('#assistantLocalStatus');
   const recognitionType = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const localCaptureSupported = Boolean(navigator.mediaDevices?.getUserMedia && (window.AudioContext || window.webkitAudioContext));
   let recognition = null;
   let listening = false;
   let pendingTranscript = '';
@@ -1048,6 +1051,7 @@ async function initAssistantChat() {
   let continuousDialogEnabled = true;
   let interruptResponsesEnabled = false;
   let pendingAlternatives = [];
+  let localCaptureStop = null;
 
   try {
     const stored = JSON.parse(window.localStorage.getItem(historyKey) || '[]');
@@ -1105,6 +1109,46 @@ async function initAssistantChat() {
       URL.revokeObjectURL(localTtsUrl);
       localTtsUrl = null;
     }
+  };
+
+  const renderTalkLog = () => {
+    const root = $('#assistantTalkLog');
+    if (!root) return;
+    root.innerHTML = talkState.log.length
+      ? talkState.log.map(item => `<div class="assistant-log-item ${item.role}"><span class="assistant-log-avatar">${item.role === 'user' ? 'Я' : '✦'}</span><div><small>${item.role === 'user' ? 'Ты' : 'Эва'}</small><p>${escapeHtml(item.text)}</p></div></div>`).join('')
+      : '<div class="assistant-log-empty">Напиши «Привет, как дела?» или спроси, что нового сегодня.</div>';
+    root.scrollTop = root.scrollHeight;
+  };
+
+  const sendTalkMessage = async () => {
+    const input = $('#assistantTalkInput');
+    const talkStatus = $('#assistantTalkStatus');
+    const text = String(input?.value || '').trim();
+    if (!text) return;
+    talkState.log.push({ role: 'user', text });
+    input.value = '';
+    input.style.height = 'auto';
+    renderTalkLog();
+    if (talkStatus) talkStatus.textContent = 'EVE думает…';
+    try {
+      const result = await api('/api/assistant/chat', { method: 'POST', body: JSON.stringify({ text }) });
+      talkState.log.push({ role: 'assistant', text: result.reply });
+      renderTalkLog();
+      if (talkStatus) talkStatus.textContent = 'Это окно только для беседы — команды здесь не выполняются.';
+      await speak(result.reply);
+    } catch (error) {
+      talkState.log.push({ role: 'assistant', text: error.message || 'Не получилось ответить.' });
+      renderTalkLog();
+      if (talkStatus) talkStatus.textContent = 'Проверь, что локальная DeepSeek запущена.';
+    }
+  };
+
+  const loadTalkHistory = async () => {
+    try {
+      const result = await api('/api/assistant/chat/history?limit=2000');
+      talkState.log = Array.isArray(result.messages) ? result.messages.map(item => ({ role: item.role, text: item.text })) : [];
+      renderTalkLog();
+    } catch (_error) { renderTalkLog(); }
   };
 
   const speak = async text => {
@@ -1187,6 +1231,7 @@ async function initAssistantChat() {
     window.clearTimeout(conversationStartTimer);
     window.clearTimeout(conversationExpiryTimer);
     if (listening) recognition?.stop();
+    if (listening && localCaptureStop) localCaptureStop(false);
     if (message && status) status.textContent = message;
     updateConversationUi();
   };
@@ -1201,13 +1246,17 @@ async function initAssistantChat() {
 
   const startConversationListening = (delay = 500) => {
     window.clearTimeout(conversationStartTimer);
-    if (!conversationActive || !recognition || !enabledToggle?.checked) return;
+    if (!conversationActive || (!recognition && !localCaptureSupported) || !enabledToggle?.checked) return;
     if (conversationDeadline && Date.now() >= conversationDeadline) {
       finishConversation('Диалог завершён после паузы. Нажми на микрофон, чтобы продолжить.');
       return;
     }
     conversationStartTimer = window.setTimeout(() => {
       if (!conversationActive || listening) return;
+      if (localCaptureSupported) {
+        startLocalCapture();
+        return;
+      }
       pendingTranscript = '';
       try { recognition.start(); } catch (_error) { /* An active browser session will restart on its end. */ }
     }, delay);
@@ -1243,7 +1292,7 @@ async function initAssistantChat() {
   };
 
   const renderAssistantSupport = settings => {
-    const browserReady = Boolean(recognitionType);
+    const browserReady = Boolean(recognitionType || localCaptureSupported);
     const enabled = Boolean(enabledToggle?.checked);
     if (micButton) micButton.disabled = !enabled || !browserReady;
     if (!enabled) {
@@ -1265,12 +1314,21 @@ async function initAssistantChat() {
       const local = statusResult.assistant?.local || {};
       const cloud = statusResult.assistant?.cloud || {};
       const voices = Array.isArray(local.tts?.voices) ? local.tts.voices : [];
+      const microphones = Array.isArray(statusResult.assistant?.microphones) ? statusResult.assistant.microphones : [];
       nativeReady = Boolean(native.ready);
       localTtsReady = Boolean(settings.local_tts_enabled && local.tts?.ready);
       if (enabledToggle) enabledToggle.checked = Boolean(settings.enabled);
       if (autoStartToggle) autoStartToggle.checked = Boolean(settings.auto_start);
       if (wakeWordSelect) wakeWordSelect.value = settings.wake_word || 'эва';
       if (voiceLangSelect) voiceLangSelect.value = settings.voice_lang || 'ru-RU';
+      if (microphoneSelect) {
+        microphoneSelect.replaceChildren(new Option('Системный по умолчанию', ''), ...microphones.map(item => {
+          const option = new Option(item.name, item.id);
+          option.dataset.deviceName = item.name;
+          return option;
+        }));
+        microphoneSelect.value = settings.microphone_device || '';
+      }
       if (localLlmToggle) localLlmToggle.checked = Boolean(settings.local_llm_enabled);
       if (localTtsToggle) localTtsToggle.checked = Boolean(settings.local_tts_enabled);
       continuousDialogEnabled = settings.continuous_dialog !== false;
@@ -1410,7 +1468,93 @@ async function initAssistantChat() {
     }
   };
 
-  if (recognitionType) {
+  const pcmBlob = (chunks, inputRate) => {
+    const length = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+    const merged = new Float32Array(length);
+    let offset = 0;
+    chunks.forEach(chunk => { merged.set(chunk, offset); offset += chunk.length; });
+    const ratio = inputRate / 16000;
+    const output = new Int16Array(Math.max(1, Math.floor(merged.length / ratio)));
+    for (let index = 0; index < output.length; index += 1) {
+      const start = Math.floor(index * ratio);
+      const end = Math.min(merged.length, Math.floor((index + 1) * ratio));
+      let sum = 0;
+      for (let source = start; source < end; source += 1) sum += merged[source];
+      const value = Math.max(-1, Math.min(1, sum / Math.max(1, end - start)));
+      output[index] = value < 0 ? value * 32768 : value * 32767;
+    }
+    return new Blob([output.buffer], { type: 'application/octet-stream' });
+  };
+
+  const startLocalCapture = async () => {
+    if (!localCaptureSupported || listening) return;
+    stopSpeech();
+    const audioOptions = { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true };
+    try {
+      let stream = await navigator.mediaDevices.getUserMedia({ audio: audioOptions });
+      const selectedName = microphoneSelect?.selectedOptions?.[0]?.dataset?.deviceName || '';
+      if (selectedName) {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const normalizedName = selectedName.toLocaleLowerCase();
+        const selected = devices.find(item => item.kind === 'audioinput' && (item.label.toLocaleLowerCase() === normalizedName || item.label.toLocaleLowerCase().includes(normalizedName) || normalizedName.includes(item.label.toLocaleLowerCase())));
+        if (selected?.deviceId) {
+          stream.getTracks().forEach(track => track.stop());
+          stream = await navigator.mediaDevices.getUserMedia({ audio: { ...audioOptions, deviceId: { exact: selected.deviceId } } });
+        }
+      }
+      const AudioContextType = window.AudioContext || window.webkitAudioContext;
+      const context = new AudioContextType();
+      const source = context.createMediaStreamSource(stream);
+      const processor = context.createScriptProcessor(4096, 1, 1);
+      const chunks = [];
+      let heardSpeech = false;
+      let lastVoiceAt = performance.now();
+      let stopped = false;
+      listening = true;
+      updateConversationUi();
+      if (status) status.textContent = 'Слушаю выбранный микрофон…';
+      if (interim) interim.textContent = 'Говори свободно. После короткой паузы EVE распознает фразу.';
+      const finish = async transcribe => {
+        if (stopped) return;
+        stopped = true;
+        localCaptureStop = null;
+        processor.disconnect(); source.disconnect(); stream.getTracks().forEach(track => track.stop());
+        await context.close();
+        listening = false; updateConversationUi();
+        if (!transcribe || !chunks.length) return;
+        if (status) status.textContent = 'Распознаю голос локально…';
+        try {
+          const response = await fetch('/api/assistant/transcribe?sample_rate=16000', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: pcmBlob(chunks, context.sampleRate) });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || 'Не удалось распознать голос.');
+          if (result.text) execute(result.text, 'local_voice');
+          else {
+            if (status) status.textContent = 'Речь не распознана. Проверь выбранный микрофон и попробуй ещё раз.';
+            if (conversationActive) startConversationListening(700);
+          }
+        } catch (error) {
+          if (status) status.textContent = error.message || 'Не удалось распознать голос.';
+        }
+      };
+      localCaptureStop = finish;
+      processor.onaudioprocess = event => {
+        const data = new Float32Array(event.inputBuffer.getChannelData(0));
+        chunks.push(data);
+        let energy = 0;
+        for (let index = 0; index < data.length; index += 1) energy += data[index] * data[index];
+        const rms = Math.sqrt(energy / data.length);
+        if (rms > 0.018) { heardSpeech = true; lastVoiceAt = performance.now(); }
+        if (heardSpeech && performance.now() - lastVoiceAt > 1300) finish(true);
+      };
+      source.connect(processor); processor.connect(context.destination);
+      window.setTimeout(() => finish(true), 15000);
+    } catch (error) {
+      listening = false; updateConversationUi();
+      if (status) status.textContent = error.name === 'NotAllowedError' ? 'Доступ к микрофону запрещён в Windows или настройках приложения.' : `Не удалось открыть выбранный микрофон: ${error.message}`;
+    }
+  };
+
+  if (!localCaptureSupported && recognitionType) {
     recognition = new recognitionType();
     recognition.lang = 'ru-RU'; recognition.interimResults = true; recognition.continuous = false; recognition.maxAlternatives = 5;
     recognition.onstart = () => { listening = true; pendingTranscript = ''; pendingAlternatives = []; updateConversationUi(); if (status) status.textContent = 'Слушаю…'; if (interim) interim.textContent = 'Говори свободно — я сверю несколько вариантов распознавания.'; };
@@ -1449,7 +1593,11 @@ async function initAssistantChat() {
   }
 
   micButton?.addEventListener('click', () => {
-    if (!recognition || !enabledToggle?.checked) return;
+    if ((!recognition && !localCaptureSupported) || !enabledToggle?.checked) return;
+    if (localCaptureSupported && listening && localCaptureStop) {
+      localCaptureStop(true);
+      return;
+    }
     if (conversationActive) {
       finishConversation('Разговор завершён. Нажми на микрофон, чтобы продолжить.');
       stopSpeech();
@@ -1460,9 +1608,19 @@ async function initAssistantChat() {
     armConversationWindow();
     updateConversationUi();
     if (status) status.textContent = 'Разговор начался. Скажи, что у тебя на уме.';
-    startConversationListening();
+    startConversationListening(0);
   });
   $('#assistantSend')?.addEventListener('click', () => execute(commandInput?.value));
+  $('#assistantTalkSend')?.addEventListener('click', sendTalkMessage);
+  $('#assistantTalkInput')?.addEventListener('input', event => { event.target.style.height = 'auto'; event.target.style.height = `${Math.min(Math.max(event.target.scrollHeight, 44), 132)}px`; });
+  $('#assistantTalkInput')?.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendTalkMessage(); } });
+  $('#assistantTalkClear')?.addEventListener('click', async () => {
+    try {
+      await api('/api/assistant/chat/history', { method: 'DELETE' });
+      talkState.log = []; renderTalkLog();
+      if ($('#assistantTalkStatus')) $('#assistantTalkStatus').textContent = 'Диалог очищен. Можно начать новую беседу.';
+    } catch (error) { showToast(error.message, true); }
+  });
   commandInput?.addEventListener('input', resizeComposer);
   commandInput?.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); execute(commandInput.value); } });
   $('#assistantStopSpeech')?.addEventListener('click', () => {
@@ -1494,6 +1652,8 @@ async function initAssistantChat() {
   autoStartToggle?.addEventListener('change', () => saveAssistantSetting('auto_start', autoStartToggle.checked));
   wakeWordSelect?.addEventListener('change', () => saveAssistantSetting('wake_word', wakeWordSelect.value));
   voiceLangSelect?.addEventListener('change', () => { if (recognition) recognition.lang = voiceLangSelect.value; saveAssistantSetting('voice_lang', voiceLangSelect.value); });
+  microphoneSelect?.addEventListener('change', () => saveAssistantSetting('microphone_device', microphoneSelect.value));
+  $('#assistantRefreshMicrophones')?.addEventListener('click', loadAssistantSettings);
   localLlmToggle?.addEventListener('change', () => saveAssistantSetting('local_llm_enabled', localLlmToggle.checked));
   localTtsToggle?.addEventListener('change', () => saveAssistantSetting('local_tts_enabled', localTtsToggle.checked));
   continuousDialogToggle?.addEventListener('change', () => saveAssistantSetting('continuous_dialog', continuousDialogToggle.checked));
@@ -1535,13 +1695,15 @@ async function initAssistantChat() {
     }
   });
   window.speechSynthesis?.addEventListener('voiceschanged', () => window.speechSynthesis.getVoices());
-  window.addEventListener('beforeunload', () => { if (listening) recognition?.stop(); stopSpeech(); }, { once: true });
+  window.addEventListener('beforeunload', () => { if (listening) recognition?.stop(); if (localCaptureStop) localCaptureStop(false); stopSpeech(); }, { once: true });
 
   pageRefresh = () => {};
   window.refreshCurrentPage = () => {};
   renderLog();
+  renderTalkLog();
   resizeComposer();
   await loadAssistantHistory();
+  await loadTalkHistory();
   await loadAssistantSettings();
   await loadMemoryStatus();
 }

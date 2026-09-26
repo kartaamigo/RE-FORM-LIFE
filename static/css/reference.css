@@ -2041,8 +2041,19 @@ body[data-page="week"] .legacy-date-badge {
 
 .assistant-content-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 290px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 18px;
+}
+
+.assistant-tools-column {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.assistant-conversation-panel {
+  border-color: rgba(53, 201, 138, .28);
+  box-shadow: inset 0 1px rgba(53, 201, 138, .08);
 }
 
 .assistant-plan-panel,

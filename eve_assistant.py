@@ -59,6 +59,7 @@ class ParsedCommand:
     value_text: str = ""
     browser: str = ""
     search_engine: str = ""
+    content: str = ""
 
 
 COMMAND_WORDS = (
@@ -66,6 +67,7 @@ COMMAND_WORDS = (
     "добавь", "создай", "запиши", "запланируй", "отметь", "заверши",
     "выполни", "перенеси", "передвинь", "поставь", "установи", "сделай",
     "включи", "выключи", "расскажи",
+    "увеличь", "прибавь", "повысь", "уменьши", "убавь", "понизь",
     "запомни", "сохрани", "забудь", "удали",
 )
 
@@ -349,10 +351,25 @@ def parse_command(value: str, today: date | None = None) -> ParsedCommand:
     volume_match = re.match(r"^(?:поставь|установи|сделай)\s+(?:громкость|звук)\s+(?:на\s+)?(\d{1,3})\s*(?:%|процент(?:а|ов)?)?$", command)
     if volume_match:
         return ParsedCommand("set_volume", raw, target=volume_match.group(1))
+    volume_adjust = re.match(r"^(?:сделай\s+)?(?:звук|громкость)\s+(громче|тише)(?:\s+на\s+(\d{1,3}))?(?:\s*%)?$", command)
+    if volume_adjust:
+        step = int(volume_adjust.group(2) or 10)
+        return ParsedCommand("adjust_volume", raw, target=str(step if volume_adjust.group(1) == "громче" else -step))
+    volume_adjust_verb = re.match(r"^(увеличь|прибавь|повысь|уменьши|убавь|понизь)\s+(?:громкость|звук)(?:\s+на\s+(\d{1,3}))?(?:\s*%)?$", command)
+    if volume_adjust_verb:
+        step = int(volume_adjust_verb.group(2) or 10)
+        return ParsedCommand("adjust_volume", raw, target=str(step if volume_adjust_verb.group(1) in {"увеличь", "прибавь", "повысь"} else -step))
     if re.match(r"^(?:выключи|отключи|заглуши)\s+(?:звук|микрофон)$", command):
         return ParsedCommand("mute_audio", raw, target="on")
     if re.match(r"^(?:включи|верни)\s+(?:звук|аудио)$", command):
         return ParsedCommand("mute_audio", raw, target="off")
+    brightness_match = re.match(r"^(?:поставь|установи|сделай)\s+яркость\s+(?:на\s+)?(\d{1,3})\s*(?:%|процент(?:а|ов)?)?$", command)
+    if brightness_match:
+        return ParsedCommand("set_brightness", raw, target=brightness_match.group(1))
+    brightness_adjust = re.match(r"^(увеличь|прибавь|повысь|уменьши|убавь|понизь)\s+яркость(?:\s+на\s+(\d{1,3}))?(?:\s*%)?$", command)
+    if brightness_adjust:
+        step = int(brightness_adjust.group(2) or 10)
+        return ParsedCommand("adjust_brightness", raw, target=str(step if brightness_adjust.group(1) in {"увеличь", "прибавь", "повысь"} else -step))
     if re.search(r"\b(?:сверни|минимизируй)\s+(?:текущее\s+)?окно\b", command):
         return ParsedCommand("minimize_window", raw)
     if re.search(r"\b(?:статус|состояние)\s+(?:вайфай|wi[- ]?fi|wifi)\b", command):
@@ -428,7 +445,19 @@ def parse_command(value: str, today: date | None = None) -> ParsedCommand:
     terminal_match = re.match(r"^(?:выполни(?:\s+команду)?|терминал(?:\s+выполни)?)\s+(.+)$", command)
     if terminal_match:
         return ParsedCommand("run_terminal", raw, target=terminal_match.group(1).strip())
-    folder_create_match = re.match(r"^(?:создай|сделай)\s+папку\s+(.+)$", command)
+    file_create_match = re.match(
+        r"^(?:создай|сделай)\s+файл\s+(?P<path>.+?)(?:\s+с\s+текстом\s+(?P<content>.+)|$)",
+        raw_command_preserved,
+        flags=re.IGNORECASE,
+    )
+    if file_create_match:
+        return ParsedCommand(
+            "create_file",
+            raw,
+            target=file_create_match.group("path").strip(),
+            content=(file_create_match.group("content") or "").strip(),
+        )
+    folder_create_match = re.match(r"^(?:создай|сделай)\s+папку\s+(.+)$", raw_command_preserved, flags=re.IGNORECASE)
     if folder_create_match:
         return ParsedCommand("create_folder", raw, target=folder_create_match.group(1).strip())
     app_match = re.match(r"^(?:открой|запусти)\s+(.+)$", command)
