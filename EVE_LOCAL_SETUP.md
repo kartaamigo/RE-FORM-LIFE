@@ -80,6 +80,12 @@ the full Hugging Face snapshot as a normal directory (not only a cache
 symlink). The personal source directory must contain upstream `hubconf.py` and
 the downloaded `.pt` checkpoint.
 
+To try the original EVE voice directly from source without building a portable
+app, launch the project with its commercial TTS dependencies and set
+`EVE_BUILD_PROFILE=commercial` plus `EVE_QWEN_MODEL_DIR` to the local VoiceDesign
+snapshot. These source-run variables do not override a packaged build's
+license profile.
+
 Example PowerShell build selection:
 
 ```powershell

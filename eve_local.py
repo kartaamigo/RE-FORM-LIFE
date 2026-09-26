@@ -274,6 +274,10 @@ def generate_cloud_reply(
 def build_profile() -> str:
     """Read the profile bundled by the packager; source runs default to personal."""
 
+    if not getattr(sys, "frozen", False):
+        source_profile = os.environ.get("EVE_BUILD_PROFILE", "").strip().lower()
+        if source_profile in {"personal", "commercial"}:
+            return source_profile
     roots: list[Path] = []
     if getattr(sys, "frozen", False):
         roots.append(Path(getattr(sys, "_MEIPASS", Path.cwd())))

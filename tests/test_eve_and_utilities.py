@@ -57,8 +57,9 @@ class EveParserTests(unittest.TestCase):
         self.assertIn("Помню", reply)
 
     def test_personal_voice_profile_has_female_samples_and_valid_wav(self):
-        self.assertEqual(build_profile(), "personal")
-        self.assertEqual([voice["id"] for voice in available_tts_voices()], ["eve-suit", "xenia", "kseniya", "baya"])
+        with patch.dict("os.environ", {"EVE_BUILD_PROFILE": ""}):
+            self.assertEqual(build_profile(), "personal")
+            self.assertEqual([voice["id"] for voice in available_tts_voices()], ["eve-suit", "xenia", "kseniya", "baya"])
         payload = _write_pcm_wav([0.0, 0.25, -0.25], 48000)
         import wave
         import io
@@ -75,6 +76,8 @@ class EveParserTests(unittest.TestCase):
     def test_commercial_profile_exposes_only_qwen_voice(self):
         with patch("eve_local.build_profile", return_value="commercial"):
             self.assertEqual([voice["id"] for voice in available_tts_voices()], ["qwen-design"])
+        with patch.dict("os.environ", {"EVE_BUILD_PROFILE": "commercial"}), patch("eve_local.sys.frozen", False, create=True):
+            self.assertEqual(build_profile(), "commercial")
         profile = json.loads((Path(__file__).resolve().parents[1] / "build-profiles" / "commercial.json").read_text(encoding="utf-8"))
         self.assertEqual(profile["voice_instruction"], QWEN_VOICE_INSTRUCTION)
 
