@@ -13,7 +13,7 @@ from typing import Any
 from flask import Flask, Response, g, jsonify, redirect, render_template, request, url_for
 
 from eve_agent import configure_autostart, native_agent_status, perform_external_action
-from eve_assistant import normalize_text, parse_command
+from eve_assistant import choose_command_candidate, normalize_text, parse_command
 from eve_local import (
     DEFAULT_OLLAMA_MODEL,
     LocalProviderError,
@@ -1070,6 +1070,7 @@ def api_assistant_command():
     try:
         data = body()
         text = require_text(data.get("text"), "Команда", 500)
+        text = choose_command_candidate(text, data.get("alternatives"))
         g.assistant_command_text = text
         parsed = parse_command(text)
         if parsed.intent == "run_terminal":
@@ -1101,7 +1102,15 @@ def api_assistant_command():
             return jsonify({"ok": True, "action": "cancelled", "reply": "Команда отменена."})
         if parsed.intent in {"open_explorer", "open_browser", "open_application", "open_url", "search_web", "set_volume", "mute_audio", "minimize_window", "wifi_status"}:
             try:
-                opened = perform_external_action(parsed.intent, parsed.target)
+                if parsed.intent in {"open_browser", "open_url", "search_web"}:
+                    opened = perform_external_action(
+                        parsed.intent,
+                        parsed.target,
+                        browser=parsed.browser,
+                        search_engine=parsed.search_engine,
+                    )
+                else:
+                    opened = perform_external_action(parsed.intent, parsed.target)
             except (OSError, ValueError) as exc:
                 return json_error(str(exc))
             if opened.get("reply"):

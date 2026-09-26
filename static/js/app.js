@@ -1040,6 +1040,7 @@ async function initAssistantChat() {
   let speechResolve = null;
   let conversationActive = false;
   let conversationStartTimer = null;
+  let pendingAlternatives = [];
 
   try {
     const stored = JSON.parse(window.localStorage.getItem(historyKey) || '[]');
@@ -1295,7 +1296,7 @@ async function initAssistantChat() {
     }
   };
 
-  const execute = async (rawCommand, source = 'web') => {
+  const execute = async (rawCommand, source = 'web', alternatives = []) => {
     const raw = String(rawCommand || '').trim();
     if (!raw) return;
     if (listening && recognition) {
@@ -1328,7 +1329,7 @@ async function initAssistantChat() {
       }
     }
     try {
-      const result = await api('/api/assistant/command', { method: 'POST', body: JSON.stringify({ text: raw, source }) });
+      const result = await api('/api/assistant/command', { method: 'POST', body: JSON.stringify({ text: raw, source, alternatives }) });
       if (result.action === 'open_planner') {
         await answer(result.reply || 'Открываю недельный планер.');
         window.setTimeout(() => { window.location.href = result.target || '/week'; }, 420);
@@ -1351,11 +1352,17 @@ async function initAssistantChat() {
 
   if (recognitionType) {
     recognition = new recognitionType();
-    recognition.lang = 'ru-RU'; recognition.interimResults = true; recognition.continuous = false; recognition.maxAlternatives = 1;
-    recognition.onstart = () => { listening = true; pendingTranscript = ''; updateConversationUi(); if (status) status.textContent = 'Слушаю…'; if (interim) interim.textContent = 'Говори свободно — можно продолжать после каждого ответа.'; };
+    recognition.lang = 'ru-RU'; recognition.interimResults = true; recognition.continuous = false; recognition.maxAlternatives = 5;
+    recognition.onstart = () => { listening = true; pendingTranscript = ''; pendingAlternatives = []; updateConversationUi(); if (status) status.textContent = 'Слушаю…'; if (interim) interim.textContent = 'Говори свободно — я сверю несколько вариантов распознавания.'; };
     recognition.onresult = event => {
       let finalText = ''; let interimText = '';
-      for (let index = event.resultIndex; index < event.results.length; index += 1) { const phrase = event.results[index][0]?.transcript || ''; if (event.results[index].isFinal) finalText += phrase; else interimText += phrase; }
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        const phrase = event.results[index][0]?.transcript || '';
+        if (event.results[index].isFinal) {
+          finalText += phrase;
+          pendingAlternatives = Array.from(event.results[index]).slice(1, 5).map(item => item?.transcript?.trim()).filter(Boolean);
+        } else interimText += phrase;
+      }
       if (interimText && interim) interim.textContent = interimText;
       if (finalText.trim()) { pendingTranscript = finalText.trim(); if (interim) interim.textContent = pendingTranscript; }
     };
@@ -1369,8 +1376,10 @@ async function initAssistantChat() {
       listening = false;
       updateConversationUi();
       const transcript = pendingTranscript;
+      const alternatives = pendingAlternatives;
       pendingTranscript = '';
-      if (transcript) execute(transcript, 'browser_voice');
+      pendingAlternatives = [];
+      if (transcript) execute(transcript, 'browser_voice', alternatives);
       else if (conversationActive) startConversationListening();
       else if (!conversationActive && status?.textContent === 'Слушаю…') status.textContent = 'Команда не услышана. Нажми на микрофон, чтобы начать разговор.';
     };

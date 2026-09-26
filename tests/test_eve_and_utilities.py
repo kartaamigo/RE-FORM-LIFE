@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app as app_module
-from eve_assistant import parse_command
+from eve_assistant import choose_command_candidate, parse_command
 from eve_local import LocalProviderError, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
 
 
@@ -97,6 +97,38 @@ class EveParserTests(unittest.TestCase):
         self.assertEqual(parse_command("выключи Wi-Fi").intent, "toggle_wifi")
         self.assertEqual(parse_command("выключи компьютер на Mac").intent, "shutdown")
 
+    def test_voice_typos_and_recognition_alternatives_resolve_to_commands(self):
+        typo = parse_command("аткрой ютуб")
+        self.assertEqual(typo.intent, "open_url")
+        self.assertEqual(typo.target, "https://www.youtube.com")
+        selected = choose_command_candidate("неразборчивая фраза", ["открой ютуб", "открой видео"])
+        self.assertEqual(selected, "открой ютуб")
+
+    def test_weather_search_sites_and_named_browsers_are_parsed(self):
+        weather = parse_command("Какая погода в Москве")
+        self.assertEqual(weather.intent, "search_web")
+        self.assertEqual(weather.target, "погода в москве")
+        self.assertEqual(weather.search_engine, "yandex")
+
+        search = parse_command("Найди в Яндексе интересные места рядом")
+        self.assertEqual(search.intent, "search_web")
+        self.assertEqual(search.target, "интересные места рядом")
+        self.assertEqual(search.search_engine, "yandex")
+
+        browser_search = parse_command("Найди погоду через Google Chrome браузер")
+        self.assertEqual(browser_search.intent, "search_web")
+        self.assertEqual(browser_search.target, "погоду")
+        self.assertEqual(browser_search.browser, "chrome")
+
+        site = parse_command("Открой YouTube в Яндекс Браузере")
+        self.assertEqual(site.intent, "open_url")
+        self.assertEqual(site.target, "https://www.youtube.com")
+        self.assertEqual(site.browser, "yandex")
+
+        browser = parse_command("Открой Google Chrome браузер")
+        self.assertEqual(browser.intent, "open_browser")
+        self.assertEqual(browser.browser, "chrome")
+
 
 class PlannerAndUtilitiesApiTests(unittest.TestCase):
     def setUp(self):
@@ -166,6 +198,29 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(response.get_json()["action"], "open_explorer")
         self.assertIn("Загрузки", response.get_json()["reply"])
         open_action.assert_called_once_with("open_explorer", "загрузки")
+
+    def test_assistant_uses_voice_alternative_and_requested_browser(self):
+        with patch.object(
+            app_module,
+            "perform_external_action",
+            return_value={"location": "browser", "path": "https://www.youtube.com", "reply": "Открываю сайт."},
+        ) as open_action:
+            response = self.client.post(
+                "/api/assistant/command",
+                json={
+                    "text": "неразборчивая фраза",
+                    "alternatives": ["открой YouTube в Яндекс Браузере"],
+                    "source": "browser_voice",
+                },
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["action"], "open_url")
+        open_action.assert_called_once_with(
+            "open_url",
+            "https://www.youtube.com",
+            browser="yandex",
+            search_engine="",
+        )
 
     def test_assistant_history_is_stored_in_database(self):
         response = self.client.post(

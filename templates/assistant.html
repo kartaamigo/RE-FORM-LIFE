@@ -14,7 +14,7 @@
     <div class="assistant-hero-copy">
       <div class="section-kicker">EVE · ЭВА</div>
       <h2>Я рядом, говори</h2>
-      <p id="assistantStatus" role="status" aria-live="polite">Напиши сообщение или нажми на микрофон: EVE ответит, а после каждой реплики продолжит слушать.</p>
+      <p id="assistantStatus" role="status" aria-live="polite">Напиши сообщение или нажми на микрофон: EVE сверит варианты распознавания, поймёт близкое название и продолжит слушать.</p>
       <div class="assistant-hero-actions">
         <label class="assistant-speech-toggle"><input id="assistantSpeakToggle" type="checkbox" checked><span>Отвечать голосом</span></label>
         <label class="assistant-speech-toggle"><input id="assistantEnabledToggle" type="checkbox" checked><span>Включить EVE</span></label>
@@ -35,7 +35,7 @@
         <div class="assistant-log-empty">Здесь появится история ваших сообщений и ответов Эвы.</div>
       </div>
       <div class="assistant-command-row">
-        <textarea id="assistantCommand" rows="1" maxlength="500" autocomplete="off" placeholder="Например: добавь задачу в раздел задачи: доделать ДЗ, в стол Учёба" aria-label="Сообщение ассистенту"></textarea>
+        <textarea id="assistantCommand" rows="1" maxlength="500" autocomplete="off" placeholder="Спроси о погоде, попроси найти информацию или открыть сайт" aria-label="Сообщение ассистенту"></textarea>
         <button class="button primary" id="assistantSend" type="button">Отправить</button>
       </div>
       <div class="assistant-interim" id="assistantInterim" aria-live="polite">Эва готова выполнить твою команду.</div>
@@ -51,6 +51,10 @@
         <button type="button" class="assistant-example" data-assistant-example="Отметь задачу доделать ДЗ выполненной">«Отметь задачу выполненной»</button>
         <button type="button" class="assistant-example" data-assistant-example="Открой проводник в загрузки">«Открой проводник в Загрузки»</button>
         <button type="button" class="assistant-example" data-assistant-example="Запусти браузер">«Запусти браузер»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Какая погода в Москве">«Какая погода в Москве»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Найди в Яндексе интересные места рядом">«Найди в Яндексе интересные места рядом»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Открой YouTube в Яндекс Браузере">«Открой YouTube в Яндекс Браузере»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Открой Google Chrome браузер">«Открой Google Chrome браузер»</button>
         <button type="button" class="assistant-example" data-assistant-example="Сколько накоплено в личном">«Сколько накоплено в личном»</button>
         <button type="button" class="assistant-example" data-assistant-example="Покажи коммуналку">«Покажи коммуналку»</button>
         <button type="button" class="assistant-example" data-assistant-example="Запиши показание электричество 123">«Запиши показание электричество 123»</button>

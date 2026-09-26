@@ -15,6 +15,7 @@ import plistlib
 import queue
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import time
@@ -23,6 +24,7 @@ import urllib.parse
 import urllib.request
 import wave
 from pathlib import Path
+from difflib import SequenceMatcher
 from typing import Any
 
 from eve_assistant import normalize_text, strip_wake_word
@@ -59,6 +61,26 @@ MAC_APP_ALIASES = {
     "календарь": "Calendar",
     "музыка": "Music",
     "почта": "Mail",
+}
+
+BROWSER_LABELS = {
+    "yandex": "Яндекс Браузер",
+    "chrome": "Google Chrome",
+    "edge": "Microsoft Edge",
+    "firefox": "Mozilla Firefox",
+    "opera": "Opera",
+    "brave": "Brave",
+    "safari": "Safari",
+}
+
+BROWSER_EXECUTABLES = {
+    "yandex": ("browser.exe",),
+    "chrome": ("chrome.exe", "google-chrome", "google-chrome-stable"),
+    "edge": ("msedge.exe", "microsoft-edge"),
+    "firefox": ("firefox.exe", "firefox"),
+    "opera": ("opera.exe", "opera"),
+    "brave": ("brave.exe", "brave-browser"),
+    "safari": ("Safari",),
 }
 
 
@@ -143,13 +165,67 @@ def _windows_start_menu_shortcut(application: str) -> Path | None:
         Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs",
         Path(os.environ.get("PROGRAMDATA", "C:\\ProgramData")) / "Microsoft" / "Windows" / "Start Menu" / "Programs",
     )
+    shortcuts: list[Path] = []
     for root in roots:
         if not root.is_dir():
             continue
         for shortcut in root.rglob("*.lnk"):
             if normalize_text(shortcut.stem).replace("ё", "е") == requested:
                 return shortcut
+            shortcuts.append(shortcut)
+    # Speech recognition often changes one or two sounds in an application
+    # name. Accept a close Start-menu name, but never an arbitrary path.
+    ranked = sorted(
+        shortcuts,
+        key=lambda item: SequenceMatcher(None, requested, normalize_text(item.stem).replace("ё", "е")).ratio(),
+        reverse=True,
+    )
+    if ranked:
+        score = SequenceMatcher(None, requested, normalize_text(ranked[0].stem).replace("ё", "е")).ratio()
+        if score >= 0.74:
+            return ranked[0]
     return None
+
+
+def _browser_executable(browser: str) -> str | None:
+    for executable in BROWSER_EXECUTABLES.get(browser, ()):
+        located = shutil.which(executable)
+        if located:
+            return located
+    if sys.platform != "win32":
+        return None
+    local = Path(os.environ.get("LOCALAPPDATA", ""))
+    program_files = Path(os.environ.get("PROGRAMFILES", r"C:\Program Files"))
+    program_files_x86 = Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"))
+    known = {
+        "yandex": (local / "Yandex" / "YandexBrowser" / "Application" / "browser.exe",),
+        "chrome": (program_files / "Google" / "Chrome" / "Application" / "chrome.exe", program_files_x86 / "Google" / "Chrome" / "Application" / "chrome.exe"),
+        "edge": (program_files_x86 / "Microsoft" / "Edge" / "Application" / "msedge.exe", program_files / "Microsoft" / "Edge" / "Application" / "msedge.exe"),
+        "firefox": (program_files / "Mozilla Firefox" / "firefox.exe", program_files_x86 / "Mozilla Firefox" / "firefox.exe"),
+        "opera": (local / "Programs" / "Opera" / "opera.exe",),
+        "brave": (program_files / "BraveSoftware" / "Brave-Browser" / "Application" / "brave.exe",),
+    }
+    return next((str(path) for path in known.get(browser, ()) if path.is_file()), None)
+
+
+def _open_web_target(url: str, browser: str | None = None) -> str:
+    requested = str(browser or "").strip().lower()
+    if not requested:
+        import webbrowser
+
+        if not webbrowser.open(url, new=2):
+            raise OSError("Системный браузер не ответил.")
+        return "браузер по умолчанию"
+    if requested not in BROWSER_LABELS:
+        raise ValueError("Поддерживаются Яндекс Браузер, Chrome, Edge, Firefox, Opera, Brave и Safari.")
+    if sys.platform == "darwin":
+        subprocess.Popen(["open", "-a", BROWSER_LABELS[requested], url], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return BROWSER_LABELS[requested]
+    executable = _browser_executable(requested)
+    if not executable:
+        raise ValueError(f"Не нашла {BROWSER_LABELS[requested]} на этом компьютере.")
+    subprocess.Popen([executable, url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return BROWSER_LABELS[requested]
 
 
 def _send_file_to_trash(path: Path) -> None:
@@ -269,7 +345,13 @@ def _windows_active_window(intent: str) -> str:
     raise ValueError("Неизвестное действие с окном.")
 
 
-def perform_external_action(intent: str, target: str | None = None) -> dict[str, Any]:
+def perform_external_action(
+    intent: str,
+    target: str | None = None,
+    *,
+    browser: str | None = None,
+    search_engine: str | None = None,
+) -> dict[str, Any]:
     """Run one of EVE's deliberately small, non-destructive system actions.
 
     No shell, arbitrary executable, or user-supplied command is accepted here.
@@ -288,11 +370,8 @@ def perform_external_action(intent: str, target: str | None = None) -> dict[str,
         return {"location": location, "path": str(path)}
 
     if intent == "open_browser":
-        import webbrowser
-
-        if not webbrowser.open("about:blank", new=2):
-            raise OSError("Системный браузер не ответил.")
-        return {"location": "browser", "path": "about:blank"}
+        opened_with = _open_web_target("about:blank", browser)
+        return {"location": "browser", "path": "about:blank", "reply": f"Открываю {opened_with}."}
 
     if intent == "open_url":
         url = str(target or "").strip()
@@ -301,22 +380,22 @@ def perform_external_action(intent: str, target: str | None = None) -> dict[str,
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme not in {"http", "https"} or not parsed.netloc:
             raise ValueError("Эва открывает только веб-адреса http или https.")
-        import webbrowser
-
-        if not webbrowser.open(url, new=2):
-            raise OSError("Системный браузер не ответил.")
-        return {"location": "browser", "path": url}
+        opened_with = _open_web_target(url, browser)
+        return {"location": "browser", "path": url, "reply": f"Открываю сайт в {opened_with}."}
 
     if intent == "search_web":
         query = str(target or "").strip()
         if not query or len(query) > 240:
             raise ValueError("Скажи, что найти в интернете.")
-        import webbrowser
-
-        url = "https://www.google.com/search?" + urllib.parse.urlencode({"q": query})
-        if not webbrowser.open(url, new=2):
-            raise OSError("Системный браузер не ответил.")
-        return {"location": "browser", "path": url}
+        engines = {
+            "google": ("Google", "https://www.google.com/search?"),
+            "yandex": ("Яндексе", "https://yandex.ru/search/?"),
+            "bing": ("Bing", "https://www.bing.com/search?"),
+        }
+        engine_name, base_url = engines.get(str(search_engine or "google"), engines["google"])
+        url = base_url + urllib.parse.urlencode({"text" if search_engine == "yandex" else "q": query})
+        opened_with = _open_web_target(url, browser)
+        return {"location": "browser", "path": url, "reply": f"Ищу в {engine_name}: «{query}». Открываю результат в {opened_with}."}
 
     if intent == "set_volume":
         try:
