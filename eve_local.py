@@ -8,11 +8,13 @@ silently turn into a system action.
 from __future__ import annotations
 
 import io
+import hashlib
 import json
 import math
 import os
 import re
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 import wave
@@ -21,13 +23,58 @@ from pathlib import Path
 from typing import Any
 
 
-# Librosa ships a few numba helpers with source-file caching enabled. A
-# PyInstaller build executes those modules from its bundled importer, where
-# numba cannot resolve the original source locator and disables the whole TTS
-# runtime. JIT is not required by Qwen3-TTS itself, so disable it only in the
-# frozen app before qwen_tts/librosa can be imported.
-if getattr(sys, "frozen", False):
-    os.environ["NUMBA_DISABLE_JIT"] = "1"
+_NUMBA_CACHE_CONFIGURED = False
+
+
+def _configure_numba_cache() -> None:
+    """Give Numba a writable locator for modules bundled by PyInstaller.
+
+    Librosa contains a few cached Numba helpers. In a frozen application their
+    ``co_filename`` values point to virtual bundled paths such as
+    ``librosa\\core\\audio.py``. Those paths do not exist on disk, so the
+    normal Numba locators reject them before the first TTS request. Keep the
+    cache outside the temporary PyInstaller extraction directory and use the
+    executable as the source stamp, which makes the cache reusable between
+    launches while invalidating it after an application update.
+    """
+
+    global _NUMBA_CACHE_CONFIGURED
+    if _NUMBA_CACHE_CONFIGURED or not getattr(sys, "frozen", False):
+        return
+    try:
+        import numba.core.caching as numba_caching
+
+        executable = Path(sys.executable).resolve()
+        executable_key = hashlib.sha1(str(executable).encode("utf-8", "replace")).hexdigest()[:16]
+        cache_root = Path(tempfile.gettempdir()) / "RE-FORM LIFE" / "numba-cache" / executable_key
+
+        class FrozenCacheLocator(numba_caching.UserWideCacheLocator):
+            def __init__(self, py_func: Any, py_file: str):
+                self._py_file = py_file
+                self._lineno = py_func.__code__.co_firstlineno
+                file_key = hashlib.sha1(str(py_file).encode("utf-8", "replace")).hexdigest()
+                self._cache_path = str(cache_root / file_key)
+
+            @classmethod
+            def from_function(cls, py_func: Any, py_file: str):
+                self = cls(py_func, py_file)
+                try:
+                    self.ensure_cache_path()
+                except OSError:
+                    return None
+                return self
+
+        locator_classes = list(numba_caching.CacheImpl._locator_classes)
+        numba_caching.CacheImpl._locator_classes = [
+            FrozenCacheLocator,
+            *[locator for locator in locator_classes if locator is not FrozenCacheLocator],
+        ]
+        _NUMBA_CACHE_CONFIGURED = True
+    except Exception:
+        # TTS will report its normal dependency error if Numba is unavailable;
+        # do not make the optional status endpoint fail just while configuring
+        # this frozen-app compatibility path.
+        return
 
 
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
@@ -464,6 +511,8 @@ def _sample_voice_text(voice_name: str = "eve-sample") -> str:
 
 
 def _tts_package_status(profile: str) -> tuple[bool, str]:
+    if profile == "commercial":
+        _configure_numba_cache()
     try:
         import torch  # noqa: F401
     except Exception as exc:
@@ -548,6 +597,7 @@ def _load_silero_model(repo_path: str):
 @lru_cache(maxsize=2)
 def _load_qwen_model(model_path: str, device: str):
     try:
+        _configure_numba_cache()
         import torch
         from qwen_tts import Qwen3TTSModel
 
@@ -594,6 +644,7 @@ def _audio_samples_are_finite(samples: Any) -> bool:
 def _match_sample_pitch(samples: Any, sample_rate: int):
     """Keep the two sample-inspired voices near the reference's speaking pitch."""
 
+    _configure_numba_cache()
     import librosa
     import numpy as np
 
@@ -653,6 +704,8 @@ def _write_pcm_wav(samples: Any, sample_rate: int) -> bytes:
 
 
 def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_name: str | None = None) -> bytes:
+    if profile == "commercial":
+        _configure_numba_cache()
     if profile == "personal":
         model, _ = _load_silero_model(str(model_path))
         speaker = str(voice_name or "eve-suit").lower()
