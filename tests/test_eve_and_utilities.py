@@ -8,9 +8,14 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import parse_command
+from eve_local import strip_reasoning
 
 
 class EveParserTests(unittest.TestCase):
+    def test_local_reasoning_markup_is_not_shown_to_user(self):
+        self.assertEqual(strip_reasoning("<think>внутренний план</think>Готово."), "Готово.")
+        self.assertEqual(strip_reasoning("<think>незавершённое рассуждение"), "")
+
     def test_voice_command_keeps_time_and_resolves_relative_date(self):
         parsed = parse_command(
             "Эва, добавь задачу купить молоко на завтра в 19:30",
@@ -368,12 +373,44 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
             self.assertFalse(reset.get_json()["submitted"])
 
     def test_assistant_status_exposes_native_capability(self):
-        response = self.client.get("/api/assistant/status")
+        with patch.object(
+            app_module,
+            "local_providers_status",
+            return_value={
+                "llm": {"ready": True, "model": "deepseek-r1:8b"},
+                "tts": {"ready": True, "backend": "piper"},
+            },
+        ):
+            response = self.client.get("/api/assistant/status")
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()["assistant"]
         self.assertEqual(payload["display_name"], "EVE · Эва")
         self.assertIn("native", payload)
         self.assertIn("model_path", payload["native"])
+        self.assertTrue(payload["local"]["llm"]["ready"])
+        self.assertTrue(payload["local"]["tts"]["ready"])
+
+    def test_unknown_command_uses_local_model_without_executing_action(self):
+        with patch.object(app_module, "generate_local_reply", return_value="Я рядом и готова помочь.") as generate:
+            response = self.client.post(
+                "/api/assistant/command",
+                json={"text": "Расскажи мне что-нибудь интересное"},
+            )
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["action"], "local_llm_reply")
+        self.assertEqual(payload["provider"], "ollama")
+        self.assertEqual(payload["reply"], "Я рядом и готова помочь.")
+        generate.assert_called_once()
+
+    def test_local_tts_endpoint_returns_wav(self):
+        wav_payload = b"RIFF\x00\x00\x00\x00WAVE"
+        with patch.object(app_module, "synthesize_speech", return_value=wav_payload) as synthesize:
+            response = self.client.post("/api/assistant/tts", json={"text": "Проверка голоса"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.mimetype, "audio/wav")
+        self.assertEqual(response.data, wav_payload)
+        synthesize.assert_called_once_with("Проверка голоса")
 
 
 if __name__ == "__main__":
