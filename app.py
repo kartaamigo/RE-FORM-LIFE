@@ -6,6 +6,7 @@ import sqlite3
 import subprocess
 import sys
 import uuid
+from difflib import SequenceMatcher
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
@@ -50,6 +51,9 @@ DEFAULT_ASSISTANT_SETTINGS = {
     "local_llm_enabled": "1",
     "local_tts_enabled": "1",
     "local_llm_model": DEFAULT_OLLAMA_MODEL,
+    "continuous_dialog": "1",
+    "interrupt_responses": "0",
+    "personalization_enabled": "1",
 }
 
 ASSISTANT_WAKE_WORDS = {"эва", "ева", "eve"}
@@ -291,6 +295,14 @@ CREATE TABLE IF NOT EXISTS assistant_history (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_assistant_history_id ON assistant_history(id);
+
+CREATE TABLE IF NOT EXISTS assistant_memories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    fact TEXT NOT NULL,
+    normalized_fact TEXT NOT NULL UNIQUE,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -464,6 +476,32 @@ def record_assistant_message(role: str, text: Any) -> None:
         "(SELECT id FROM assistant_history ORDER BY id DESC LIMIT 2000)"
     )
     db.commit()
+
+
+def assistant_memories() -> list[dict[str, Any]]:
+    rows = get_db().execute(
+        "SELECT id,fact,created_at,updated_at FROM assistant_memories ORDER BY id"
+    ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def find_assistant_memory(value: str) -> dict[str, Any] | None:
+    requested = normalize_text(value)
+    memories = assistant_memories()
+    if not requested or not memories:
+        return None
+    for memory in memories:
+        normalized = normalize_text(memory["fact"])
+        if requested == normalized or requested in normalized or normalized in requested:
+            return memory
+    ranked = sorted(
+        memories,
+        key=lambda item: SequenceMatcher(None, requested, normalize_text(item["fact"])).ratio(),
+        reverse=True,
+    )
+    if ranked and SequenceMatcher(None, requested, normalize_text(ranked[0]["fact"])).ratio() >= 0.68:
+        return ranked[0]
+    return None
 
 
 @app.after_request
@@ -685,7 +723,10 @@ def serialize_mood(row: dict[str, Any] | None) -> dict[str, Any] | None:
 def assistant_settings_payload() -> dict[str, Any]:
     rows = get_db().execute("SELECT key,value FROM assistant_settings").fetchall()
     raw = {row["key"]: row["value"] for row in rows}
-    boolean_keys = {"enabled", "auto_start", "local_llm_enabled", "local_tts_enabled"}
+    boolean_keys = {
+        "enabled", "auto_start", "local_llm_enabled", "local_tts_enabled",
+        "continuous_dialog", "interrupt_responses", "personalization_enabled",
+    }
     result: dict[str, Any] = {}
     for key, default in DEFAULT_ASSISTANT_SETTINGS.items():
         value = raw.get(key, default)
@@ -998,7 +1039,10 @@ def api_assistant_settings_patch():
     try:
         values: dict[str, str] = {}
         for key, value in data.items():
-            if key in {"enabled", "auto_start"}:
+            if key in {
+                "enabled", "auto_start", "local_llm_enabled", "local_tts_enabled",
+                "continuous_dialog", "interrupt_responses", "personalization_enabled",
+            }:
                 values[key] = "1" if parse_bool(value) else "0"
             elif key == "assistant_provider":
                 provider = str(value or "").strip().lower()
@@ -1065,6 +1109,19 @@ def api_assistant_history_delete():
     return jsonify({"ok": True})
 
 
+@app.get("/api/assistant/memories")
+def api_assistant_memories_get():
+    return jsonify({"ok": True, "memories": assistant_memories()})
+
+
+@app.delete("/api/assistant/memories")
+def api_assistant_memories_delete():
+    db = get_db()
+    db.execute("DELETE FROM assistant_memories")
+    db.commit()
+    return jsonify({"ok": True})
+
+
 @app.post("/api/assistant/command")
 def api_assistant_command():
     try:
@@ -1100,6 +1157,35 @@ def api_assistant_command():
             )
             assistant_pending_actions.pop(confirmation_id, None)
             return jsonify({"ok": True, "action": "cancelled", "reply": "Команда отменена."})
+        if parsed.intent == "remember_fact":
+            settings = assistant_settings_payload()
+            if not settings["personalization_enabled"]:
+                return jsonify({"ok": True, "action": "memory_disabled", "reply": "Персональная память выключена в настройках EVE."})
+            fact = require_text(parsed.target, "Факт", 300)
+            normalized = normalize_text(fact)
+            timestamp = now_iso()
+            db = get_db()
+            db.execute(
+                "INSERT INTO assistant_memories(fact,normalized_fact,created_at,updated_at) VALUES(?,?,?,?) "
+                "ON CONFLICT(normalized_fact) DO UPDATE SET fact=excluded.fact,updated_at=excluded.updated_at",
+                (fact, normalized, timestamp, timestamp),
+            )
+            db.commit()
+            return jsonify({"ok": True, "action": "remember_fact", "reply": f"Хорошо, запомнила: {fact}."})
+        if parsed.intent == "forget_fact":
+            memory = find_assistant_memory(parsed.target)
+            if memory is None:
+                return jsonify({"ok": True, "action": "memory_not_found", "reply": "Не нашла такого факта в своей памяти."})
+            db = get_db()
+            db.execute("DELETE FROM assistant_memories WHERE id=?", (memory["id"],))
+            db.commit()
+            return jsonify({"ok": True, "action": "forget_fact", "reply": f"Забыла: {memory['fact']}."})
+        if parsed.intent == "list_memories":
+            memories = assistant_memories()
+            if not memories:
+                return jsonify({"ok": True, "action": "list_memories", "memories": [], "reply": "Пока я не сохраняла фактов о тебе."})
+            facts = "; ".join(item["fact"] for item in memories[-12:])
+            return jsonify({"ok": True, "action": "list_memories", "memories": memories, "reply": f"Я помню: {facts}."})
         if parsed.intent in {"open_explorer", "open_browser", "open_application", "open_url", "search_web", "set_volume", "mute_audio", "minimize_window", "wifi_status"}:
             try:
                 if parsed.intent in {"open_browser", "open_url", "search_web"}:
@@ -1295,9 +1381,10 @@ def api_assistant_command():
                 "SELECT role,text FROM assistant_history ORDER BY id DESC LIMIT 16"
             ).fetchall()
             history = [dict(row) for row in reversed(history_rows)]
+            memories = [item["fact"] for item in assistant_memories()] if settings["personalization_enabled"] else []
             if settings["assistant_provider"] == "cloud":
                 try:
-                    reply = generate_cloud_reply(text, history)
+                    reply = generate_cloud_reply(text, history, memories)
                     return jsonify({
                         "ok": True,
                         "action": "cloud_llm_reply",
@@ -1312,7 +1399,7 @@ def api_assistant_command():
                     })
             if settings["local_llm_enabled"]:
                 try:
-                    reply = generate_local_reply(text, settings["local_llm_model"], history)
+                    reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
                     return jsonify({
                         "ok": True,
                         "action": "local_llm_reply",

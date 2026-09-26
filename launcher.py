@@ -37,6 +37,7 @@ def start_eve_agent(port: int) -> threading.Thread:
             run_native_agent(
                 server_url=f"http://127.0.0.1:{port}",
                 wake_word=str(settings.get("wake_word") or "эва"),
+                continuous_dialog=bool(settings.get("continuous_dialog", True)),
             )
         except Exception:
             # A microphone/model problem must never prevent the planner window

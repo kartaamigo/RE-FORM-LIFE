@@ -66,6 +66,7 @@ COMMAND_WORDS = (
     "добавь", "создай", "запиши", "запланируй", "отметь", "заверши",
     "выполни", "перенеси", "передвинь", "поставь", "установи", "сделай",
     "включи", "выключи", "расскажи",
+    "запомни", "сохрани", "забудь", "удали",
 )
 
 BROWSER_ALIASES = {
@@ -88,6 +89,13 @@ KNOWN_SITES = {
     "google": "https://www.google.com", "ютуб": "https://www.youtube.com",
     "youtube": "https://www.youtube.com", "вконтакте": "https://vk.com",
     "вк": "https://vk.com", "телеграм": "https://web.telegram.org",
+    "спотифай": "https://open.spotify.com", "spotify": "https://open.spotify.com",
+    "рутуб": "https://rutube.ru", "rutube": "https://rutube.ru",
+    "кинопоиск": "https://www.kinopoisk.ru", "озон": "https://www.ozon.ru",
+    "вайлдберриз": "https://www.wildberries.ru", "wildberries": "https://www.wildberries.ru",
+    "авито": "https://www.avito.ru", "одноклассники": "https://ok.ru",
+    "майл": "https://mail.ru", "мэйл": "https://mail.ru", "mail": "https://mail.ru",
+    "дзен": "https://dzen.ru", "яндекс карты": "https://yandex.ru/maps",
 }
 
 
@@ -132,6 +140,9 @@ def _browser_from_text(value: str) -> str:
 
 
 def _extract_browser_suffix(value: str) -> tuple[str, str]:
+    default_browser = re.search(r"\s+в\s+браузере?\s*$", value, flags=re.IGNORECASE)
+    if default_browser:
+        return value[:default_browser.start()].strip(), ""
     match = re.search(r"\s+(?:в|через)\s+(.+?)(?:\s+браузере?|\s+browser)\s*$", value, flags=re.IGNORECASE)
     if not match:
         return value, ""
@@ -282,6 +293,14 @@ def parse_command(value: str, today: date | None = None) -> ParsedCommand:
     current = today or date.today()
     if not command:
         return ParsedCommand("unknown", raw)
+    remember_match = re.match(r"^(?:запомни|сохрани)\s+(?:пожалуйста\s+)?(?:что\s+)?(.+)$", command)
+    if remember_match:
+        return ParsedCommand("remember_fact", raw, target=remember_match.group(1).strip())
+    forget_match = re.match(r"^(?:забудь|удали\s+из\s+памяти)\s+(?:пожалуйста\s+)?(?:что\s+)?(.+)$", command)
+    if forget_match:
+        return ParsedCommand("forget_fact", raw, target=forget_match.group(1).strip())
+    if re.search(r"(?:что|какие\s+факты).*(?:помнишь|знаешь).*(?:обо\s+мне|про\s+меня)", command):
+        return ParsedCommand("list_memories", raw)
     savings_summary = re.search(r"(?:сколько|покажи|расскажи|что).*(?:сбереж|накоп|сейф)", command)
     if savings_summary:
         category_match = re.search(r"\b(?:в|на)\s+(?:категори(?:и|ю|е)?\s+)?(.+?)\s*$", command)
@@ -388,8 +407,14 @@ def parse_command(value: str, today: date | None = None) -> ParsedCommand:
         return ParsedCommand("open_url", raw, target=target, browser=requested_browser)
     normalized_web_command, _normalized_browser = _extract_browser_suffix(command)
     site_match = re.match(r"^(?:открой|перейди|зайди)\s+(?:на\s+)?(?:сайт\s+)?(.+)$", normalized_web_command)
-    if site_match and site_match.group(1) in KNOWN_SITES:
-        return ParsedCommand("open_url", raw, target=KNOWN_SITES[site_match.group(1)], browser=requested_browser)
+    if site_match:
+        requested_site = site_match.group(1).strip()
+        site_key = requested_site if requested_site in KNOWN_SITES else ""
+        if not site_key:
+            close_sites = get_close_matches(requested_site, KNOWN_SITES, n=1, cutoff=0.72)
+            site_key = close_sites[0] if close_sites else ""
+        if site_key:
+            return ParsedCommand("open_url", raw, target=KNOWN_SITES[site_key], browser=requested_browser)
     engine_match = re.match(r"^(?:найди|поищи)\s+(?:в\s+)?(яндексе|яндекс|yandex|гугле|гугл|google|бинге|бинг|bing)\s+(.+)$", normalized_web_command)
     if engine_match:
         return ParsedCommand("search_web", raw, target=engine_match.group(2).strip(), browser=requested_browser, search_engine=SEARCH_ENGINE_ALIASES[engine_match.group(1)])

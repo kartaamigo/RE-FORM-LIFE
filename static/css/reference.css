@@ -1997,6 +1997,14 @@ body[data-page="week"] .legacy-date-badge {
   margin-bottom: 14px;
 }
 
+.assistant-chat-intro {
+  max-width: 620px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
 .assistant-command-row {
   display: flex;
   gap: 9px;

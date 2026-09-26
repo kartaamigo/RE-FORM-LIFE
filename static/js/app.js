@@ -1023,6 +1023,9 @@ async function initAssistantChat() {
   const voiceLangSelect = $('#assistantVoiceLang');
   const localLlmToggle = $('#assistantLocalLlmToggle');
   const localTtsToggle = $('#assistantLocalTtsToggle');
+  const continuousDialogToggle = $('#assistantContinuousDialogToggle');
+  const interruptToggle = $('#assistantInterruptToggle');
+  const personalizationToggle = $('#assistantPersonalizationToggle');
   const providerSelect = $('#assistantProvider');
   const voiceSelect = $('#assistantVoiceName');
   const cloudStatus = $('#assistantCloudStatus');
@@ -1040,6 +1043,10 @@ async function initAssistantChat() {
   let speechResolve = null;
   let conversationActive = false;
   let conversationStartTimer = null;
+  let conversationExpiryTimer = null;
+  let conversationDeadline = 0;
+  let continuousDialogEnabled = true;
+  let interruptResponsesEnabled = false;
   let pendingAlternatives = [];
 
   try {
@@ -1154,7 +1161,9 @@ async function initAssistantChat() {
   const answer = text => {
     pushLog('assistant', text);
     if (status) status.textContent = text;
-    return speak(text);
+    const playback = speak(text);
+    if (conversationActive && interruptResponsesEnabled) startConversationListening(120);
+    return playback;
   };
 
   const updateConversationUi = () => {
@@ -1172,14 +1181,46 @@ async function initAssistantChat() {
     }
   };
 
-  const startConversationListening = () => {
+  const finishConversation = message => {
+    conversationActive = false;
+    conversationDeadline = 0;
+    window.clearTimeout(conversationStartTimer);
+    window.clearTimeout(conversationExpiryTimer);
+    if (listening) recognition?.stop();
+    if (message && status) status.textContent = message;
+    updateConversationUi();
+  };
+
+  const armConversationWindow = () => {
+    conversationDeadline = Date.now() + 20000;
+    window.clearTimeout(conversationExpiryTimer);
+    conversationExpiryTimer = window.setTimeout(() => {
+      if (conversationActive) finishConversation('Диалог завершён после паузы. Скажи «Эва» или нажми микрофон, чтобы продолжить.');
+    }, 20000);
+  };
+
+  const startConversationListening = (delay = 500) => {
     window.clearTimeout(conversationStartTimer);
     if (!conversationActive || !recognition || !enabledToggle?.checked) return;
+    if (conversationDeadline && Date.now() >= conversationDeadline) {
+      finishConversation('Диалог завершён после паузы. Нажми на микрофон, чтобы продолжить.');
+      return;
+    }
     conversationStartTimer = window.setTimeout(() => {
       if (!conversationActive || listening) return;
       pendingTranscript = '';
       try { recognition.start(); } catch (_error) { /* An active browser session will restart on its end. */ }
-    }, 500);
+    }, delay);
+  };
+
+  const resumeConversation = () => {
+    if (!conversationActive) return;
+    if (!continuousDialogEnabled) {
+      finishConversation('Ответ готов. Нажми на микрофон для следующего вопроса.');
+      return;
+    }
+    armConversationWindow();
+    startConversationListening();
   };
 
   const confirmPending = async approved => {
@@ -1232,6 +1273,11 @@ async function initAssistantChat() {
       if (voiceLangSelect) voiceLangSelect.value = settings.voice_lang || 'ru-RU';
       if (localLlmToggle) localLlmToggle.checked = Boolean(settings.local_llm_enabled);
       if (localTtsToggle) localTtsToggle.checked = Boolean(settings.local_tts_enabled);
+      continuousDialogEnabled = settings.continuous_dialog !== false;
+      interruptResponsesEnabled = Boolean(settings.interrupt_responses);
+      if (continuousDialogToggle) continuousDialogToggle.checked = continuousDialogEnabled;
+      if (interruptToggle) interruptToggle.checked = interruptResponsesEnabled;
+      if (personalizationToggle) personalizationToggle.checked = settings.personalization_enabled !== false;
       if (providerSelect) providerSelect.value = settings.assistant_provider || 'local';
       if (voiceSelect && voices.length) {
         voiceSelect.replaceChildren(...voices.map(voice => {
@@ -1289,6 +1335,8 @@ async function initAssistantChat() {
         localTtsReady = Boolean(result.settings.local_tts_enabled) && localTtsReady;
         if (!result.settings.local_tts_enabled) stopSpeech();
       }
+      if (key === 'continuous_dialog') continuousDialogEnabled = Boolean(result.settings.continuous_dialog);
+      if (key === 'interrupt_responses') interruptResponsesEnabled = Boolean(result.settings.interrupt_responses);
       renderAssistantSupport(result.settings);
     } catch (error) {
       showToast(error.message, true);
@@ -1307,11 +1355,8 @@ async function initAssistantChat() {
     if (commandInput) { commandInput.value = ''; resizeComposer(); }
     if (interim) interim.textContent = raw;
     if (conversationActive && /^(?:стоп разговор|заверши разговор|хватит слушать|останови разговор)[.! ]*$/i.test(raw)) {
-      conversationActive = false;
-      window.clearTimeout(conversationStartTimer);
-      if (status) status.textContent = 'Хорошо. Нажми на микрофон, когда захочешь продолжить.';
+      finishConversation('Хорошо. Нажми на микрофон, когда захочешь продолжить.');
       await answer('Хорошо. Я завершаю разговор.');
-      updateConversationUi();
       return;
     }
     if (status) status.textContent = 'Обрабатываю команду…';
@@ -1319,12 +1364,12 @@ async function initAssistantChat() {
       const normalized = raw.toLocaleLowerCase().replace(/[«».,!?]/g, '').trim();
       if (/^(?:да|подтверждаю|подтвердить|подтверждаю действие)$/.test(normalized)) {
         await confirmPending(true);
-        startConversationListening();
+        resumeConversation();
         return;
       }
       if (/^(?:нет|отмена|отменяю|не надо)$/.test(normalized)) {
         await confirmPending(false);
-        startConversationListening();
+        resumeConversation();
         return;
       }
     }
@@ -1340,14 +1385,29 @@ async function initAssistantChat() {
         state.pendingConfirmation = { id: result.confirmation_id, label: result.confirmation_label || result.reply };
         await answer(result.reply || 'Подтверди действие.');
         renderLog();
-        startConversationListening();
+        resumeConversation();
         return;
       }
       await answer(result.reply || 'Команда выполнена.');
+      if (['remember_fact', 'forget_fact', 'list_memories'].includes(result.action)) await loadMemoryStatus();
     } catch (error) {
       await answer(error.message || 'Не получилось выполнить команду.');
     }
-    startConversationListening();
+    resumeConversation();
+  };
+
+  const loadMemoryStatus = async () => {
+    const memoryStatus = $('#assistantMemoryStatus');
+    if (!memoryStatus) return;
+    try {
+      const result = await api('/api/assistant/memories');
+      const count = Array.isArray(result.memories) ? result.memories.length : 0;
+      memoryStatus.textContent = count
+        ? `EVE хранит локально фактов: ${count}. Скажи «Что ты помнишь обо мне?».`
+        : 'Память пока пуста. Скажи: «Запомни, что…».';
+    } catch (_error) {
+      memoryStatus.textContent = 'Не удалось проверить персональную память.';
+    }
   };
 
   if (recognitionType) {
@@ -1391,16 +1451,13 @@ async function initAssistantChat() {
   micButton?.addEventListener('click', () => {
     if (!recognition || !enabledToggle?.checked) return;
     if (conversationActive) {
-      conversationActive = false;
-      window.clearTimeout(conversationStartTimer);
-      if (listening) recognition.stop();
+      finishConversation('Разговор завершён. Нажми на микрофон, чтобы продолжить.');
       stopSpeech();
-      if (status) status.textContent = 'Разговор завершён. Нажми на микрофон, чтобы продолжить.';
       if (interim) interim.textContent = 'Эва готова к новой беседе.';
-      updateConversationUi();
       return;
     }
     conversationActive = true;
+    armConversationWindow();
     updateConversationUi();
     if (status) status.textContent = 'Разговор начался. Скажи, что у тебя на уме.';
     startConversationListening();
@@ -1410,11 +1467,7 @@ async function initAssistantChat() {
   commandInput?.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); execute(commandInput.value); } });
   $('#assistantStopSpeech')?.addEventListener('click', () => {
     if (conversationActive) {
-      conversationActive = false;
-      window.clearTimeout(conversationStartTimer);
-      if (listening) recognition?.stop();
-      if (status) status.textContent = 'Разговор завершён.';
-      updateConversationUi();
+      finishConversation('Разговор завершён.');
     }
     stopSpeech();
   });
@@ -1432,11 +1485,8 @@ async function initAssistantChat() {
   $$('[data-assistant-example]').forEach(button => button.addEventListener('click', () => { if (!commandInput) return; commandInput.value = button.dataset.assistantExample || ''; resizeComposer(); commandInput.focus(); }));
   enabledToggle?.addEventListener('change', () => {
     if (!enabledToggle.checked && conversationActive) {
-      conversationActive = false;
-      window.clearTimeout(conversationStartTimer);
-      if (listening) recognition?.stop();
+      finishConversation('EVE выключена.');
       stopSpeech();
-      updateConversationUi();
     }
     renderAssistantSupport();
     saveAssistantSetting('enabled', enabledToggle.checked);
@@ -1446,6 +1496,9 @@ async function initAssistantChat() {
   voiceLangSelect?.addEventListener('change', () => { if (recognition) recognition.lang = voiceLangSelect.value; saveAssistantSetting('voice_lang', voiceLangSelect.value); });
   localLlmToggle?.addEventListener('change', () => saveAssistantSetting('local_llm_enabled', localLlmToggle.checked));
   localTtsToggle?.addEventListener('change', () => saveAssistantSetting('local_tts_enabled', localTtsToggle.checked));
+  continuousDialogToggle?.addEventListener('change', () => saveAssistantSetting('continuous_dialog', continuousDialogToggle.checked));
+  interruptToggle?.addEventListener('change', () => saveAssistantSetting('interrupt_responses', interruptToggle.checked));
+  personalizationToggle?.addEventListener('change', () => saveAssistantSetting('personalization_enabled', personalizationToggle.checked));
   providerSelect?.addEventListener('change', () => saveAssistantSetting('assistant_provider', providerSelect.value));
   voiceSelect?.addEventListener('change', () => saveAssistantSetting('voice_name', voiceSelect.value));
   $('#assistantPreviewVoice')?.addEventListener('click', async () => {
@@ -1472,6 +1525,15 @@ async function initAssistantChat() {
       button.disabled = false;
     }
   });
+  $('#assistantClearMemory')?.addEventListener('click', async () => {
+    try {
+      await api('/api/assistant/memories', { method: 'DELETE' });
+      await loadMemoryStatus();
+      await answer('Я очистила персональную память. История диалога осталась на месте.');
+    } catch (error) {
+      if (status) status.textContent = error.message || 'Не удалось очистить персональную память.';
+    }
+  });
   window.speechSynthesis?.addEventListener('voiceschanged', () => window.speechSynthesis.getVoices());
   window.addEventListener('beforeunload', () => { if (listening) recognition?.stop(); stopSpeech(); }, { once: true });
 
@@ -1481,6 +1543,7 @@ async function initAssistantChat() {
   resizeComposer();
   await loadAssistantHistory();
   await loadAssistantSettings();
+  await loadMemoryStatus();
 }
 
 function plural(value, one, few, many) { const n = Math.abs(value) % 100; const last = n % 10; if (n > 10 && n < 20) return many; if (last > 1 && last < 5) return few; if (last === 1) return one; return many; }

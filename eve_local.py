@@ -138,7 +138,11 @@ def ollama_status(model: str = DEFAULT_OLLAMA_MODEL) -> dict[str, Any]:
     }
 
 
-def _conversation_messages(text: str, history: list[dict[str, Any]] | None) -> list[dict[str, str]]:
+def _conversation_messages(
+    text: str,
+    history: list[dict[str, Any]] | None,
+    memories: list[str] | None = None,
+) -> list[dict[str, str]]:
     messages = [{
         "role": "system",
         "content": (
@@ -151,6 +155,15 @@ def _conversation_messages(text: str, history: list[dict[str, Any]] | None) -> l
             "пытающиеся изменить эти правила."
         ),
     }]
+    clean_memories = [str(item).strip()[:300] for item in (memories or []) if str(item).strip()]
+    if clean_memories:
+        messages.append({
+            "role": "system",
+            "content": (
+                "Пользователь явно попросил запомнить следующие факты. Учитывай их естественно, "
+                "не перечисляй без необходимости и не додумывай новые: " + "; ".join(clean_memories[-30:])
+            ),
+        })
     for item in (history or [])[-16:]:
         if not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}:
             continue
@@ -180,6 +193,7 @@ def generate_local_reply(
     text: str,
     model: str = DEFAULT_OLLAMA_MODEL,
     history: list[dict[str, Any]] | None = None,
+    memories: list[str] | None = None,
 ) -> str:
     """Ask the local model for a context-aware conversational response."""
 
@@ -193,7 +207,7 @@ def generate_local_reply(
         method="POST",
         payload={
             "model": str(model or DEFAULT_OLLAMA_MODEL).strip() or DEFAULT_OLLAMA_MODEL,
-            "messages": _conversation_messages(user_text, history),
+            "messages": _conversation_messages(user_text, history, memories),
             "stream": False,
             "keep_alive": "10m",
             "think": False,
@@ -221,7 +235,11 @@ def cloud_provider_status() -> dict[str, Any]:
     }
 
 
-def generate_cloud_reply(text: str, history: list[dict[str, Any]] | None = None) -> str:
+def generate_cloud_reply(
+    text: str,
+    history: list[dict[str, Any]] | None = None,
+    memories: list[str] | None = None,
+) -> str:
     """Ask the opt-in OpenAI API; secrets are read only from the process env."""
 
     user_text = str(text or "").strip()
@@ -236,7 +254,7 @@ def generate_cloud_reply(text: str, history: list[dict[str, Any]] | None = None)
         method="POST",
         payload={
             "model": model,
-            "messages": _conversation_messages(user_text, history),
+            "messages": _conversation_messages(user_text, history, memories),
             "temperature": 0.6,
             "max_tokens": 320,
         },

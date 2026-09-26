@@ -129,6 +129,18 @@ class EveParserTests(unittest.TestCase):
         self.assertEqual(browser.intent, "open_browser")
         self.assertEqual(browser.browser, "chrome")
 
+        spotify = parse_command("Открой Спотифай в браузере")
+        self.assertEqual(spotify.intent, "open_url")
+        self.assertEqual(spotify.target, "https://open.spotify.com")
+
+    def test_personal_memory_commands_are_parsed(self):
+        remember = parse_command("Запомни, что я люблю прогулки вечером")
+        self.assertEqual(remember.intent, "remember_fact")
+        self.assertEqual(remember.target, "я люблю прогулки вечером")
+        self.assertEqual(parse_command("Что ты помнишь обо мне").intent, "list_memories")
+        forget = parse_command("Забудь, что я люблю прогулки вечером")
+        self.assertEqual(forget.intent, "forget_fact")
+
 
 class PlannerAndUtilitiesApiTests(unittest.TestCase):
     def setUp(self):
@@ -236,6 +248,30 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         cleared = self.client.delete("/api/assistant/history")
         self.assertEqual(cleared.status_code, 200)
         self.assertEqual(self.client.get("/api/assistant/history").get_json()["messages"], [])
+
+    def test_eve_remembers_lists_forgets_and_uses_personal_facts(self):
+        remembered = self.client.post(
+            "/api/assistant/command",
+            json={"text": "Запомни, что я люблю прогулки вечером"},
+        )
+        self.assertEqual(remembered.get_json()["action"], "remember_fact")
+        listed = self.client.post(
+            "/api/assistant/command",
+            json={"text": "Что ты помнишь обо мне"},
+        ).get_json()
+        self.assertIn("я люблю прогулки вечером", listed["reply"])
+
+        with patch.object(app_module, "generate_local_reply", return_value="Тогда предложу вечернюю прогулку.") as generate:
+            response = self.client.post("/api/assistant/command", json={"text": "Чем заняться?"})
+        self.assertEqual(response.get_json()["action"], "local_llm_reply")
+        self.assertEqual(generate.call_args.args[3], ["я люблю прогулки вечером"])
+
+        forgotten = self.client.post(
+            "/api/assistant/command",
+            json={"text": "Забудь, что я люблю прогулки вечером"},
+        )
+        self.assertEqual(forgotten.get_json()["action"], "forget_fact")
+        self.assertEqual(self.client.get("/api/assistant/memories").get_json()["memories"], [])
 
     def test_multiple_apartments_and_paid_date(self):
         first = self.client.post(

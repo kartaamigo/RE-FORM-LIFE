@@ -653,6 +653,7 @@ def _speak(text: str) -> None:
 def run_native_agent(
     server_url: str = "http://127.0.0.1:8765",
     wake_word: str | None = None,
+    continuous_dialog: bool = True,
     stop_event: Any = None,
 ) -> None:
     """Run a local Vosk wake-word loop until the process is stopped."""
@@ -746,8 +747,11 @@ def run_native_agent(
             if not command_text:
                 continue
             respond(command_text)
-            conversation_recognizer = KaldiRecognizer(model, 16000)
-            conversation_deadline = time.monotonic() + 20
+            if continuous_dialog:
+                conversation_recognizer = KaldiRecognizer(model, 16000)
+                conversation_deadline = time.monotonic() + 20
+            else:
+                wake = KaldiRecognizer(model, 16000, json.dumps([*accepted_wake_words, "[unk]"], ensure_ascii=False))
 
 
 if __name__ == "__main__":
