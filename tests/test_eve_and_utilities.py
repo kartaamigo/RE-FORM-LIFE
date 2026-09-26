@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import choose_command_candidate, parse_command
-from eve_local import LocalProviderError, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
+from eve_local import QWEN_VOICE_INSTRUCTION, LocalProviderError, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
 from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
@@ -75,6 +75,8 @@ class EveParserTests(unittest.TestCase):
     def test_commercial_profile_exposes_only_qwen_voice(self):
         with patch("eve_local.build_profile", return_value="commercial"):
             self.assertEqual([voice["id"] for voice in available_tts_voices()], ["qwen-design"])
+        profile = json.loads((Path(__file__).resolve().parents[1] / "build-profiles" / "commercial.json").read_text(encoding="utf-8"))
+        self.assertEqual(profile["voice_instruction"], QWEN_VOICE_INSTRUCTION)
 
     def test_voice_command_keeps_time_and_resolves_relative_date(self):
         parsed = parse_command(

@@ -64,8 +64,9 @@ are excluded from Git.
   CC BY-NC-SA 4.0: attribution is required, commercial use is prohibited,
   and adapted material must retain the same license. Its complete license
   travels with the model files in the personal build.
-- `commercial`: Qwen3-TTS VoiceDesign 1.7B, Apache-2.0, with EVE's warm,
-  natural Russian female voice description. The local model snapshot is several
+- `commercial`: Qwen3-TTS VoiceDesign 1.7B, Apache-2.0, with EVE's original,
+  calm Russian female voice description. It creates speech from that description
+  without copying a recorded person's voice. The local model snapshot is several
   gigabytes. If the GTX 1660 runs out of VRAM, synthesis retries on CPU.
   The commercial portable build also includes the Apache-2.0 license text.
 
