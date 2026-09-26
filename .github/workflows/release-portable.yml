@@ -1,0 +1,126 @@
+name: Build portable EVE release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing or new release tag
+        required: true
+        default: v0.3.0
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create release if needed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --title "RE:FORM LIFE $RELEASE_TAG" --notes "Portable EVE builds for Windows and macOS. Download every numbered part for your platform and join them in filename order when an archive is split. The repository is private, so the downloader must be added as a collaborator."
+
+  windows:
+    needs: release
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install build dependencies
+        run: pip install -r requirements-tts-personal.txt
+      - name: Download licensed personal voice model
+        shell: pwsh
+        run: |
+          git clone --depth 1 https://github.com/snakers4/silero-models.git voice-models/silero-v5-ru
+          New-Item -ItemType Directory -Force voice-models/silero-v5-ru/src/silero/model | Out-Null
+          Invoke-WebRequest https://models.silero.ai/models/tts/ru/v5_ru.pt -OutFile voice-models/silero-v5-ru/src/silero/model/v5_ru.pt
+      - name: Build Windows portable folder
+        shell: pwsh
+        run: |
+          $env:EVE_BUILD_PROFILE = 'personal'
+          $env:EVE_BUILD_ONEFILE = '0'
+          $env:EVE_SILERO_MODEL_DIR = "$env:GITHUB_WORKSPACE\voice-models\silero-v5-ru"
+          pyinstaller --noconfirm --clean --distpath dist/windows --workpath build/windows ReFormLife.spec
+          tar -a -c -f RE-FORM-LIFE-Windows-x64.zip -C 'dist/windows/RE-FORM LIFE' .
+      - name: Split archive when GitHub's per-file limit requires it
+        shell: pwsh
+        run: |
+          $source = 'RE-FORM-LIFE-Windows-x64.zip'
+          $limit = 1900MB
+          if ((Get-Item $source).Length -le $limit) {
+            New-Item -ItemType Directory -Force release-assets | Out-Null
+            Move-Item $source release-assets/
+            exit 0
+          }
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          $input = [IO.File]::OpenRead($source)
+          try {
+            $buffer = New-Object byte[] (8MB)
+            $part = 1
+            while ($input.Position -lt $input.Length) {
+              $name = 'release-assets/RE-FORM-LIFE-Windows-x64.zip.{0:d3}' -f $part
+              $output = [IO.File]::Create($name)
+              try {
+                $written = 0L
+                while ($written -lt $limit -and ($read = $input.Read($buffer, 0, [Math]::Min($buffer.Length, $limit - $written))) -gt 0) {
+                  $output.Write($buffer, 0, $read)
+                  $written += $read
+                }
+              } finally { $output.Dispose() }
+              $part++
+            }
+          } finally { $input.Dispose() }
+      - name: Upload Windows assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: gh release upload $env:RELEASE_TAG release-assets/* --repo $env:GITHUB_REPOSITORY --clobber
+
+  macos:
+    needs: release
+    runs-on: macos-14
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install build dependencies
+        run: pip install -r requirements-macos.txt
+      - name: Download licensed personal voice model
+        run: |
+          git clone --depth 1 https://github.com/snakers4/silero-models.git voice-models/silero-v5-ru
+          mkdir -p voice-models/silero-v5-ru/src/silero/model
+          curl --fail --location https://models.silero.ai/models/tts/ru/v5_ru.pt --output voice-models/silero-v5-ru/src/silero/model/v5_ru.pt
+      - name: Build macOS application
+        run: |
+          export EVE_BUILD_PROFILE=personal
+          export EVE_SILERO_MODEL_DIR="$GITHUB_WORKSPACE/voice-models/silero-v5-ru"
+          pyinstaller --noconfirm --clean --distpath dist/macos --workpath build/macos ReFormLife.mac.spec
+          ditto -c -k --sequesterRsrc --keepParent 'dist/macos/RE-FORM LIFE.app' RE-FORM-LIFE-macOS-Intel.zip
+      - name: Split archive when GitHub's per-file limit requires it
+        run: |
+          mkdir -p release-assets
+          size=$(stat -f%z RE-FORM-LIFE-macOS-Intel.zip)
+          if [ "$size" -le 1992294400 ]; then
+            mv RE-FORM-LIFE-macOS-Intel.zip release-assets/
+          else
+            split -b 1900m -d -a 3 RE-FORM-LIFE-macOS-Intel.zip release-assets/RE-FORM-LIFE-macOS-Intel.zip.
+          fi
+      - name: Upload macOS assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" release-assets/* --repo "$GITHUB_REPOSITORY" --clobber

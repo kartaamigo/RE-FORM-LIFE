@@ -16,6 +16,9 @@ venv/
 !/build-profiles/
 /dist*/
 
+# Per-user planner, chat, finance, and settings data
+/instance/
+
 # Local TTS model code and checkpoints (multi-GB, license-specific)
 /tts-models/
 /models/

@@ -91,6 +91,21 @@ For the commercial profile, set `EVE_BUILD_PROFILE='commercial'` and
 `EVE_QWEN_MODEL_DIR` to the complete VoiceDesign snapshot. Do not commit either
 model directory or the resulting `dist` folder.
 
+## Sharing portable builds
+
+Pushing a version tag such as `v0.3.0` starts the GitHub workflow in
+`.github/workflows/release-portable.yml`. It builds separate Windows and macOS
+archives and attaches them to a GitHub Release. GitHub accepts at most 2 GiB
+per release asset, so a large archive is split into numbered parts. Download
+every part for one platform and join the parts in filename order before
+extracting the ZIP. A private-repository release is visible only to GitHub
+accounts that have been granted access to the repository.
+
+The macOS archive contains an Intel application. It runs on Intel Macs and on
+Apple Silicon through Rosetta 2. Because this personal build is not signed with
+an Apple Developer certificate, open it with Finder's **Open** command on the
+first launch and approve the standard macOS prompt.
+
 ## Hardware verification
 
 On the development PC (GTX 1660 6 GB, PyTorch 2.9.1+cu126), the Qwen BF16
