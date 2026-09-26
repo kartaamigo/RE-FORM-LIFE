@@ -31,10 +31,10 @@ OLLAMA_GENERATE_TIMEOUT_SECONDS = 60.0
 CLOUD_TIMEOUT_SECONDS = 60.0
 
 QWEN_VOICE_INSTRUCTION = (
-    "Оригинальный русскоязычный женский голос EVE: взрослый, мягкий средне-низкий тембр. "
-    "Уверенная и внимательная интонация, спокойная энергия, лёгкая улыбка и редкая сухая ирония. "
-    "Чёткая дикция, естественные короткие паузы и ровный темп. "
-    "Без роботизации, переигрывания и подражания чужому голосу."
+    "A clearly feminine adult Russian-speaking voice with a moderately high pitch, "
+    "light and warm timbre, and a natural smile. Calm, intelligent, friendly delivery "
+    "with clear Russian pronunciation, relaxed pace and short natural pauses. "
+    "Avoid a low or masculine register, robotic processing, and imitation of any person or character."
 )
 
 _THINK_BLOCK_RE = re.compile(r"<think\b[^>]*>.*?</think\s*>", re.IGNORECASE | re.DOTALL)
@@ -298,7 +298,7 @@ def build_profile() -> str:
 def available_tts_voices() -> list[dict[str, str]]:
     if build_profile() == "personal":
         return [
-            {"id": "eve-suit", "name": "EVE Suit · спокойный ироничный"},
+            {"id": "eve-suit", "name": "EVE · светлый женский"},
             {"id": "xenia", "name": "Xenia · тёплый женский"},
             {"id": "kseniya", "name": "Kseniya · мягкий женский"},
             {"id": "baya", "name": "Baya · выразительный женский"},
@@ -517,13 +517,13 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
         except Exception as exc:
             raise LocalProviderError(f"Silero V5 не смог синтезировать речь: {exc}") from exc
         if suit_style:
-            # A small, original timbre treatment: calmer/lower delivery with
-            # light compression. It does not reproduce any real actor's voice.
+            # A small, original timbre treatment: slightly brighter delivery
+            # with light compression. It does not reproduce any real actor's voice.
             import numpy as np
 
             values = samples.detach().float().cpu().numpy() if hasattr(samples, "detach") else np.asarray(samples)
             source = np.arange(values.size, dtype=np.float32)
-            target = np.linspace(0, max(0, values.size - 1), int(values.size * 1.04), dtype=np.float32)
+            target = np.linspace(0, max(0, values.size - 1), int(values.size * 0.96), dtype=np.float32)
             samples = np.tanh(np.interp(target, source, values) * 1.08) / np.tanh(1.08)
         return _write_pcm_wav(samples, 48000)
 

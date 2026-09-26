@@ -4,5 +4,5 @@
   "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
   "model_folder": "qwen3-tts-1.7b-voicedesign",
   "license": "Apache-2.0",
-  "voice_instruction": "Оригинальный русскоязычный женский голос EVE: взрослый, мягкий средне-низкий тембр. Уверенная и внимательная интонация, спокойная энергия, лёгкая улыбка и редкая сухая ирония. Чёткая дикция, естественные короткие паузы и ровный темп. Без роботизации, переигрывания и подражания чужому голосу."
+  "voice_instruction": "A clearly feminine adult Russian-speaking voice with a moderately high pitch, light and warm timbre, and a natural smile. Calm, intelligent, friendly delivery with clear Russian pronunciation, relaxed pace and short natural pauses. Avoid a low or masculine register, robotic processing, and imitation of any person or character."
 }
