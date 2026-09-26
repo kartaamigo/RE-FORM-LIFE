@@ -799,6 +799,13 @@ def current_weather(place: str) -> str:
         current = payload["current_condition"][0]
         description_items = current.get("lang_ru") or current.get("weatherDesc") or []
         description = str(description_items[0].get("value", "") if description_items else "").lower()
+        weather_words = {
+            "sunny": "солнечно", "clear": "ясно", "partly cloudy": "переменная облачность",
+            "cloudy": "облачно", "overcast": "пасмурно", "mist": "дымка", "fog": "туман",
+            "smog": "смог", "light rain": "небольшой дождь", "rain": "дождь",
+            "light snow": "небольшой снег", "snow": "снег", "thunder": "гроза",
+        }
+        description = weather_words.get(description, description)
         temperature = int(current.get("temp_C"))
         feels = int(current.get("FeelsLikeC", temperature))
         wind = int(current.get("windspeedKmph", 0))
@@ -924,6 +931,50 @@ def execute_pending_action(pending: dict[str, Any]) -> dict[str, Any]:
         content = str(pending.get("content") or "")[:5000]
         path.write_text(content, encoding="utf-8")
         return {"action": "create_file", "reply": f"Файл создан: {path.name}.", "path": str(path)}
+    if kind == "download_file":
+        url = str(pending.get("target") or "").strip()
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme != "https" or not parsed.netloc:
+            raise ValueError("EVE скачивает файлы только по прямым защищённым HTTPS-ссылкам.")
+        name = Path(urllib.parse.unquote(parsed.path)).name
+        if not name or name in {".", ".."}:
+            raise ValueError("В ссылке не указано имя файла.")
+        destination = (Path.home() / "Downloads" / name).resolve()
+        if destination.exists():
+            raise ValueError("Файл с таким именем уже есть в папке «Загрузки». Я не стала его перезаписывать.")
+        request_object = urllib.request.Request(url, headers={"User-Agent": "RE-FORM-LIFE-EVE/1.0"})
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with urllib.request.urlopen(request_object, timeout=30) as source, destination.open("xb") as output:
+                total = 0
+                while True:
+                    chunk = source.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    total += len(chunk)
+                    if total > 500 * 1024 * 1024:
+                        raise ValueError("Файл больше 500 МБ. Загрузка отменена.")
+                    output.write(chunk)
+        except Exception:
+            if destination.exists():
+                destination.unlink()
+            raise
+        return {"action": "download_file", "reply": f"Скачала файл «{name}» в Загрузки. Перед запуском проверь издателя и подпись.", "path": str(destination)}
+    if kind == "run_installer":
+        downloads = (Path.home() / "Downloads").resolve()
+        requested = str(pending.get("target") or "").strip()
+        candidates = [item for item in downloads.iterdir() if item.is_file() and item.suffix.lower() in {".exe", ".msi"}]
+        if normalize_text(requested).startswith("последний"):
+            path = max(candidates, key=lambda item: item.stat().st_mtime) if candidates else None
+        else:
+            path = next((item for item in candidates if item.name.casefold() == Path(requested).name.casefold()), None)
+        if path is None:
+            raise ValueError("Не нашла такой установщик в папке «Загрузки».")
+        if path.suffix.lower() == ".msi":
+            subprocess.Popen(["msiexec.exe", "/i", str(path)], stdin=subprocess.DEVNULL)
+        else:
+            os.startfile(str(path))  # type: ignore[attr-defined]
+        return {"action": "run_installer", "reply": f"Запустила «{path.name}» без повышения прав. Проверь издателя в окне установки.", "path": str(path)}
     if kind == "run_terminal":
         raise ValueError("EVE не исполняет произвольные команды терминала или скрипты.")
     if kind in {"toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
@@ -1350,7 +1401,7 @@ def api_assistant_command():
                 }
                 reply = f"Открываю Проводник: {labels.get(opened['location'], opened['location'])}."
             return jsonify({"ok": True, "action": parsed.intent, "target": opened["location"], "reply": reply})
-        if parsed.intent in {"create_folder", "create_file", "toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
+        if parsed.intent in {"create_folder", "create_file", "download_file", "run_installer", "toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
             confirmation_id = uuid.uuid4().hex
             assistant_pending_actions[confirmation_id] = {
                 "kind": parsed.intent,
@@ -1361,6 +1412,8 @@ def api_assistant_command():
             labels = {
                 "create_folder": f"создать папку «{parsed.target}»",
                 "create_file": f"создать файл «{parsed.target}»",
+                "download_file": f"скачать файл по адресу «{parsed.target}» в папку «Загрузки»",
+                "run_installer": f"запустить установщик «{parsed.target}» из папки «Загрузки»",
                 "toggle_wifi": f"{'включить' if parsed.target == 'on' else 'выключить'} Wi‑Fi",
                 "close_window": "закрыть текущее окно",
                 "shutdown": "выключить компьютер",

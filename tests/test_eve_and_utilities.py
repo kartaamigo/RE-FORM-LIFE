@@ -108,6 +108,10 @@ class EveParserTests(unittest.TestCase):
         self.assertEqual(created.intent, "create_file")
         self.assertEqual(created.target, "Documents/заметка.txt")
         self.assertEqual(created.content, "купить молоко")
+        download = parse_command("скачай файл https://example.com/Setup.exe")
+        self.assertEqual((download.intent, download.target), ("download_file", "https://example.com/Setup.exe"))
+        installer = parse_command("запусти скачанный установщик SpotifySetup.exe")
+        self.assertEqual((installer.intent, installer.target), ("run_installer", "SpotifySetup.exe"))
 
     def test_voice_typos_and_recognition_alternatives_resolve_to_commands(self):
         typo = parse_command("аткрой ютуб")
@@ -293,6 +297,21 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(response.get_json()["action"], "weather")
         self.assertIn("плюс 12", response.get_json()["reply"])
         external.assert_not_called()
+
+    def test_download_and_installer_launch_require_separate_confirmations(self):
+        download = self.client.post(
+            "/api/assistant/command",
+            json={"text": "скачай файл https://example.com/Setup.exe"},
+        ).get_json()
+        self.assertEqual(download["action"], "needs_confirmation")
+        self.assertEqual(app_module.assistant_pending_actions[download["confirmation_id"]]["kind"], "download_file")
+
+        installer = self.client.post(
+            "/api/assistant/command",
+            json={"text": "запусти скачанный установщик Setup.exe"},
+        ).get_json()
+        self.assertEqual(installer["action"], "needs_confirmation")
+        self.assertNotEqual(download["confirmation_id"], installer["confirmation_id"])
 
     def test_eve_remembers_lists_forgets_and_uses_personal_facts(self):
         remembered = self.client.post(

@@ -445,6 +445,16 @@ def parse_command(value: str, today: date | None = None) -> ParsedCommand:
     terminal_match = re.match(r"^(?:выполни(?:\s+команду)?|терминал(?:\s+выполни)?)\s+(.+)$", command)
     if terminal_match:
         return ParsedCommand("run_terminal", raw, target=terminal_match.group(1).strip())
+    download_match = re.match(r"^(?:скачай|загрузи)\s+(?:файл\s+)?(https://[^\s]+)$", raw_command_preserved, flags=re.IGNORECASE)
+    if download_match:
+        return ParsedCommand("download_file", raw, target=url_target(download_match.group(1)))
+    installer_match = re.match(
+        r"^(?:запусти|открой|установи)\s+(?:(?:скачанный|загруженный)\s+)?(?:установщик|файл)?\s*(.+\.(?:exe|msi)|последний\s+(?:файл|установщик))$",
+        raw_command_preserved,
+        flags=re.IGNORECASE,
+    )
+    if installer_match:
+        return ParsedCommand("run_installer", raw, target=installer_match.group(1).strip())
     file_create_match = re.match(
         r"^(?:создай|сделай)\s+файл\s+(?P<path>.+?)(?:\s+с\s+текстом\s+(?P<content>.+)|$)",
         raw_command_preserved,
