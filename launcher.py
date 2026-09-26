@@ -77,7 +77,7 @@ if __name__ == "__main__":
     )
 
     # The offline speech model is intentionally loaded after the page appears.
-    webview.events.loaded += lambda: start_eve_agent(port)
+    window.events.loaded += lambda: start_eve_agent(port)
 
     # Запуск приложения (окно)
     webview.start()
