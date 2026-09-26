@@ -681,7 +681,7 @@ def serialize_mood(row: dict[str, Any] | None) -> dict[str, Any] | None:
 def assistant_settings_payload() -> dict[str, Any]:
     rows = get_db().execute("SELECT key,value FROM assistant_settings").fetchall()
     raw = {row["key"]: row["value"] for row in rows}
-    boolean_keys = {"enabled", "auto_start", "cloud_enabled"}
+    boolean_keys = {"enabled", "auto_start", "cloud_enabled", "local_llm_enabled", "local_tts_enabled"}
     result: dict[str, Any] = {}
     for key, default in DEFAULT_ASSISTANT_SETTINGS.items():
         value = raw.get(key, default)
