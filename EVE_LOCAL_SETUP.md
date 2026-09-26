@@ -70,12 +70,15 @@ are excluded from Git.
   gigabytes. If the GTX 1660 runs out of VRAM, synthesis retries on CPU.
   The commercial portable build also includes the Apache-2.0 license text.
 
-The commercial profile offers two Russian voice styles. **EVE Original** is
-brighter; **EVE · мягкий женский · русский** uses a warmer lower-mid register
-inspired by the user's short reference clip. The reference recording is not
-bundled or uploaded. VoiceDesign approximates its timbre through a written
-description, so individual generated phrases can vary; exact voice cloning
-would require a separate model and a longer clean recording.
+The commercial profile offers three Russian voice styles. **EVE Original** is
+brighter; **EVE · мягкий женский · русский** uses a warmer lower-mid register.
+**EVE · спокойный женский гид · русский** has a softer, steadier delivery and
+is shifted two semitones lower after synthesis. This last style was tuned using
+isolated female speech from the user's Karen reference; Peter's male speech
+and the separate Edith recording were not used for its voice description.
+The recordings are not bundled or uploaded. VoiceDesign approximates timbre
+through a written description, so generated phrases can vary; this is an
+original voice style rather than an exact clone.
 
 Install the appropriate `requirements-tts-*.txt`, place the complete official
 model source/checkpoint directory at a local path, then set the profile and

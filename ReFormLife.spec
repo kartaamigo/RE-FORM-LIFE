@@ -56,7 +56,7 @@ for package in ('pycaw', 'omegaconf', 'yaml'):
     torch_binaries += package_bins
     profile_hiddenimports += package_hidden
 if build_profile == 'commercial':
-    for package in ('qwen_tts', 'transformers', 'accelerate', 'safetensors'):
+    for package in ('qwen_tts', 'transformers', 'accelerate', 'safetensors', 'librosa'):
         package_datas, package_bins, package_hidden = collect_all(package)
         torch_datas += package_datas
         torch_binaries += package_bins

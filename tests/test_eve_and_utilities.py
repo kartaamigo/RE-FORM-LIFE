@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import choose_command_candidate, parse_command
-from eve_local import QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
+from eve_local import QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
 from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
@@ -75,13 +75,15 @@ class EveParserTests(unittest.TestCase):
 
     def test_commercial_profile_exposes_original_and_russian_reference_styles(self):
         with patch("eve_local.build_profile", return_value="commercial"):
-            self.assertEqual([voice["id"] for voice in available_tts_voices()], ["qwen-design", "eve-reference"])
+            self.assertEqual([voice["id"] for voice in available_tts_voices()], ["qwen-design", "eve-reference", "eve-guide"])
         with patch.dict("os.environ", {"EVE_BUILD_PROFILE": "commercial"}), patch("eve_local.sys.frozen", False, create=True):
             self.assertEqual(build_profile(), "commercial")
         profile = json.loads((Path(__file__).resolve().parents[1] / "build-profiles" / "commercial.json").read_text(encoding="utf-8"))
         self.assertEqual(profile["voice_instruction"], QWEN_VOICE_INSTRUCTION)
         self.assertEqual(profile["reference_voice_instruction"], QWEN_REFERENCE_VOICE_INSTRUCTION)
+        self.assertEqual(profile["guide_voice_instruction"], QWEN_GUIDE_VOICE_INSTRUCTION)
         self.assertEqual(_qwen_voice_instruction("eve-reference"), QWEN_REFERENCE_VOICE_INSTRUCTION)
+        self.assertEqual(_qwen_voice_instruction("eve-guide"), QWEN_GUIDE_VOICE_INSTRUCTION)
         with self.assertRaises(LocalProviderError):
             _qwen_voice_instruction("unknown")
 

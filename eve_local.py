@@ -43,6 +43,14 @@ QWEN_REFERENCE_VOICE_INSTRUCTION = (
     "a measured pace and short pauses. Speak in Russian only, with no English accent. "
     "Keep the voice recognizably female, never deep or masculine, and do not imitate any person."
 )
+QWEN_GUIDE_VOICE_INSTRUCTION = (
+    "An original adult Russian-speaking female assistant voice in a warm, softly resonant "
+    "middle feminine register. Calm and reassuring, with gentle confidence and a subtle "
+    "smile. Give clear, patient instructions with natural Russian vowels, unhurried pacing, "
+    "short pauses and restrained intonation. Sound human, close and quietly attentive, "
+    "with a faint polished technological quality and no theatrical emphasis. "
+    "Speak Russian only with native pronunciation. Do not imitate any actor or character."
+)
 
 _THINK_BLOCK_RE = re.compile(r"<think\b[^>]*>.*?</think\s*>", re.IGNORECASE | re.DOTALL)
 _THINK_TAG_RE = re.compile(r"</?think\b[^>]*>", re.IGNORECASE)
@@ -313,6 +321,7 @@ def available_tts_voices() -> list[dict[str, str]]:
     return [
         {"id": "qwen-design", "name": "EVE Original · светлый женский"},
         {"id": "eve-reference", "name": "EVE · мягкий женский · русский"},
+        {"id": "eve-guide", "name": "EVE · спокойный женский гид · русский"},
     ]
 
 
@@ -321,6 +330,8 @@ def _qwen_voice_instruction(voice_name: str | None) -> str:
         return QWEN_VOICE_INSTRUCTION
     if voice_name == "eve-reference":
         return QWEN_REFERENCE_VOICE_INSTRUCTION
+    if voice_name == "eve-guide":
+        return QWEN_GUIDE_VOICE_INSTRUCTION
     raise LocalProviderError("Выбранный голос EVE недоступен.")
 
 
@@ -597,6 +608,15 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
         samples = samples[0] if samples else []
     if not _audio_samples_are_finite(samples):
         raise LocalProviderError("Qwen3-TTS вернул некорректный аудиосигнал.")
+    if voice_name == "eve-guide":
+        import librosa
+        import numpy as np
+
+        values = samples.detach().float().cpu().numpy() if hasattr(samples, "detach") else np.asarray(samples)
+        try:
+            samples = librosa.effects.pitch_shift(values.astype(np.float32), sr=int(sample_rate), n_steps=-2.0)
+        except Exception as exc:
+            raise LocalProviderError(f"Не удалось обработать голос EVE: {exc}") from exc
     return _write_pcm_wav(samples, int(sample_rate))
 
 
