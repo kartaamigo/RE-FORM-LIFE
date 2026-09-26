@@ -907,6 +907,13 @@ def find_utility_service_by_text(account_id: int, value: str) -> sqlite3.Row | N
 def confirmed_action_path(value: str) -> Path:
     requested = Path(str(value or "").strip()).expanduser()
     home = Path.home().resolve()
+    if not requested.is_absolute() and len(requested.parts) == 1:
+        requested = Path("Desktop") / requested
+    if not requested.is_absolute() and requested.parts and requested.parts[0] in {"Desktop", "Documents"}:
+        usual = home / requested.parts[0]
+        synced = home / "OneDrive" / requested.parts[0]
+        if not usual.is_dir() and synced.is_dir():
+            requested = Path("OneDrive") / requested
     path = (home / requested if not requested.is_absolute() else requested).resolve()
     try:
         path.relative_to(home)
@@ -919,6 +926,8 @@ def execute_pending_action(pending: dict[str, Any]) -> dict[str, Any]:
     kind = pending.get("kind")
     if kind == "create_folder":
         path = confirmed_action_path(str(pending.get("target") or ""))
+        if path.exists():
+            raise ValueError("Папка с таким именем уже существует. Я не стала менять её.")
         path.mkdir(parents=True, exist_ok=True)
         return {"action": "create_folder", "reply": f"Папка создана: {path.name}.", "path": str(path)}
     if kind == "create_file":
@@ -1310,6 +1319,12 @@ def api_assistant_command():
         text = choose_command_candidate(text, data.get("alternatives"))
         g.assistant_command_text = text
         parsed = parse_command(text)
+        if parsed.intent == "missing_folder_name":
+            return jsonify({
+                "ok": True,
+                "action": "missing_folder_name",
+                "reply": "Как назвать папку? Скажи, например: «Создай папку с названием Дом».",
+            })
         if parsed.intent == "run_terminal":
             return jsonify({
                 "ok": True,

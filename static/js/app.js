@@ -996,7 +996,6 @@ async function initAssistant() {
   $('#assistantStopSpeech')?.addEventListener('click', () => window.speechSynthesis?.cancel());
   $('#assistantClearLog')?.addEventListener('click', () => { state.log = []; renderLog(); });
   $('#assistantOpenPlanner')?.addEventListener('click', () => { window.location.href = '/week'; });
-  $$('[data-assistant-example]').forEach(button => button.addEventListener('click', () => { commandInput.value = button.dataset.assistantExample; commandInput.focus(); }));
   enabledToggle?.addEventListener('change', () => { renderAssistantSupport(); saveAssistantSetting('enabled', enabledToggle.checked); });
   autoStartToggle?.addEventListener('change', () => saveAssistantSetting('auto_start', autoStartToggle.checked));
   wakeWordSelect?.addEventListener('change', () => saveAssistantSetting('wake_word', wakeWordSelect.value));
@@ -1052,6 +1051,8 @@ async function initAssistantChat() {
   let interruptResponsesEnabled = false;
   let pendingAlternatives = [];
   let localCaptureStop = null;
+  let lastVoiceCommand = '';
+  let lastVoiceCommandAt = 0;
 
   try {
     const stored = JSON.parse(window.localStorage.getItem(historyKey) || '[]');
@@ -1405,6 +1406,13 @@ async function initAssistantChat() {
   const execute = async (rawCommand, source = 'web', alternatives = []) => {
     const raw = String(rawCommand || '').trim();
     if (!raw) return;
+    if (source !== 'web') {
+      const now = Date.now();
+      const normalized = raw.toLocaleLowerCase().replace(/[\s.,!?]+/g, ' ').trim();
+      if (normalized === lastVoiceCommand && now - lastVoiceCommandAt < 5000) return;
+      lastVoiceCommand = normalized;
+      lastVoiceCommandAt = now;
+    }
     if (listening && recognition) {
       pendingTranscript = '';
       recognition.stop();
@@ -1509,6 +1517,7 @@ async function initAssistantChat() {
       const chunks = [];
       let heardSpeech = false;
       let lastVoiceAt = performance.now();
+      const captureStartedAt = lastVoiceAt;
       let stopped = false;
       listening = true;
       updateConversationUi();
@@ -1521,16 +1530,19 @@ async function initAssistantChat() {
         processor.disconnect(); source.disconnect(); stream.getTracks().forEach(track => track.stop());
         await context.close();
         listening = false; updateConversationUi();
-        if (!transcribe || !chunks.length) return;
+        if (!transcribe || !chunks.length) {
+          if (conversationActive) finishConversation('Не услышала команду. Нажми на микрофон, чтобы попробовать ещё раз.');
+          return;
+        }
         if (status) status.textContent = 'Распознаю голос локально…';
         try {
           const response = await fetch('/api/assistant/transcribe?sample_rate=16000', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: pcmBlob(chunks, context.sampleRate) });
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || 'Не удалось распознать голос.');
-          if (result.text) execute(result.text, 'local_voice');
+          if (result.text) await execute(result.text, 'local_voice');
           else {
             if (status) status.textContent = 'Речь не распознана. Проверь выбранный микрофон и попробуй ещё раз.';
-            if (conversationActive) startConversationListening(700);
+            if (conversationActive) finishConversation('Речь не распознана. Нажми на микрофон, чтобы попробовать ещё раз.');
           }
         } catch (error) {
           if (status) status.textContent = error.message || 'Не удалось распознать голос.';
@@ -1545,9 +1557,10 @@ async function initAssistantChat() {
         const rms = Math.sqrt(energy / data.length);
         if (rms > 0.018) { heardSpeech = true; lastVoiceAt = performance.now(); }
         if (heardSpeech && performance.now() - lastVoiceAt > 1300) finish(true);
+        else if (!heardSpeech && performance.now() - captureStartedAt > 4500) finish(false);
       };
       source.connect(processor); processor.connect(context.destination);
-      window.setTimeout(() => finish(true), 15000);
+      window.setTimeout(() => finish(heardSpeech), 12000);
     } catch (error) {
       listening = false; updateConversationUi();
       if (status) status.textContent = error.name === 'NotAllowedError' ? 'Доступ к микрофону запрещён в Windows или настройках приложения.' : `Не удалось открыть выбранный микрофон: ${error.message}`;
@@ -1640,7 +1653,6 @@ async function initAssistantChat() {
       if (status) status.textContent = error.message || 'Не удалось очистить историю.';
     }
   });
-  $$('[data-assistant-example]').forEach(button => button.addEventListener('click', () => { if (!commandInput) return; commandInput.value = button.dataset.assistantExample || ''; resizeComposer(); commandInput.focus(); }));
   enabledToggle?.addEventListener('change', () => {
     if (!enabledToggle.checked && conversationActive) {
       finishConversation('EVE выключена.');

@@ -842,7 +842,16 @@ def run_native_agent(
             except queue.Empty:
                 return
 
+    last_command = ""
+    last_command_at = 0.0
+
     def respond(command_text: str) -> None:
+        nonlocal last_command, last_command_at
+        now = time.monotonic()
+        if command_text == last_command and now - last_command_at < 5:
+            discard_queued_audio()
+            return
+        last_command, last_command_at = command_text, now
         try:
             response = _post_command(server_url, command_text)
             _speak(str(response.get("reply", "")))

@@ -467,9 +467,37 @@ def parse_command(value: str, today: date | None = None) -> ParsedCommand:
             target=file_create_match.group("path").strip(),
             content=(file_create_match.group("content") or "").strip(),
         )
-    folder_create_match = re.match(r"^(?:создай|сделай)\s+папку\s+(.+)$", raw_command_preserved, flags=re.IGNORECASE)
+    if re.match(r"^(?:создай|сделай|создать)\s+(?:новую\s+)?(?:папку|каталог)(?:\s+(?:с|под)\s+названием)?$", command):
+        return ParsedCommand("missing_folder_name", raw)
+    folder_create_match = re.match(
+        r"^(?:создай|сделай|создать)\s+(?:новую\s+)?(?:папку|каталог)\s+(.+)$",
+        raw_command_preserved,
+        flags=re.IGNORECASE,
+    )
     if folder_create_match:
-        return ParsedCommand("create_folder", raw, target=folder_create_match.group(1).strip())
+        target = folder_create_match.group(1).strip(" .«»\"'")
+        locations = {
+            "на рабочем столе": "Desktop",
+            "в документах": "Documents",
+            "в загрузках": "Downloads",
+        }
+        for phrase, directory in locations.items():
+            prefix = re.match(rf"^{phrase}\s+(?:с\s+названием\s+|под\s+названием\s+)?(.+)$", target, re.IGNORECASE)
+            suffix = re.match(rf"^(.+?)\s+{phrase}$", target, re.IGNORECASE)
+            if prefix or suffix:
+                target = f"{directory}/{(prefix or suffix).group(1).strip(' .«»\"')}"
+                break
+        name_prefix = re.match(r"^(?:(?:и\s+)?после\s+|и\s+)?(?:с|под)\s+названием\s+(.+)$", target, re.IGNORECASE)
+        if name_prefix:
+            target = name_prefix.group(1).strip(" .«»\"'")
+        elif "/" in target:
+            directory, name = target.split("/", 1)
+            name_prefix = re.match(r"^(?:с|под)\s+названием\s+(.+)$", name, re.IGNORECASE)
+            if name_prefix:
+                target = f"{directory}/{name_prefix.group(1).strip(' .«»\"')}"
+        if target.lower() in {"с названием", "под названием", "и после с названием"}:
+            return ParsedCommand("missing_folder_name", raw)
+        return ParsedCommand("create_folder", raw, target=target)
     app_match = re.match(r"^(?:открой|запусти)\s+(.+)$", command)
     if app_match and not re.search(r"\b(?:планер|недел|папк|файл|проводник|браузер|интернет)\b", command):
         return ParsedCommand("open_application", raw, target=app_match.group(1).strip())

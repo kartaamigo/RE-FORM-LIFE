@@ -113,6 +113,17 @@ class EveParserTests(unittest.TestCase):
         installer = parse_command("запусти скачанный установщик SpotifySetup.exe")
         self.assertEqual((installer.intent, installer.target), ("run_installer", "SpotifySetup.exe"))
 
+    def test_spoken_folder_phrases_resolve_to_visible_locations(self):
+        self.assertEqual(parse_command("Создай папку").intent, "missing_folder_name")
+        self.assertEqual(parse_command("Создай новую папку Проекты").target, "Проекты")
+        self.assertEqual(parse_command("Создай папку с названием Дом").target, "Дом")
+        self.assertEqual(parse_command("Создай папку и после с названием Дом").target, "Дом")
+        desktop = parse_command("Эва, создай папку Проекты на рабочем столе")
+        self.assertEqual((desktop.intent, desktop.target), ("create_folder", "Desktop/Проекты"))
+        self.assertEqual(parse_command("Создай папку с названием Дом на рабочем столе").target, "Desktop/Дом")
+        documents = parse_command("Создай папку в документах с названием Заметки")
+        self.assertEqual((documents.intent, documents.target), ("create_folder", "Documents/Заметки"))
+
     def test_voice_typos_and_recognition_alternatives_resolve_to_commands(self):
         typo = parse_command("аткрой ютуб")
         self.assertEqual(typo.intent, "open_url")
@@ -288,6 +299,20 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(request["action"], "needs_confirmation")
         pending = app_module.assistant_pending_actions[request["confirmation_id"]]
         self.assertEqual(pending["content"], "купить молоко")
+
+    def test_folder_creation_needs_confirmation_and_uses_desktop(self):
+        requested = self.client.post(
+            "/api/assistant/command", json={"text": "создай папку с названием Дом"}
+        ).get_json()
+        self.assertEqual(requested["action"], "needs_confirmation")
+        with tempfile.TemporaryDirectory() as temporary_home, patch.object(Path, "home", return_value=Path(temporary_home)):
+            confirmed = self.client.post(
+                "/api/assistant/confirm",
+                json={"confirmation_id": requested["confirmation_id"], "approved": True},
+            ).get_json()
+            expected = Path(temporary_home) / "Desktop" / "Дом"
+            self.assertEqual(Path(confirmed["path"]), expected)
+            self.assertTrue(expected.is_dir())
 
     def test_weather_returns_spoken_answer_without_opening_browser(self):
         with patch.object(app_module, "current_weather", return_value="Сейчас в Москве плюс 12 градусов, ясно."), patch.object(

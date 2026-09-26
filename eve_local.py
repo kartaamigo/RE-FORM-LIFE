@@ -27,13 +27,13 @@ SILERO_REPO_NAME = "silero-v5-ru"
 QWEN_MODEL_NAME = "qwen3-tts-1.7b-voicedesign"
 SILERO_VOICES = {"xenia", "kseniya", "baya"}
 OLLAMA_TIMEOUT_SECONDS = 3.0
-OLLAMA_GENERATE_TIMEOUT_SECONDS = 180.0
+OLLAMA_GENERATE_TIMEOUT_SECONDS = 60.0
 CLOUD_TIMEOUT_SECONDS = 60.0
 
 QWEN_VOICE_INSTRUCTION = (
-    "Тёплый, естественный, живой русскоязычный женский голос. "
-    "Звучит дружелюбно и выразительно, с мягкой интонацией и натуральными паузами; "
-    "без дикторской сухости и чрезмерной театральности."
+    "Естественный русскоязычный женский голос умной помощницы в технологичном костюме. "
+    "Спокойная уверенная подача, лёгкая ирония, чёткая речь, живые интонации и короткие паузы. "
+    "Без подражания узнаваемым персонажам или актёрам, без роботизированного эффекта."
 )
 
 _THINK_BLOCK_RE = re.compile(r"<think\b[^>]*>.*?</think\s*>", re.IGNORECASE | re.DOTALL)
@@ -211,7 +211,7 @@ def generate_local_reply(
             "stream": False,
             "keep_alive": "10m",
             "think": False,
-            "options": {"temperature": 0.6, "num_predict": 512, "num_ctx": 4096},
+            "options": {"temperature": 0.6, "num_predict": 192, "num_ctx": 4096},
         },
         timeout=OLLAMA_GENERATE_TIMEOUT_SECONDS,
     )
@@ -495,7 +495,7 @@ def _write_pcm_wav(samples: Any, sample_rate: int) -> bytes:
 def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_name: str | None = None) -> bytes:
     if profile == "personal":
         model, _ = _load_silero_model(str(model_path))
-        speaker = str(voice_name or "xenia").lower()
+        speaker = str(voice_name or "eve-suit").lower()
         suit_style = speaker == "eve-suit"
         if suit_style:
             speaker = "xenia"
