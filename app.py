@@ -29,6 +29,7 @@ from eve_local import (
     synthesize_speech,
     tts_status,
 )
+from eve_speechkit import VOICES as YANDEX_VOICES, speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
 APP_NAME = "RE:FORM LIFE"
@@ -52,6 +53,8 @@ DEFAULT_ASSISTANT_SETTINGS = {
     "voice_name": "",
     "microphone_device": "",
     "assistant_provider": "local",
+    "speech_provider": "local",
+    "yandex_voice": "alena",
     "local_llm_enabled": "1",
     "local_tts_enabled": "1",
     "local_llm_model": DEFAULT_OLLAMA_MODEL,
@@ -767,6 +770,8 @@ def assistant_settings_payload() -> dict[str, Any]:
         elif key == "voice_name":
             allowed_voices = {voice["id"] for voice in available_tts_voices()}
             result[key] = value if value in allowed_voices else available_tts_voices()[0]["id"]
+        elif key == "yandex_voice":
+            result[key] = value if value in {voice["id"] for voice in YANDEX_VOICES} else "alena"
         else:
             result[key] = value
     return result
@@ -1110,6 +1115,7 @@ def api_assistant_status():
             "voice_name": settings["voice_name"],
             "voices": local["tts"].get("voices", []),
             "build_profile": build_profile(),
+            "speechkit": speechkit_status(),
             "local": {
                 **local,
                 "llm_enabled": settings["local_llm_enabled"],
@@ -1127,21 +1133,27 @@ def api_assistant_tts():
     try:
         settings = assistant_settings_payload()
         if not settings["local_tts_enabled"]:
-            return json_error("Локальный голос выключен в настройках EVE.", 503)
+            return json_error("Голос выключен в настройках EVE.", 503)
         data = body()
         text = require_text(data.get("text"), "Текст", 2000)
-        requested_voice = optional_text(data.get("voice"), 80) or settings["voice_name"]
-        allowed_voices = {voice["id"] for voice in available_tts_voices()}
-        if requested_voice not in allowed_voices:
-            return json_error("Этот голос недоступен в выбранном профиле сборки.")
-        audio = synthesize_speech(text, requested_voice)
+        if settings["speech_provider"] == "yandex":
+            requested_voice = optional_text(data.get("voice"), 80) or settings["yandex_voice"]
+            audio = synthesize_speechkit(text, requested_voice)
+            backend = "yandex-speechkit"
+        else:
+            requested_voice = optional_text(data.get("voice"), 80) or settings["voice_name"]
+            allowed_voices = {voice["id"] for voice in available_tts_voices()}
+            if requested_voice not in allowed_voices:
+                return json_error("Этот голос недоступен в выбранном профиле сборки.")
+            audio = synthesize_speech(text, requested_voice)
+            backend = str(tts_status().get("backend", "local"))
     except LocalProviderError as exc:
         return json_error(str(exc), 503)
     except ValueError as exc:
         return json_error(str(exc))
     response = Response(audio, mimetype="audio/wav")
     response.headers["Cache-Control"] = "no-store"
-    response.headers["X-EVE-TTS"] = str(tts_status().get("backend", "local"))
+    response.headers["X-EVE-TTS"] = backend
     return response
 
 
@@ -1151,9 +1163,11 @@ def api_assistant_transcribe():
         sample_rate = int(request.args.get("sample_rate", "16000"))
         if sample_rate != 16000:
             return json_error("EVE ожидает запись с частотой 16 кГц.")
-        text = transcribe_pcm(request.get_data(cache=False), sample_rate)
+        settings = assistant_settings_payload()
+        payload = request.get_data(cache=False)
+        text = transcribe_speechkit(payload, sample_rate) if settings["speech_provider"] == "yandex" else transcribe_pcm(payload, sample_rate)
         return jsonify({"ok": True, "text": text})
-    except (OSError, RuntimeError, ValueError) as exc:
+    except (OSError, RuntimeError, ValueError, LocalProviderError) as exc:
         return json_error(str(exc), 503)
 
 
@@ -1182,6 +1196,16 @@ def api_assistant_settings_patch():
                 if provider not in {"local", "cloud"}:
                     raise ValueError("Выбери локальный или облачный режим EVE.")
                 values[key] = provider
+            elif key == "speech_provider":
+                provider = str(value or "").strip().lower()
+                if provider not in {"local", "yandex"}:
+                    raise ValueError("Выбери локальный голос или Yandex SpeechKit.")
+                values[key] = provider
+            elif key == "yandex_voice":
+                voice = str(value or "").strip().lower()
+                if voice not in {item["id"] for item in YANDEX_VOICES}:
+                    raise ValueError("Этот голос SpeechKit недоступен.")
+                values[key] = voice
             elif key == "voice_name":
                 voice_name = str(value or "").strip().lower()
                 if voice_name not in {voice["id"] for voice in available_tts_voices()}:

@@ -1028,6 +1028,8 @@ async function initAssistantChat() {
   const interruptToggle = $('#assistantInterruptToggle');
   const personalizationToggle = $('#assistantPersonalizationToggle');
   const providerSelect = $('#assistantProvider');
+  const speechProviderSelect = $('#assistantSpeechProvider');
+  const speechKitStatus = $('#assistantSpeechKitStatus');
   const voiceSelect = $('#assistantVoiceName');
   const cloudStatus = $('#assistantCloudStatus');
   const nativeStatus = $('#assistantNativeStatus');
@@ -1314,10 +1316,13 @@ async function initAssistantChat() {
       const native = statusResult.assistant?.native || {};
       const local = statusResult.assistant?.local || {};
       const cloud = statusResult.assistant?.cloud || {};
-      const voices = Array.isArray(local.tts?.voices) ? local.tts.voices : [];
+      const speechkit = statusResult.assistant?.speechkit || {};
+      const useSpeechKit = settings.speech_provider === 'yandex';
+      const voices = useSpeechKit ? speechkit.voices : local.tts?.voices;
+      const availableVoices = Array.isArray(voices) ? voices : [];
       const microphones = Array.isArray(statusResult.assistant?.microphones) ? statusResult.assistant.microphones : [];
       nativeReady = Boolean(native.ready);
-      localTtsReady = Boolean(settings.local_tts_enabled && local.tts?.ready);
+      localTtsReady = Boolean(settings.local_tts_enabled && (useSpeechKit ? speechkit.ready : local.tts?.ready));
       if (enabledToggle) enabledToggle.checked = Boolean(settings.enabled);
       if (autoStartToggle) autoStartToggle.checked = Boolean(settings.auto_start);
       if (wakeWordSelect) wakeWordSelect.value = settings.wake_word || 'эва';
@@ -1338,15 +1343,17 @@ async function initAssistantChat() {
       if (interruptToggle) interruptToggle.checked = interruptResponsesEnabled;
       if (personalizationToggle) personalizationToggle.checked = settings.personalization_enabled !== false;
       if (providerSelect) providerSelect.value = settings.assistant_provider || 'local';
-      if (voiceSelect && voices.length) {
-        voiceSelect.replaceChildren(...voices.map(voice => {
+      if (speechProviderSelect) speechProviderSelect.value = settings.speech_provider || 'local';
+      if (speechKitStatus) speechKitStatus.textContent = speechkit.message || 'SpeechKit недоступен.';
+      if (voiceSelect && availableVoices.length) {
+        voiceSelect.replaceChildren(...availableVoices.map(voice => {
           const option = document.createElement('option');
           option.value = voice.id;
           option.textContent = voice.name;
           return option;
         }));
-        voiceSelect.value = statusResult.assistant?.voice_name || settings.voice_name || voices[0].id;
-        voiceSelect.disabled = statusResult.assistant?.build_profile === 'commercial';
+        voiceSelect.value = useSpeechKit ? (settings.yandex_voice || availableVoices[0].id) : (statusResult.assistant?.voice_name || settings.voice_name || availableVoices[0].id);
+        voiceSelect.disabled = !useSpeechKit && statusResult.assistant?.build_profile === 'commercial';
       }
       if (nativeStatus) nativeStatus.textContent = nativeReady
         ? 'Локальный модуль EVE готов. Микрофон не записывается на диск.'
@@ -1358,7 +1365,7 @@ async function initAssistantChat() {
         const ttsText = local.tts?.ready
           ? `${local.tts.engine || local.tts.backend} готов · ${local.tts.device || 'локально'} · лицензия ${local.tts.license || 'не указана'}.`
           : `${local.tts?.engine || 'Локальный голос'}: ${local.tts?.message || 'модель не найдена'}`;
-        localStatus.textContent = `${modelText} ${ttsText}`;
+        localStatus.textContent = `${modelText} ${useSpeechKit ? speechkit.message : ttsText}`;
       }
       if (cloudStatus) cloudStatus.textContent = cloud.message || 'Облачный режим выключен по умолчанию.';
       renderAssistantSupport(settings);
@@ -1396,6 +1403,7 @@ async function initAssistantChat() {
       }
       if (key === 'continuous_dialog') continuousDialogEnabled = Boolean(result.settings.continuous_dialog);
       if (key === 'interrupt_responses') interruptResponsesEnabled = Boolean(result.settings.interrupt_responses);
+      if (key === 'speech_provider' || key === 'yandex_voice') await loadAssistantSettings();
       renderAssistantSupport(result.settings);
     } catch (error) {
       showToast(error.message, true);
@@ -1672,12 +1680,13 @@ async function initAssistantChat() {
   interruptToggle?.addEventListener('change', () => saveAssistantSetting('interrupt_responses', interruptToggle.checked));
   personalizationToggle?.addEventListener('change', () => saveAssistantSetting('personalization_enabled', personalizationToggle.checked));
   providerSelect?.addEventListener('change', () => saveAssistantSetting('assistant_provider', providerSelect.value));
-  voiceSelect?.addEventListener('change', () => saveAssistantSetting('voice_name', voiceSelect.value));
+  speechProviderSelect?.addEventListener('change', () => saveAssistantSetting('speech_provider', speechProviderSelect.value));
+  voiceSelect?.addEventListener('change', () => saveAssistantSetting(speechProviderSelect?.value === 'yandex' ? 'yandex_voice' : 'voice_name', voiceSelect.value));
   $('#assistantPreviewVoice')?.addEventListener('click', async () => {
     const button = $('#assistantPreviewVoice');
     button.disabled = true;
     try {
-      const voice = voiceSelect?.value || 'xenia';
+      const voice = voiceSelect?.value || (speechProviderSelect?.value === 'yandex' ? 'alena' : 'eve-suit');
       const response = await fetch('/api/assistant/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

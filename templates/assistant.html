@@ -67,7 +67,9 @@
         <label class="assistant-setting-field">Режим разговора<select id="assistantProvider"><option value="local">Локально · DeepSeek</option><option value="cloud">Облако · OpenAI API</option></select></label>
         <p class="assistant-native-status" id="assistantCloudStatus">Облачный режим выключен по умолчанию. Для него нужен отдельный ключ OpenAI API; запросы будут отправляться из интернета.</p>
         <label class="assistant-speech-toggle"><input id="assistantLocalLlmToggle" type="checkbox" checked><span>Разрешить локальный DeepSeek</span></label>
-        <label class="assistant-speech-toggle"><input id="assistantLocalTtsToggle" type="checkbox" checked><span>Локальный голос EVE</span></label>
+        <label class="assistant-setting-field">Голос и распознавание<select id="assistantSpeechProvider"><option value="local">Локально · на этом компьютере</option><option value="yandex">Yandex SpeechKit · через интернет</option></select></label>
+        <p class="assistant-native-status" id="assistantSpeechKitStatus">Для SpeechKit нужен ключ Yandex Cloud. Аудио отправляется в Яндекс только после выбора этого режима.</p>
+        <label class="assistant-speech-toggle"><input id="assistantLocalTtsToggle" type="checkbox" checked><span>Озвучивать ответы</span></label>
         <label class="assistant-speech-toggle"><input id="assistantContinuousDialogToggle" type="checkbox" checked><span>Непрерывный диалог · 20 секунд</span></label>
         <label class="assistant-speech-toggle"><input id="assistantInterruptToggle" type="checkbox"><span>Реагировать на перебивание</span></label>
         <label class="assistant-speech-toggle"><input id="assistantPersonalizationToggle" type="checkbox" checked><span>Персональная память</span></label>
@@ -75,7 +77,7 @@
         <button class="button ghost small" id="assistantPreviewVoice" type="button">Послушать голос</button>
         <button class="button ghost small" id="assistantClearMemory" type="button">Очистить память обо мне</button>
         <p class="assistant-native-status" id="assistantMemoryStatus">Проверяю персональную память…</p>
-        <p class="assistant-native-status">Кнопка и фоновое слово «Эва» используют локальное распознавание Vosk. Запись не сохраняется и не отправляется в интернет.</p>
+        <p class="assistant-native-status">Фоновое слово «Эва» распознаётся локально через Vosk. При выборе SpeechKit записи с микрофона в окне ассистента отправляются в Yandex Cloud.</p>
         <p class="assistant-native-status" id="assistantNativeStatus">Проверяю локальный голосовой модуль…</p>
         <p class="assistant-native-status" id="assistantLocalStatus">Проверяю DeepSeek и локальный голос…</p>
       </section>

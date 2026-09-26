@@ -2,6 +2,10 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import io
+import json
+import urllib.parse
+import wave
 from datetime import date, timedelta
 from pathlib import Path
 from unittest.mock import patch
@@ -9,9 +13,28 @@ from unittest.mock import patch
 import app as app_module
 from eve_assistant import choose_command_candidate, parse_command
 from eve_local import LocalProviderError, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
+from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
 class EveParserTests(unittest.TestCase):
+    def test_speechkit_sends_only_selected_audio_to_official_endpoints(self):
+        environment = {"YANDEX_SPEECHKIT_API_KEY": "test-key", "YANDEX_SPEECHKIT_FOLDER_ID": "test-folder"}
+        with patch.dict("os.environ", environment), patch("eve_speechkit.urllib.request.urlopen") as open_url:
+            open_url.return_value.__enter__.return_value.read.return_value = b"\x00\x00\x01\x00"
+            audio = synthesize_speechkit("Привет", "alena")
+            request = open_url.call_args.args[0]
+            self.assertEqual(request.full_url, "https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize")
+            self.assertEqual(request.get_header("Authorization"), "Api-Key test-key")
+            self.assertEqual(urllib.parse.parse_qs(request.data.decode())["folderId"], ["test-folder"])
+            with wave.open(io.BytesIO(audio), "rb") as wav_file:
+                self.assertEqual((wav_file.getframerate(), wav_file.getnframes()), (48000, 2))
+
+            open_url.return_value.__enter__.return_value.read.return_value = json.dumps({"result": "создай папку"}).encode()
+            self.assertEqual(transcribe_speechkit(b"\x00\x00" * 1600), "создай папку")
+            self.assertEqual(urllib.parse.urlparse(open_url.call_args.args[0].full_url).hostname, "stt.api.cloud.yandex.net")
+        with patch.dict("os.environ", {"YANDEX_SPEECHKIT_API_KEY": "", "YANDEX_SPEECHKIT_FOLDER_ID": ""}):
+            self.assertFalse(speechkit_status()["ready"])
+
     def test_local_reasoning_markup_is_not_shown_to_user(self):
         self.assertEqual(strip_reasoning("<think>внутренний план</think>Готово."), "Готово.")
         self.assertEqual(strip_reasoning("<think>незавершённое рассуждение"), "")
@@ -624,6 +647,19 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
             )
         self.assertEqual(response.get_json()["action"], "unsupported")
         run.assert_not_called()
+
+    def test_speechkit_mode_routes_audio_and_keeps_dialogue_provider_separate(self):
+        saved = self.client.patch("/api/assistant/settings", json={"speech_provider": "yandex", "yandex_voice": "jane"})
+        self.assertEqual(saved.get_json()["settings"]["speech_provider"], "yandex")
+        with patch.object(app_module, "synthesize_speechkit", return_value=b"RIFFtest") as synthesize:
+            response = self.client.post("/api/assistant/tts", json={"text": "Привет"})
+        self.assertEqual(response.headers["X-EVE-TTS"], "yandex-speechkit")
+        synthesize.assert_called_once_with("Привет", "jane")
+        with patch.object(app_module, "transcribe_speechkit", return_value="создай папку") as transcribe:
+            response = self.client.post("/api/assistant/transcribe", data=b"\x00\x00" * 1600)
+        self.assertEqual(response.get_json()["text"], "создай папку")
+        transcribe.assert_called_once()
+        self.assertEqual(self.client.get("/api/assistant/settings").get_json()["settings"]["assistant_provider"], "local")
 
     def test_unknown_command_uses_local_model_without_executing_action(self):
         with patch.object(app_module, "generate_local_reply", return_value="Я рядом и готова помочь.") as generate:

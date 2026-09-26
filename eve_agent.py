@@ -781,13 +781,23 @@ def _post_command(server_url: str, text: str) -> dict[str, Any]:
         return json.loads(response.read().decode("utf-8"))
 
 
-def _speak(text: str) -> None:
+def _speak(text: str, server_url: str | None = None) -> None:
     if not text:
         return
     try:
-        from eve_local import synthesize_speech
+        if server_url:
+            request = urllib.request.Request(
+                f"{server_url.rstrip('/')}/api/assistant/tts",
+                data=json.dumps({"text": text}).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=30) as response:
+                wav_payload = response.read()
+        else:
+            from eve_local import synthesize_speech
 
-        wav_payload = synthesize_speech(text)
+            wav_payload = synthesize_speech(text)
         if sys.platform == "win32":
             import winsound
 
@@ -854,7 +864,7 @@ def run_native_agent(
         last_command, last_command_at = command_text, now
         try:
             response = _post_command(server_url, command_text)
-            _speak(str(response.get("reply", "")))
+            _speak(str(response.get("reply", "")), server_url)
         except (urllib.error.URLError, OSError, ValueError):
             _speak("Не удалось связаться с планером")
         discard_queued_audio()

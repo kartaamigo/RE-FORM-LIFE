@@ -16,6 +16,26 @@ usage may be billed. The key is not stored in the application database. The
 default API base is `https://api.openai.com/v1`; `EVE_OPENAI_MODEL` may be
 configured separately. The API key is sent only to the official HTTPS API host.
 
+## Optional Yandex SpeechKit voice
+
+EVE can use the official Yandex Cloud SpeechKit API for microphone recognition
+and spoken answers. This is a speech service, not the Alice conversation engine;
+the selected local DeepSeek or OpenAI-compatible provider still writes replies.
+The default speech mode remains local. In SpeechKit mode, microphone clips from
+the assistant window and text being spoken are sent to Yandex Cloud. The wake
+word and background microphone recognition remain local in Vosk; background
+spoken replies use the selected voice provider.
+
+Create a Yandex Cloud service account with access to SpeechKit, an API key for
+that account, and note the cloud folder ID. Set `YANDEX_SPEECHKIT_API_KEY` and
+`YANDEX_SPEECHKIT_FOLDER_ID` in the environment used to launch RE:FORM LIFE,
+then restart the app. Select **Yandex SpeechKit** under **Голос и распознавание**
+on the assistant page. The API key is never saved in the app database or sent
+to the browser; requests go to the official `tts.api.cloud.yandex.net` and
+`stt.api.cloud.yandex.net` HTTPS hosts. SpeechKit use may incur Yandex Cloud
+charges. If the key is missing or the service fails, EVE displays an error and
+does not silently send audio to another provider.
+
 ## PC actions
 
 The deterministic command parser may open known folders, Start Menu shortcuts,
