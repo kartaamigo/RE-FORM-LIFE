@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="legacy-week-layout">
+  <div class="legacy-left-column">
+  <span id="weekTitle" hidden></span>
+  <section class="legacy-top-stats" aria-label="Сводка недели">
+    <article class="legacy-card legacy-stat legacy-week-card-link" id="week-card" title="Выбрать неделю">
+      <img src="{{ url_for('static', filename='img/Group-5.svg') }}" class="legacy-stat-icon" alt="">
+      <div>
+        <small id="week-label">Текущая неделя</small>
+        <strong id="weekRange">—</strong>
+        <small id="weekYear">—</small>
+      </div>
+      <span class="legacy-arrow">›</span>
+      <input class="legacy-week-picker" id="weekPicker" type="date" aria-label="Выбрать дату недели">
+    </article>
+
+    <article class="legacy-card legacy-stat legacy-goal-stat">
+      <div class="legacy-target-icon" aria-hidden="true">◎</div>
+      <div class="legacy-stat-copy">
+        <small>Цель недели</small>
+        <input id="weekGoal" class="legacy-goal-input" placeholder="Запишите фокус недели" maxlength="240">
+      </div>
+      <div class="legacy-week-nav" aria-label="Навигация по неделям">
+        <button id="weekPrev" type="button" title="Предыдущая неделя">‹</button>
+        <button id="weekNext" type="button" title="Следующая неделя">›</button>
+      </div>
+    </article>
+
+    <article class="legacy-card legacy-stat">
+      <div class="legacy-mini-ring" id="miniRing"><span id="weekPercent">0%</span></div>
+      <div>
+        <small>Выполнено задач</small>
+        <strong id="weekCompleted">0 из 0</strong>
+        <small id="weekLeft">Осталось 0</small>
+      </div>
+    </article>
+
+    <article class="legacy-card legacy-stat legacy-mood-stat" id="weekMoodCard">
+      <div class="legacy-mood-icon" id="weekMoodIcon" aria-hidden="true">⌣</div>
+      <div class="legacy-mood-copy">
+        <small>Настроение</small>
+        <strong id="weekMoodLabel">Пока нет отметок</strong>
+        <div class="legacy-mood-line" id="weekMoodLine" aria-hidden="true"><i></i></div>
+      </div>
+    </article>
+  </section>
+
+  <section class="legacy-card legacy-week-board" aria-label="Недельное расписание">
+    <div class="legacy-days" id="weekDays"></div>
+  </section>
+
+  <div class="legacy-bottom-row">
+    <section class="legacy-card legacy-notes">
+      <div class="legacy-notes-title"><span aria-hidden="true">☷</span> Заметки <button id="addNote" type="button" title="Добавить заметку">＋</button></div>
+      <div class="legacy-note-row" id="notesList"></div>
+    </section>
+
+    <section class="legacy-card legacy-today">
+      <div class="legacy-today-title"><span>План на сегодня</span><span class="legacy-date-badge" id="todayBadge">—</span></div>
+      <div class="legacy-today-list" id="todayList"></div>
+    </section>
+  </div>
+  </div>
+
+  <aside class="legacy-right-top">
+    <div class="legacy-card legacy-weekly-progress">
+      <div class="legacy-section-title">Прогресс недели <span>›</span></div>
+      <div class="legacy-big-ring" id="largeRing"><strong id="largePercent">0%</strong></div>
+      <div class="legacy-ring-stats">
+        <div><strong id="ringDone">0</strong><small>Выполнено</small></div>
+        <div><strong id="ringRemaining">0</strong><small>Осталось</small></div>
+        <div><strong id="ringAll">0</strong><small>Всего</small></div>
+      </div>
+    </div>
+    <div class="legacy-rabbit-card">
+      <img src="{{ url_for('static', filename='img/maskot.svg') }}" class="legacy-rabbit-img" alt="">
+      <div class="legacy-quote">Маленькие шаги<br>приводят к большим<br><span>результатам</span></div>
+    </div>
+  </aside>
+</div>
+{% endblock %}

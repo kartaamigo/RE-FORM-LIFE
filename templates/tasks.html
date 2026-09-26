@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="stats-row tasks-stats" aria-label="Сводка задач">
+  <article class="metric-card"><div class="metric-icon">▦</div><div><span>Всего задач</span><strong id="tasksTotal">0</strong><small>во всех месяцах</small></div></article>
+  <article class="metric-card"><div class="metric-icon target">◷</div><div><span>В процессе</span><strong id="tasksOpen">0</strong><small id="tasksOpenCaption">активных задач</small></div></article>
+  <button class="metric-card metric-card-action" id="tasksDoneCard" type="button" data-task-summary="done" aria-haspopup="dialog" aria-label="Открыть выполненные задачи"><span class="metric-icon positive">✓</span><span class="metric-card-copy"><span>Выполнено</span><strong id="tasksDone">0</strong><small id="tasksDoneCaption">выполненных задач</small></span></button>
+  <button class="metric-card metric-card-action" id="tasksOverdueCard" type="button" data-task-summary="overdue" aria-haspopup="dialog" aria-label="Открыть просроченные задачи"><span class="metric-icon negative">×</span><span class="metric-card-copy"><span>Просрочено</span><strong id="tasksOverdue">0</strong><small>открыть список</small></span></button>
+</section>
+
+<section class="toolbar-card tasks-toolbar">
+  <div class="toolbar-title"><div class="section-kicker">СПИСОК ЗАДАЧ</div><h2>Все задачи</h2></div>
+  <div class="toolbar-actions"><input class="tasks-search" id="tasksSearch" type="search" placeholder="Найти задачу…" aria-label="Найти задачу"><select class="select-control" id="tasksFilter" aria-label="Фильтр задач"><option value="all">Все</option><option value="open">Активные</option><option value="done">Выполненные</option><option value="overdue">Просроченные</option></select><button class="button ghost small" id="tasksAddSection" type="button">＋ Раздел</button><button class="button primary small" id="tasksAddTask" type="button">＋ Добавить задачу</button></div>
+</section>
+
+<section class="panel tasks-panel">
+  <div class="panel-heading"><div><div class="section-kicker">KANBAN-ДОСКА</div><h2 id="tasksListTitle">Задачи</h2></div><span class="panel-hint">Перетаскивайте карточки между разделами</span></div>
+  <div class="kanban-board" id="tasksKanban" aria-label="Задачи по разделам"></div>
+</section>
+{% endblock %}

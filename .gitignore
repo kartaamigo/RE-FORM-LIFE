@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Python caches and local environments
+__pycache__/
+.pycache/
+*.py[cod]
+.build-venv/
+.pip-cache/
+.pyinstaller-cache/
+.venv/
+venv/
+
+# Generated build and distribution artifacts
+build*/
+dist*/

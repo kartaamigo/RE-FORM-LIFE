@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="stats-row month-stats" aria-label="Сводка месяца">
+  <article class="metric-card month-metric">
+    <div class="metric-icon calendar-metric-icon">▦</div>
+    <div class="metric-grow"><span>Всего задач</span><strong id="monthTaskCount">0</strong><small id="monthTaskTrend">На выбранный месяц</small><div class="metric-progress"><i id="monthTaskProgress"></i></div></div>
+  </article>
+  <article class="metric-card month-metric">
+    <div class="metric-icon positive">✓</div>
+    <div class="metric-grow"><span>Выполнено</span><strong id="monthDoneCount">0</strong><small id="monthDonePercent">0%</small><div class="metric-progress"><i id="monthDoneProgress"></i></div></div>
+  </article>
+  <article class="metric-card month-metric">
+    <div class="metric-icon target">◷</div>
+    <div class="metric-grow"><span>В процессе</span><strong id="monthProgressCount">0</strong><small id="monthProgressPercent">0%</small><div class="metric-progress"><i id="monthOpenProgress"></i></div></div>
+  </article>
+  <article class="metric-card month-metric">
+    <div class="metric-icon negative">×</div>
+    <div class="metric-grow"><span>Просрочено</span><strong id="monthOverdueCount">0</strong><small id="monthOverduePercent">0%</small><div class="metric-progress"><i id="monthOverdueProgress"></i></div></div>
+  </article>
+</section>
+
+<section class="month-layout">
+  <div class="month-main-column">
+    <section class="panel calendar-panel month-calendar-panel" aria-label="Календарь месяца">
+      <div class="month-calendar-controls">
+        <button class="button primary" id="monthAddSection" type="button">＋ Добавить пункт</button>
+        <div class="section-legend" id="sectionLegend" aria-label="Разделы"></div>
+        <div class="month-filter-anchors" hidden>
+          <select id="monthFilter" aria-label="Фильтр задач">
+            <option value="all">Все задачи</option>
+            <option value="open">Только активные</option>
+            <option value="done">Только выполненные</option>
+          </select>
+          <select id="monthSectionFilter" aria-label="Фильтр разделов"><option value="all">Все разделы</option></select>
+        </div>
+      </div>
+      <div class="calendar-panel-heading">
+        <div><div class="section-kicker">МЕСЯЦ</div><h2 id="monthTitle">—</h2></div>
+        <div class="calendar-panel-hint">Нажмите на день, чтобы выбрать его<br><span id="selectedDateLabel">—</span></div>
+      </div>
+      <div class="calendar-weekdays"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
+      <div class="month-calendar" id="monthCalendar"></div>
+      <div class="selected-day-strip">
+        <div class="selected-day-heading"><div><div class="section-kicker">ВЫБРАННЫЙ ДЕНЬ</div><h3 id="selectedDayTitle">—</h3></div><span id="selectedTaskCount">0 задач</span><button class="text-button" id="selectedAddTask" type="button" title="Добавить задачу на этот день">＋</button></div>
+        <div class="selected-day-list" id="selectedDayList"></div>
+      </div>
+    </section>
+  </div>
+
+  <aside class="month-side-column">
+    <section class="panel priorities-panel" aria-label="Приоритеты месяца">
+      <div class="panel-heading"><div class="side-heading"><span class="side-heading-icon">★</span><h2>Приоритеты месяца</h2></div><div class="priority-heading-actions"><span id="priorityProgressLabel">Все</span><button class="text-button" id="addPriority" type="button" title="Добавить приоритет">＋</button></div></div>
+      <div class="priority-list" id="priorityList"></div>
+    </section>
+    <section class="panel notes-panel" aria-label="Заметки">
+      <div class="panel-heading"><div class="side-heading"><span class="side-heading-icon notes-heading-icon">▤</span><h2>Заметки</h2></div><div class="notes-heading-actions"><span>Все</span><button class="text-button" id="monthAddNote" type="button" title="Добавить заметку">＋</button></div></div>
+      <div class="month-notes-list" id="monthNotesList"></div>
+    </section>
+    <section class="month-quote-card"><div><strong>Ты можешь больше,<br>чем ты думаешь <span>♥</span></strong></div><img src="{{ url_for('static', filename='img/maskot.svg') }}" alt=""></section>
+  </aside>
+</section>
+{% endblock %}
+
+{% block modals %}
+<div class="modal-backdrop" id="priorityModal" aria-hidden="true">
+  <form class="modal-card compact" id="priorityForm">
+    <button class="modal-close" type="button" data-close-modal="priorityModal">×</button>
+    <div class="modal-kicker">ФОКУС МЕСЯЦА</div>
+    <h2 id="priorityModalTitle">Новый приоритет</h2>
+    <input type="hidden" id="priorityId">
+    <label>Приоритет<input id="priorityText" required maxlength="180" placeholder="Например, закончить курс"></label>
+    <label>Процент выполнения<input id="priorityProgress" type="number" min="0" max="100" value="0" inputmode="numeric"></label>
+    <div class="modal-actions"><button class="button ghost" type="button" data-close-modal="priorityModal">Отмена</button><button class="button primary" type="submit">Сохранить</button></div>
+  </form>
+</div>
+{% endblock %}

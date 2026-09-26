@@ -1,0 +1,380 @@
+from __future__ import annotations
+
+import tempfile
+import unittest
+from datetime import date, timedelta
+from pathlib import Path
+from unittest.mock import patch
+
+import app as app_module
+from eve_assistant import parse_command
+
+
+class EveParserTests(unittest.TestCase):
+    def test_voice_command_keeps_time_and_resolves_relative_date(self):
+        parsed = parse_command(
+            "Эва, добавь задачу купить молоко на завтра в 19:30",
+            date(2026, 9, 25),
+        )
+        self.assertEqual(parsed.intent, "create_task")
+        self.assertEqual(parsed.task_text, "купить молоко")
+        self.assertEqual(parsed.task_date, "2026-09-26")
+        self.assertEqual(parsed.start_time, "19:30")
+
+    def test_week_and_generic_completion_commands(self):
+        week = parse_command("покажи план на следующую неделю", date(2026, 9, 25))
+        self.assertEqual(week.intent, "open_planner")
+        self.assertEqual(week.task_date, "2026-10-02")
+        complete = parse_command("отметь задачу выполненной", date(2026, 9, 25))
+        self.assertEqual(complete.intent, "complete_task")
+        self.assertEqual(complete.query, "")
+
+    def test_task_board_and_column_are_parsed(self):
+        parsed = parse_command(
+            "добавь задачу в раздел задачи доделать дз в стол учеба",
+            date(2026, 9, 25),
+        )
+        self.assertEqual(parsed.intent, "create_task")
+        self.assertEqual(parsed.task_text, "доделать дз")
+        self.assertEqual(parsed.scope, "tasks")
+        self.assertEqual(parsed.section, "учеба")
+
+    def test_safe_external_commands_are_parsed(self):
+        explorer = parse_command("Эва, открой проводник в загрузки")
+        self.assertEqual(explorer.intent, "open_explorer")
+        self.assertEqual(explorer.target, "загрузки")
+        browser = parse_command("запусти браузер")
+        self.assertEqual(browser.intent, "open_browser")
+        url = parse_command("открой https://example.com")
+        self.assertEqual(url.intent, "open_url")
+        self.assertEqual(url.target, "https://example.com")
+        finance = parse_command("добавь расход 500 на продукты")
+        self.assertEqual(finance.intent, "finance_transaction")
+        self.assertEqual(finance.finance_kind, "expense")
+        self.assertEqual(parse_command("поставь громкость на 40").intent, "set_volume")
+        self.assertEqual(parse_command("выключи Wi-Fi").intent, "toggle_wifi")
+        self.assertEqual(parse_command("выключи компьютер на Mac").intent, "shutdown")
+
+
+class PlannerAndUtilitiesApiTests(unittest.TestCase):
+    def setUp(self):
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.previous_database = app_module.app.config["DATABASE"]
+        app_module.app.config["TESTING"] = True
+        app_module.app.config["DATABASE"] = str(Path(self.temp_dir.name) / "test.sqlite3")
+        app_module.assistant_pending_actions.clear()
+        self.client = app_module.app.test_client()
+
+    def tearDown(self):
+        app_module.app.config["DATABASE"] = self.previous_database
+        self.temp_dir.cleanup()
+
+    def test_planner_voice_create_and_complete(self):
+        tomorrow = date.today() + timedelta(days=1)
+        created = self.client.post(
+            "/api/assistant/command",
+            json={"text": "Эва, добавь задачу купить молоко на завтра в 19:30"},
+        )
+        self.assertEqual(created.status_code, 201)
+        task = created.get_json()["task"]
+        self.assertEqual(task["task_date"], tomorrow.isoformat())
+        self.assertEqual(task["start_time"], "19:30")
+
+        completed = self.client.post(
+            "/api/assistant/command",
+            json={"text": "Эва, отметь задачу купить молоко выполненной"},
+        )
+        self.assertEqual(completed.status_code, 200)
+        self.assertEqual(completed.get_json()["action"], "complete_task")
+
+        listed = self.client.get(f"/api/tasks?scope=planner&start={tomorrow}&end={tomorrow}")
+        self.assertTrue(listed.get_json()["tasks"][0]["done"])
+
+    def test_assistant_can_create_task_in_tasks_board_and_column(self):
+        created = self.client.post(
+            "/api/assistant/command",
+            json={"text": "добавь задачу в раздел задачи доделать дз в стол учеба"},
+        )
+        self.assertEqual(created.status_code, 201)
+        payload = created.get_json()
+        self.assertEqual(payload["task"]["scope"], "tasks")
+        self.assertEqual(payload["task"]["section"], "Учёба")
+        self.assertIn("раздел «Задачи»", payload["reply"])
+        listed = self.client.get("/api/tasks?scope=tasks").get_json()["tasks"]
+        self.assertEqual(listed[0]["text"], "доделать дз")
+
+        completed = self.client.post(
+            "/api/assistant/command",
+            json={"text": "отметь задачу доделать дз выполненной"},
+        )
+        self.assertEqual(completed.get_json()["action"], "complete_task")
+        self.assertTrue(self.client.get("/api/tasks?scope=tasks").get_json()["tasks"][0]["done"])
+
+    def test_assistant_external_command_uses_safe_adapter(self):
+        with patch.object(
+            app_module,
+            "perform_external_action",
+            return_value={"location": "downloads", "path": "/tmp/Downloads"},
+        ) as open_action:
+            response = self.client.post(
+                "/api/assistant/command",
+                json={"text": "Эва, открой проводник в загрузки"},
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["action"], "open_explorer")
+        self.assertIn("Загрузки", response.get_json()["reply"])
+        open_action.assert_called_once_with("open_explorer", "загрузки")
+
+    def test_assistant_history_is_stored_in_database(self):
+        response = self.client.post(
+            "/api/assistant/command",
+            json={"text": "покажи план на сегодня"},
+        )
+        self.assertEqual(response.status_code, 200)
+        history = self.client.get("/api/assistant/history").get_json()["messages"]
+        self.assertEqual([item["role"] for item in history[-2:]], ["user", "assistant"])
+        self.assertEqual(history[-2]["text"], "покажи план на сегодня")
+        self.assertTrue("План на" in history[-1]["text"] or "свободен" in history[-1]["text"])
+
+        cleared = self.client.delete("/api/assistant/history")
+        self.assertEqual(cleared.status_code, 200)
+        self.assertEqual(self.client.get("/api/assistant/history").get_json()["messages"], [])
+
+    def test_multiple_apartments_and_paid_date(self):
+        first = self.client.post(
+            "/api/utilities/accounts",
+            json={"name": "Дом", "address": "ул. Первая, 1"},
+        ).get_json()["account"]
+        second = self.client.post(
+            "/api/utilities/accounts",
+            json={"name": "Квартира", "address": "ул. Вторая, 2"},
+        ).get_json()["account"]
+        self.assertNotEqual(first["id"], second["id"])
+
+        month = date.today().strftime("%Y-%m")
+        paid_date = (date.today() - timedelta(days=2)).isoformat()
+        payment = self.client.post(
+            "/api/utilities/payments",
+            json={
+                "account_id": first["id"],
+                "billing_month": month,
+                "due_date": date.today().isoformat(),
+                "amount_minor": 125000,
+                "status": "paid",
+                "paid_date": paid_date,
+            },
+        )
+        self.assertEqual(payment.status_code, 201)
+        self.assertEqual(payment.get_json()["payment"]["paid_date"], paid_date)
+
+        second_payment = self.client.post(
+            "/api/utilities/payments",
+            json={
+                "account_id": second["id"],
+                "billing_month": month,
+                "due_date": date.today().isoformat(),
+                "amount_minor": 99000,
+            },
+        )
+        self.assertEqual(second_payment.status_code, 201)
+        payments = self.client.get(f"/api/utilities/payments?month={month}").get_json()["payments"]
+        self.assertEqual({item["address"] for item in payments}, {"ул. Первая, 1", "ул. Вторая, 2"})
+
+    def test_savings_categories_operations_goals_and_archive(self):
+        listed = self.client.get("/api/finance/savings/categories").get_json()["categories"]
+        self.assertEqual({item["name"] for item in listed}, {"Личное", "За квартиру", "За парковку"})
+        personal = next(item for item in listed if item["name"] == "Личное")
+
+        deposit = self.client.post(
+            "/api/finance/savings/operations",
+            json={"category_id": personal["id"], "kind": "deposit", "amount_minor": 500000},
+        )
+        self.assertEqual(deposit.status_code, 201)
+        too_large = self.client.post(
+            "/api/finance/savings/operations",
+            json={"category_id": personal["id"], "kind": "withdrawal", "amount_minor": 500001},
+        )
+        self.assertEqual(too_large.status_code, 400)
+
+        withdrawal = self.client.post(
+            "/api/finance/savings/operations",
+            json={"category_id": personal["id"], "kind": "withdrawal", "amount_minor": 125000},
+        )
+        self.assertEqual(withdrawal.status_code, 201)
+        summary = self.client.get("/api/finance/savings/summary").get_json()
+        personal_summary = next(item for item in summary["categories"] if item["id"] == personal["id"])
+        self.assertEqual(personal_summary["balance_minor"], 375000)
+
+        planned = self.client.patch(
+            f"/api/finance/savings/categories/{personal['id']}/plan",
+            json={"amount_minor": 250000, "day_of_month": 15, "enabled": True},
+        )
+        self.assertEqual(planned.status_code, 200)
+        self.assertEqual(planned.get_json()["plan"]["day_of_month"], 15)
+
+        custom = self.client.post(
+            "/api/finance/savings/categories",
+            json={"name": "Путешествие", "goal_minor": 1000000},
+        )
+        self.assertEqual(custom.status_code, 201)
+        custom_id = custom.get_json()["category"]["id"]
+        archived = self.client.patch(
+            f"/api/finance/savings/categories/{custom_id}",
+            json={"archived": True},
+        )
+        self.assertEqual(archived.status_code, 200)
+        active_names = {item["name"] for item in self.client.get("/api/finance/savings/categories").get_json()["categories"]}
+        self.assertNotIn("Путешествие", active_names)
+        all_names = {item["name"] for item in self.client.get("/api/finance/savings/categories?include_archived=1").get_json()["categories"]}
+        self.assertIn("Путешествие", all_names)
+
+    def test_savings_eve_commands_require_confirmation_and_resolve_cases(self):
+        summary = self.client.post(
+            "/api/assistant/command",
+            json={"text": "сколько накоплено в личном"},
+        )
+        self.assertEqual(summary.status_code, 200)
+        self.assertEqual(summary.get_json()["action"], "savings_summary")
+        self.assertIn("Личное", summary.get_json()["reply"])
+
+        requested = self.client.post(
+            "/api/assistant/command",
+            json={"text": "пополни личное на 5000"},
+        )
+        self.assertEqual(requested.get_json()["action"], "needs_confirmation")
+        confirmation_id = requested.get_json()["confirmation_id"]
+        cancelled = self.client.post(
+            "/api/assistant/confirm",
+            json={"confirmation_id": confirmation_id, "approved": False},
+        )
+        self.assertEqual(cancelled.get_json()["action"], "cancelled")
+
+        requested = self.client.post(
+            "/api/assistant/command",
+            json={"text": "пополни личное на 5000"},
+        )
+        confirmed = self.client.post(
+            "/api/assistant/confirm",
+            json={"confirmation_id": requested.get_json()["confirmation_id"], "approved": True},
+        )
+        self.assertEqual(confirmed.get_json()["action"], "savings_operation")
+        categories = self.client.get("/api/finance/savings/categories").get_json()["categories"]
+        self.assertEqual(next(item for item in categories if item["name"] == "Личное")["balance_minor"], 500000)
+
+    def test_eve_finance_commands_and_voice_confirmation(self):
+        created = self.client.post(
+            "/api/assistant/command",
+            json={"text": "добавь расход 500 на продукты"},
+        )
+        self.assertEqual(created.status_code, 201)
+        self.assertEqual(created.get_json()["action"], "finance_transaction")
+        summary = self.client.post(
+            "/api/assistant/command",
+            json={"text": "покажи баланс"},
+        )
+        self.assertEqual(summary.get_json()["expense_minor"], 50000)
+
+        requested = self.client.post(
+            "/api/assistant/command",
+            json={"text": "создай папку EVE test"},
+        )
+        self.assertEqual(requested.get_json()["action"], "needs_confirmation")
+        with patch.object(
+            app_module,
+            "execute_pending_action",
+            return_value={"action": "create_folder", "reply": "Папка создана.", "path": "/tmp/eve-test"},
+        ) as execute:
+            confirmed_by_voice = self.client.post(
+                "/api/assistant/command",
+                json={"text": "подтверждаю", "source": "background"},
+            )
+        execute.assert_called_once()
+        self.assertEqual(confirmed_by_voice.status_code, 200)
+        self.assertEqual(confirmed_by_voice.get_json()["action"], "create_folder")
+
+    def test_utilities_services_readings_calculated_payment_and_summary(self):
+        account = self.client.post(
+            "/api/utilities/accounts",
+            json={"name": "Дом", "address": "ул. Тестовая, 5"},
+        ).get_json()["account"]
+        services = self.client.get(f"/api/utilities/accounts/{account['id']}/services").get_json()["services"]
+        self.assertEqual({item["name"] for item in services}, {"Электричество", "Холодная вода", "Горячая вода", "Газ"})
+        custom = self.client.post(
+            f"/api/utilities/accounts/{account['id']}/services",
+            json={"name": "Отопление", "unit": "Гкал"},
+        )
+        self.assertEqual(custom.status_code, 201)
+        electricity = next(item for item in services if item["name"] == "Электричество")
+        reading_date = "2026-09-25"
+        first_reading = self.client.post(
+            f"/api/utilities/accounts/{account['id']}/readings",
+            json={"service_id": electricity["id"], "reading_value": "100,000", "reading_date": reading_date},
+        )
+        self.assertEqual(first_reading.status_code, 201)
+        updated_reading = self.client.post(
+            f"/api/utilities/accounts/{account['id']}/readings",
+            json={"service_id": electricity["id"], "reading_value": "101,250", "reading_date": reading_date},
+        )
+        self.assertEqual(updated_reading.status_code, 201)
+        self.assertEqual(updated_reading.get_json()["reading"]["reading_value"], 101.25)
+        readings = self.client.get(f"/api/utilities/accounts/{account['id']}/readings").get_json()["readings"]
+        self.assertEqual(len([item for item in readings if item["service_id"] == electricity["id"] and item["reading_date"] == reading_date]), 1)
+
+        month = "2026-09"
+        payment = self.client.post(
+            "/api/utilities/payments",
+            json={
+                "account_id": account["id"],
+                "billing_month": month,
+                "due_date": "2026-09-30",
+                "items": [{"service_id": electricity["id"], "tariff_minor": 250, "previous_reading": 100, "current_reading": 102}],
+            },
+        )
+        self.assertEqual(payment.status_code, 201)
+        payment_payload = payment.get_json()["payment"]
+        self.assertEqual(payment_payload["amount_minor"], 500)
+        self.assertEqual(payment_payload["items"][0]["amount_minor"], 500)
+        summary = self.client.get(f"/api/utilities/summary?month={month}").get_json()
+        self.assertEqual(summary["accrued_minor"], 500)
+        self.assertEqual(summary["remaining_minor"], 500)
+
+    def test_utility_meter_reminder_window_and_submission_reset(self):
+        account = self.client.post(
+            "/api/utilities/accounts",
+            json={"name": "Напоминание", "address": "ул. Сроковая, 1"},
+        ).get_json()["account"]
+        real_date = app_module.date
+
+        class FrozenDate(real_date):
+            @classmethod
+            def today(cls):
+                return real_date(2026, 9, 20)
+
+        with patch.object(app_module, "date", FrozenDate):
+            status = self.client.get("/api/utilities/reminders/status?month=2026-09").get_json()
+            self.assertTrue(status["active_window"])
+            self.assertEqual([item["account_id"] for item in status["reminders"]], [account["id"]])
+            submitted = self.client.post(
+                f"/api/utilities/accounts/{account['id']}/meter-submission",
+                json={"submission_month": "2026-09", "submitted": True},
+            )
+            self.assertTrue(submitted.get_json()["submitted"])
+            after_submission = self.client.get("/api/utilities/reminders/status?month=2026-09").get_json()
+            self.assertEqual(after_submission["reminders"], [])
+            reset = self.client.post(
+                f"/api/utilities/accounts/{account['id']}/meter-submission",
+                json={"submission_month": "2026-09", "submitted": False},
+            )
+            self.assertFalse(reset.get_json()["submitted"])
+
+    def test_assistant_status_exposes_native_capability(self):
+        response = self.client.get("/api/assistant/status")
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()["assistant"]
+        self.assertEqual(payload["display_name"], "EVE · Эва")
+        self.assertIn("native", payload)
+        self.assertIn("model_path", payload["native"])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="assistant-layout">
+  <section class="panel assistant-hero" aria-label="Голосовой ассистент EVE">
+    <div class="assistant-orb-column">
+      <button class="assistant-mic-button" id="assistantMicButton" type="button" aria-label="Начать голосовой ввод" aria-pressed="false">
+        <span class="assistant-mic-ring assistant-mic-ring-one"></span>
+        <span class="assistant-mic-ring assistant-mic-ring-two"></span>
+        <span class="assistant-mic-glyph" aria-hidden="true">♩</span>
+      </button>
+      <span class="assistant-listening-dot" id="assistantListeningDot" aria-hidden="true"></span>
+    </div>
+    <div class="assistant-hero-copy">
+      <div class="section-kicker">EVE · ЭВА</div>
+      <h2>Я рядом, говори</h2>
+      <p id="assistantStatus" role="status" aria-live="polite">Напиши сообщение в диалог или нажми на микрофон — я выполню команду.</p>
+      <div class="assistant-hero-actions">
+        <label class="assistant-speech-toggle"><input id="assistantSpeakToggle" type="checkbox" checked><span>Отвечать голосом</span></label>
+        <label class="assistant-speech-toggle"><input id="assistantEnabledToggle" type="checkbox" checked><span>Включить EVE</span></label>
+        <label class="assistant-speech-toggle"><input id="assistantAutoStartToggle" type="checkbox"><span>Запускать EVE вместе с системой</span></label>
+        <button class="button ghost small" id="assistantStopSpeech" type="button">Остановить голос</button>
+      </div>
+    </div>
+    <div class="assistant-hero-badge" id="assistantSupportBadge">Проверяю микрофон</div>
+  </section>
+
+  <div class="assistant-content-grid">
+    <section class="panel assistant-chat-panel" aria-label="Диалог с EVE">
+      <div class="panel-heading assistant-panel-heading">
+        <div><div class="section-kicker">ДИАЛОГ</div><h2>История с Эвой</h2></div>
+        <button class="text-button" id="assistantClearLog" type="button">Очистить историю</button>
+      </div>
+      <div class="assistant-log" id="assistantLog" aria-live="polite">
+        <div class="assistant-log-empty">Здесь появится история ваших сообщений и ответов Эвы.</div>
+      </div>
+      <div class="assistant-command-row">
+        <textarea id="assistantCommand" rows="1" maxlength="500" autocomplete="off" placeholder="Например: добавь задачу в раздел задачи: доделать ДЗ, в стол Учёба" aria-label="Сообщение ассистенту"></textarea>
+        <button class="button primary" id="assistantSend" type="button">Отправить</button>
+      </div>
+      <div class="assistant-interim" id="assistantInterim" aria-live="polite">Эва готова выполнить твою команду.</div>
+    </section>
+
+    <aside class="assistant-side-column">
+      <section class="panel assistant-help-panel" aria-label="Примеры команд">
+        <div class="section-kicker">ПРИМЕРЫ</div>
+        <h2>Что можно сказать</h2>
+        <button type="button" class="assistant-example" data-assistant-example="Добавь задачу в раздел задачи: доделать ДЗ, в стол Учёба">«Добавь задачу в раздел задачи: доделать ДЗ, в стол Учёба»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Добавь задачу купить продукты на завтра в планер">«Добавь задачу купить продукты на завтра в планер»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Покажи план на сегодня">«Покажи план на сегодня»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Отметь задачу доделать ДЗ выполненной">«Отметь задачу выполненной»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Открой проводник в загрузки">«Открой проводник в Загрузки»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Запусти браузер">«Запусти браузер»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Сколько накоплено в личном">«Сколько накоплено в личном»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Покажи коммуналку">«Покажи коммуналку»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Запиши показание электричество 123">«Запиши показание электричество 123»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Добавь расход 500 на продукты">«Добавь расход 500 на продукты»</button>
+        <button type="button" class="assistant-example" data-assistant-example="Поставь громкость на 40">«Поставь громкость на 40»</button>
+      </section>
+      <section class="panel assistant-settings-panel" aria-label="Настройки EVE">
+        <div class="section-kicker">НАСТРОЙКИ EVE</div>
+        <h2>Голос и запуск</h2>
+        <label class="assistant-setting-field">Ключевое слово<select id="assistantWakeWord"><option value="эва">Эва</option><option value="ева">Ева</option><option value="eve">EVE</option></select></label>
+        <label class="assistant-setting-field">Язык распознавания<select id="assistantVoiceLang"><option value="ru-RU">Русский · ru-RU</option><option value="en-US">English · en-US</option></select></label>
+        <p class="assistant-native-status" id="assistantNativeStatus">Проверяю локальный голосовой модуль…</p>
+      </section>
+    </aside>
+  </div>
+</div>
+{% endblock %}

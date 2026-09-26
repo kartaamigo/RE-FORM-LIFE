@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ app_name }} · {{ page_title }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3008">
+  {% if page_key == 'week' %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/week-legacy.css') }}?v=3001">
+  {% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reference.css') }}?v=4010">
+</head>
+<body data-page="{{ page_key }}">
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="{{ url_for('page_week') }}" aria-label="{{ app_name }}">
+        <img class="brand-logo" src="{{ url_for('static', filename='img/logo.svg') }}" alt="{{ app_name }}">
+      </a>
+
+      <div class="sidebar-caption">ЛИЧНЫЙ РИТМ</div>
+      <nav class="main-nav" aria-label="Основная навигация">
+        <a class="nav-link {% if page_key == 'week' %}active{% endif %}" href="{{ url_for('page_week') }}">
+          <img src="{{ url_for('static', filename='img/icon-week.svg') }}" alt="">
+          <span>Недельный планер</span>
+        </a>
+        <a class="nav-link {% if page_key == 'tasks' %}active{% endif %}" href="{{ url_for('page_tasks') }}">
+          <img src="{{ url_for('static', filename='img/icon-week.svg') }}" alt="">
+          <span>Задачи</span>
+        </a>
+        <a class="nav-link {% if page_key == 'assistant' %}active{% endif %}" href="{{ url_for('page_assistant') }}">
+          <img src="{{ url_for('static', filename='img/icon-assistant.svg') }}" alt="">
+          <span>Ассистент</span>
+        </a>
+        <a class="nav-link {% if page_key == 'month' %}active{% endif %}" href="{{ url_for('page_month') }}">
+          <img src="{{ url_for('static', filename='img/icon-month.svg') }}" alt="">
+          <span>Месячный планер</span>
+        </a>
+        <a class="nav-link {% if page_key == 'finance' %}active{% endif %}" href="{{ url_for('page_finance') }}">
+          <img src="{{ url_for('static', filename='img/icon-finance.svg') }}" alt="">
+          <span>Финансы</span>
+        </a>
+        <a class="nav-link {% if page_key == 'utilities' %}active{% endif %}" href="{{ url_for('page_utilities') }}">
+          <img src="{{ url_for('static', filename='img/icon-utilities.svg') }}" alt="">
+          <span>Коммуналка</span>
+        </a>
+        <a class="nav-link {% if page_key == 'habits' %}active{% endif %}" href="{{ url_for('page_habits') }}">
+          <img src="{{ url_for('static', filename='img/icon-habits.svg') }}" alt="">
+          <span>Привычки</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="footer-orb">✦</div>
+        <div><strong>Собери свой ритм</strong><small>Маленькие шаги каждый день</small></div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="topbar-heading {% if page_key == 'month' %}month-heading{% endif %}">
+          {% if page_key == 'month' %}<div class="month-hero-symbol" aria-hidden="true">✦</div>{% endif %}
+          <div>
+          <div class="eyebrow">{{ app_name }}</div>
+          <h1>{{ page_title }}</h1>
+          <p>{{ page_subtitle }}</p>
+          </div>
+        </div>
+        {% if page_key == 'month' %}
+        <div class="month-topbar-tools">
+          <div class="month-topbar-main-tools">
+            <label class="month-search"><span aria-hidden="true">⌕</span><input id="monthSearch" type="search" placeholder="Поиск задач, заметок…" aria-label="Поиск задач и заметок"></label>
+            <div class="notification-wrap">
+              <button class="notification-button" id="notificationBell" type="button" title="Просроченные задачи" aria-label="Просроченные задачи" aria-expanded="false"><span class="notification-glyph" aria-hidden="true">🔔</span><i id="notificationCount" hidden>0</i></button>
+              <div class="notification-popover" id="notificationPanel" aria-hidden="true">
+                <div class="notification-popover-heading"><strong>Просроченные задачи</strong><span id="notificationPanelCount">0</span></div>
+                <div class="notification-list" id="notificationList"></div>
+              </div>
+            </div>
+          </div>
+          <div class="month-date-controls">
+            <div class="month-nav-control" aria-label="Навигация по месяцам">
+              <button class="round-button" id="monthPrev" type="button" title="Предыдущий месяц">‹</button>
+              <button class="button ghost small" id="monthToday" type="button" title="Перейти к текущему месяцу" aria-label="Текущий месяц"><span id="monthNavigatorLabel">—</span></button>
+              <button class="round-button" id="monthNext" type="button" title="Следующий месяц">›</button>
+            </div>
+            <button class="button primary" id="monthAddTask" type="button">＋ Добавить задачу</button>
+          </div>
+        </div>
+        {% else %}
+        <div class="topbar-meta">
+          <span class="today-chip" id="globalToday">—</span>
+          <button class="icon-button" id="quickRefresh" type="button" title="Обновить данные">↻</button>
+        </div>
+        {% endif %}
+      </header>
+
+      <div class="page-content">
+        {% block content %}{% endblock %}
+      </div>
+    </main>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <div class="welcome-backdrop" id="welcomeModal" aria-hidden="true" hidden>
+    <section class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
+      <button class="welcome-close" id="welcomeClose" type="button" aria-label="Закрыть приветствие">×</button>
+      <img class="welcome-logo" src="{{ url_for('static', filename='img/logo.svg') }}" alt="{{ app_name }}">
+      <div class="modal-kicker">{{ app_name }}</div>
+      <h2 id="welcomeTitle">Приветствую тебя,<br><span>#Картавый</span></h2>
+      <p>Твоё пространство для планов, задач и маленьких шагов каждый день.</p>
+      <button class="button primary welcome-start" id="welcomeStart" type="button">Начать день</button>
+    </section>
+  </div>
+
+  <aside class="mood-prompt" id="moodPrompt" hidden aria-label="Ежедневная отметка настроения">
+    <button class="mood-prompt-close" id="moodPromptClose" type="button" aria-label="Закрыть">×</button>
+    <div class="mood-prompt-kicker">МАЛЕНЬКАЯ ПАУЗА</div>
+    <strong>Как ты сегодня?</strong>
+    <p>Отметь своё состояние одним нажатием.</p>
+    <div class="mood-prompt-options" id="moodPromptOptions">
+      <button class="mood-choice" type="button" data-mood-score="1" aria-label="Тяжело"><span>☹</span><small>Тяжело</small></button>
+      <button class="mood-choice" type="button" data-mood-score="2" aria-label="Не очень"><span>◔</span><small>Не очень</small></button>
+      <button class="mood-choice" type="button" data-mood-score="3" aria-label="Спокойно"><span>•</span><small>Спокойно</small></button>
+      <button class="mood-choice" type="button" data-mood-score="4" aria-label="Хорошо"><span>⌣</span><small>Хорошо</small></button>
+      <button class="mood-choice" type="button" data-mood-score="5" aria-label="Отлично"><span>☺</span><small>Отлично</small></button>
+    </div>
+    <button class="mood-prompt-later" id="moodPromptLater" type="button">Напомнить завтра</button>
+  </aside>
+
+  <div class="modal-backdrop" id="taskModal" aria-hidden="true">
+    <form class="modal-card" id="taskForm">
+      <button class="modal-close" type="button" data-close-modal="taskModal">×</button>
+      <div class="modal-kicker">ПЛАНИРОВАНИЕ</div>
+      <h2 id="taskModalTitle">Новая задача</h2>
+      <input type="hidden" id="taskId">
+      <input type="hidden" id="taskScope" value="planner">
+      <label>Название<input id="taskText" required maxlength="180" placeholder="Например, тренировка или созвон"></label>
+      <div class="form-grid two">
+        <label>Раздел<select id="taskSection" required></select></label>
+        <label>Дата<input id="taskDate" type="date" required></label>
+      </div>
+      <div class="form-grid two">
+        <label>Начало<input id="taskStart" type="time"></label>
+        <label>Окончание<input id="taskEnd" type="time"></label>
+      </div>
+      <div class="modal-actions"><button class="button ghost" type="button" data-close-modal="taskModal">Отмена</button><button class="button primary" type="submit">Сохранить</button></div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop task-summary-backdrop" id="taskSummaryModal" aria-hidden="true">
+    <section class="modal-card task-summary-card" role="dialog" aria-modal="true" aria-labelledby="taskSummaryTitle">
+      <button class="modal-close" type="button" data-close-modal="taskSummaryModal" aria-label="Закрыть список">×</button>
+      <div class="modal-kicker" id="taskSummaryKicker">АРХИВ ЗАДАЧ</div>
+      <h2 id="taskSummaryTitle">Выполненные задачи</h2>
+      <p class="modal-copy" id="taskSummarySubtitle">Здесь появятся задачи, которые уже завершены.</p>
+      <div class="task-summary-list" id="taskSummaryList"></div>
+      <div class="modal-actions"><button class="button ghost" type="button" data-close-modal="taskSummaryModal">Закрыть</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="noteModal" aria-hidden="true">
+    <form class="modal-card compact" id="noteForm">
+      <button class="modal-close" type="button" data-close-modal="noteModal">×</button>
+      <div class="modal-kicker">БЫСТРАЯ ЗАМЕТКА</div>
+      <h2 id="noteModalTitle">Новая заметка</h2>
+      <input type="hidden" id="noteId">
+      <input type="hidden" id="noteDate">
+      <label>Текст заметки<textarea id="noteText" rows="4" maxlength="240" placeholder="Что важно не забыть?"></textarea></label>
+      <label class="checkbox-label"><input id="notePinned" type="checkbox"><span>Закрепить заметку</span></label>
+      <div class="modal-actions"><button class="button ghost" type="button" data-close-modal="noteModal">Отмена</button><button class="button primary" type="submit">Добавить</button></div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="sectionModal" aria-hidden="true">
+    <form class="modal-card compact" id="sectionForm">
+      <button class="modal-close" type="button" data-close-modal="sectionModal">×</button>
+      <div class="modal-kicker">СТРУКТУРА ПЛАНА</div>
+      <h2>Новый раздел</h2>
+      <p class="modal-copy">Добавьте свой пункт рядом с разделами «Личное», «Учёба» и «Здоровье».</p>
+      <label>Название раздела<input id="sectionName" required maxlength="48" placeholder="Например, Работа или Дом"></label>
+      <label>Цвет раздела<input id="sectionColor" type="color" value="#4D67FF"></label>
+      <div class="modal-actions"><button class="button ghost" type="button" data-close-modal="sectionModal">Отмена</button><button class="button primary" type="submit">Добавить</button></div>
+    </form>
+  </div>
+
+  <div class="modal-backdrop" id="migrationModal" aria-hidden="true">
+    <div class="modal-card compact">
+      <div class="modal-kicker">ПЕРВЫЙ ЗАПУСК</div>
+      <h2>Перенести ваши данные?</h2>
+      <p class="modal-copy">В старой версии найдены задачи, цели или заметки. Их можно перенести в новую базу данных.</p>
+      <div class="modal-actions migration-actions"><button class="button ghost" id="migrationClean" type="button">Начать заново</button><button class="button primary" id="migrationImport" type="button">Перенести данные</button></div>
+    </div>
+  </div>
+
+  {% block modals %}{% endblock %}
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=4005" defer></script>
+</body>
+</html>
