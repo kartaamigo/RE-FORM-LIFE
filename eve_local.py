@@ -27,7 +27,10 @@ DEFAULT_CLOUD_MODEL = "gpt-4.1-mini"
 SILERO_REPO_NAME = "silero-v5-ru"
 QWEN_MODEL_NAME = "qwen3-tts-1.7b-voicedesign"
 QWEN_BASE_MODEL_NAME = "qwen3-tts-0.6b-base"
-QWEN_SAMPLE_VOICE_FILE = "eve-russian-soft-voice.wav"
+QWEN_SAMPLE_VOICES = {
+    "eve-sample": ("eve-russian-soft-voice.wav", "EVE_QWEN_SAMPLE_VOICE_FILE"),
+    "eve-sample-final": ("eve-sample-final.wav", "EVE_QWEN_SAMPLE_FINAL_VOICE_FILE"),
+}
 QWEN_SAMPLE_TARGET_HZ = 230.0
 SILERO_VOICES = {"xenia", "kseniya", "baya"}
 OLLAMA_TIMEOUT_SECONDS = 3.0
@@ -327,8 +330,13 @@ def available_tts_voices() -> list[dict[str, str]]:
         {"id": "eve-reference", "name": "EVE · мягкий женский · русский"},
         {"id": "eve-guide", "name": "EVE · спокойный женский гид · русский"},
     ]
-    if _clone_model_path() and _sample_voice_path() and _sample_voice_text():
-        voices.append({"id": "eve-sample", "name": "EVE · голос по вашему образцу"})
+    if _clone_model_path():
+        for voice_id, label in (
+            ("eve-sample", "EVE · голос по вашему образцу"),
+            ("eve-sample-final", "EVE · доработанный образец"),
+        ):
+            if _sample_voice_path(voice_id) and _sample_voice_text(voice_id):
+                voices.append({"id": voice_id, "name": label})
     return voices
 
 
@@ -399,28 +407,29 @@ def _clone_model_path() -> Path | None:
     return None
 
 
-def _sample_voice_path() -> Path | None:
-    configured = os.environ.get("EVE_QWEN_SAMPLE_VOICE_FILE", "").strip()
+def _sample_voice_path(voice_name: str = "eve-sample") -> Path | None:
+    sample_name, variable_name = QWEN_SAMPLE_VOICES[voice_name]
+    configured = os.environ.get(variable_name, "").strip()
     candidates = [Path(configured).expanduser()] if configured else []
     data_root = os.environ.get("REFORM_LIFE_DATA_DIR", "").strip()
     if data_root:
-        candidates.append(Path(data_root).expanduser() / "voice-samples" / QWEN_SAMPLE_VOICE_FILE)
+        candidates.append(Path(data_root).expanduser() / "voice-samples" / sample_name)
     local_app_data = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
     if local_app_data:
-        candidates.append(Path(local_app_data) / "RE-FORM LIFE" / "voice-samples" / QWEN_SAMPLE_VOICE_FILE)
+        candidates.append(Path(local_app_data) / "RE-FORM LIFE" / "voice-samples" / sample_name)
     for candidate in candidates:
         if candidate.is_file():
             return candidate.resolve()
     return None
 
 
-def _sample_voice_text() -> str:
-    sample = _sample_voice_path()
+def _sample_voice_text(voice_name: str = "eve-sample") -> str:
+    sample = _sample_voice_path(voice_name)
     if sample is None:
         return ""
     try:
         return sample.with_suffix(".txt").read_text(encoding="utf-8").strip()
-    except OSError:
+    except (OSError, UnicodeError):
         return ""
 
 
@@ -647,15 +656,15 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
 
     clone_sample = None
     clone_sample_text = ""
-    if voice_name == "eve-sample":
+    if voice_name in QWEN_SAMPLE_VOICES:
         model_path = _clone_model_path()
-        clone_sample = _sample_voice_path()
-        clone_sample_text = _sample_voice_text()
+        clone_sample = _sample_voice_path(voice_name)
+        clone_sample_text = _sample_voice_text(voice_name)
         if model_path is None or clone_sample is None or not clone_sample_text:
             raise LocalProviderError("Голос по образцу недоступен: модель, запись или текст образца не найдены.")
 
     def generate(model, selected_device: str):
-        if voice_name == "eve-sample":
+        if voice_name in QWEN_SAMPLE_VOICES:
             prompt = _load_clone_prompt(str(model_path), selected_device, str(clone_sample), clone_sample_text)
             return model.generate_voice_clone(
                 text=text,
@@ -711,7 +720,7 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
         samples = samples[0] if samples else []
     if not _audio_samples_are_finite(samples):
         raise LocalProviderError("Qwen3-TTS вернул некорректный аудиосигнал.")
-    if voice_name in {"eve-guide", "eve-sample"}:
+    if voice_name == "eve-guide" or voice_name in QWEN_SAMPLE_VOICES:
         samples = _match_sample_pitch(samples, int(sample_rate))
         if not _audio_samples_are_finite(samples):
             raise LocalProviderError("Обработка голоса EVE вернула некорректный аудиосигнал.")

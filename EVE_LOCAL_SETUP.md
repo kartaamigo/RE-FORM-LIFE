@@ -93,6 +93,12 @@ Base model and local sample are available. Commercial builds include the Base
 model when it is available at build time. Voice matching can vary across
 phrases, especially with a short sample.
 
+The second local recording, `eve-sample-final.wav`, can be placed in the same
+`voice-samples` directory with its exact transcript in `eve-sample-final.txt`.
+It appears separately as **EVE · доработанный образец**. Set
+`EVE_QWEN_SAMPLE_FINAL_VOICE_FILE` to use another local path. Both recordings
+stay on the user's computer.
+
 Install the appropriate `requirements-tts-*.txt`, place the complete official
 model source/checkpoint directory at a local path, then set the profile and
 model-directory environment variables before running PyInstaller with
