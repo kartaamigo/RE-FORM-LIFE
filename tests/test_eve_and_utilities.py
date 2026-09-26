@@ -118,9 +118,8 @@ class EveParserTests(unittest.TestCase):
 
     def test_weather_search_sites_and_named_browsers_are_parsed(self):
         weather = parse_command("Какая погода в Москве")
-        self.assertEqual(weather.intent, "search_web")
-        self.assertEqual(weather.target, "погода в москве")
-        self.assertEqual(weather.search_engine, "yandex")
+        self.assertEqual(weather.intent, "weather")
+        self.assertEqual(weather.target, "москве")
 
         search = parse_command("Найди в Яндексе интересные места рядом")
         self.assertEqual(search.intent, "search_web")
@@ -285,6 +284,15 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(request["action"], "needs_confirmation")
         pending = app_module.assistant_pending_actions[request["confirmation_id"]]
         self.assertEqual(pending["content"], "купить молоко")
+
+    def test_weather_returns_spoken_answer_without_opening_browser(self):
+        with patch.object(app_module, "current_weather", return_value="Сейчас в Москве плюс 12 градусов, ясно."), patch.object(
+            app_module, "perform_external_action"
+        ) as external:
+            response = self.client.post("/api/assistant/command", json={"text": "какая погода в Москве"})
+        self.assertEqual(response.get_json()["action"], "weather")
+        self.assertIn("плюс 12", response.get_json()["reply"])
+        external.assert_not_called()
 
     def test_eve_remembers_lists_forgets_and_uses_personal_facts(self):
         remembered = self.client.post(

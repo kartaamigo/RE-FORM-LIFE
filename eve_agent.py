@@ -84,6 +84,14 @@ BROWSER_EXECUTABLES = {
     "safari": ("Safari",),
 }
 
+WINDOWS_APP_ALIASES = {
+    "спотифай": "spotify", "spotify": "spotify",
+    "телеграм": "telegram", "телега": "telegram",
+    "дискорд": "discord", "стим": "steam", "steam": "steam",
+    "ворд": "word", "эксель": "excel", "пауэрпоинт": "powerpoint",
+    "блокнот": "notepad", "калькулятор": "calculator",
+}
+
 
 def _run_osascript(script: str) -> str:
     if sys.platform != "darwin":
@@ -186,6 +194,53 @@ def _windows_start_menu_shortcut(application: str) -> Path | None:
         if score >= 0.74:
             return ranked[0]
     return None
+
+
+def _windows_start_app(application: str) -> str | None:
+    """Search the complete Windows Start Apps index, including Store apps."""
+    requested = normalize_text(application).replace("ё", "е")
+    requested = WINDOWS_APP_ALIASES.get(requested, requested)
+    if not requested or len(requested) > 100 or re.search(r"[\\/:*?\"<>|\x00-\r\n]", application):
+        return None
+    script = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; Get-StartApps | Select-Object Name,AppID | ConvertTo-Json -Compress"
+    completed = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command", script],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=15,
+        check=False,
+    )
+    if completed.returncode != 0 or not completed.stdout.strip():
+        return None
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError:
+        return None
+    apps = payload if isinstance(payload, list) else [payload]
+    candidates: list[tuple[float, str, str]] = []
+    for item in apps:
+        if not isinstance(item, dict) or not item.get("Name") or not item.get("AppID"):
+            continue
+        name = normalize_text(item["Name"]).replace("ё", "е")
+        comparable = WINDOWS_APP_ALIASES.get(name, name)
+        score = 1.0 if requested == comparable else SequenceMatcher(None, requested, comparable).ratio()
+        if requested in comparable or comparable in requested:
+            score = max(score, 0.9)
+        candidates.append((score, str(item["Name"]), str(item["AppID"])))
+    if not candidates:
+        return None
+    score, name, app_id = max(candidates, key=lambda item: item[0])
+    if score < 0.68:
+        return None
+    executable = Path(app_id)
+    if executable.is_absolute() and executable.is_file():
+        subprocess.Popen([str(executable)], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    else:
+        explorer = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "explorer.exe"
+        subprocess.Popen([str(explorer), f"shell:AppsFolder\\{app_id}"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return name
 
 
 def _browser_executable(browser: str) -> str | None:
@@ -547,10 +602,14 @@ def perform_external_action(
             subprocess.Popen(["open", "-a", application], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         elif sys.platform == "win32":
             shortcut = _windows_start_menu_shortcut(application)
-            if shortcut is None:
-                raise ValueError("Не нашла такое приложение в меню Пуск. Назови приложение ровно как в списке программ.")
-            os.startfile(str(shortcut))  # type: ignore[attr-defined]
-            application = shortcut.stem
+            if shortcut is not None:
+                os.startfile(str(shortcut))  # type: ignore[attr-defined]
+                application = shortcut.stem
+            else:
+                indexed_name = _windows_start_app(application)
+                if indexed_name is None:
+                    raise ValueError("Не нашла приложение среди установленных программ Windows. Проверь название или установку приложения.")
+                application = indexed_name
         elif sys.platform.startswith("linux"):
             subprocess.Popen([application], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:

@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import os
+import json
 import re
 import sqlite3
 import subprocess
 import sys
 import uuid
+import urllib.parse
+import urllib.request
 from difflib import SequenceMatcher
 from datetime import date, datetime
 from pathlib import Path
@@ -786,6 +789,26 @@ def assistant_task_word(value: int) -> str:
     return "задача"
 
 
+def current_weather(place: str) -> str:
+    """Fetch a compact current-weather answer suitable for spoken playback."""
+    location = require_text(place, "Город", 100)
+    url = "https://wttr.in/" + urllib.parse.quote(location) + "?format=j1&lang=ru"
+    try:
+        with urllib.request.urlopen(url, timeout=8) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        current = payload["current_condition"][0]
+        description_items = current.get("lang_ru") or current.get("weatherDesc") or []
+        description = str(description_items[0].get("value", "") if description_items else "").lower()
+        temperature = int(current.get("temp_C"))
+        feels = int(current.get("FeelsLikeC", temperature))
+        wind = int(current.get("windspeedKmph", 0))
+        feel_text = f", ощущается как {feels:+d}" if feels != temperature else ""
+        wind_text = f" Ветер {wind} километров в час." if wind else ""
+        return f"Сейчас в городе {location}: {temperature:+d} градусов{feel_text}, {description or 'без уточнения условий'}.{wind_text}"
+    except (KeyError, IndexError, TypeError, ValueError, OSError, json.JSONDecodeError) as exc:
+        raise ValueError("Не удалось получить актуальную погоду. Проверь интернет и попробуй ещё раз.") from exc
+
+
 def find_assistant_task(query: str, scope: str = "planner") -> dict[str, Any] | None:
     normalized_query = normalize_text(query)
     selected_scope = task_scope(scope)
@@ -1292,6 +1315,8 @@ def api_assistant_command():
                 return jsonify({"ok": True, "action": "list_memories", "memories": [], "reply": "Пока я не сохраняла фактов о тебе."})
             facts = "; ".join(item["fact"] for item in memories[-12:])
             return jsonify({"ok": True, "action": "list_memories", "memories": memories, "reply": f"Я помню: {facts}."})
+        if parsed.intent == "weather":
+            return jsonify({"ok": True, "action": "weather", "place": parsed.target, "reply": current_weather(parsed.target)})
         if parsed.intent in {"open_explorer", "open_browser", "open_application", "open_url", "search_web", "set_volume", "adjust_volume", "mute_audio", "set_brightness", "adjust_brightness", "minimize_window", "wifi_status"}:
             try:
                 if parsed.intent in {"open_browser", "open_url", "search_web"}:

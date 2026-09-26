@@ -440,8 +440,8 @@ def parse_command(value: str, today: date | None = None) -> ParsedCommand:
         return ParsedCommand("search_web", raw, target=search_match.group(1).strip(), browser=requested_browser)
     weather_match = re.match(r"^(?:(?:скажи|покажи|узнай)\s+)?(?:какая|какой|что\s+с)?\s*погод(?:а|ой|у)(.*)$", normalized_web_command)
     if weather_match:
-        place = weather_match.group(1).strip()
-        return ParsedCommand("search_web", raw, target=f"погода {place}".strip(), browser=requested_browser, search_engine="yandex")
+        place = re.sub(r"^(?:сейчас\s+)?(?:в|для)\s+", "", weather_match.group(1).strip())
+        return ParsedCommand("weather", raw, target=place or "Москва")
     terminal_match = re.match(r"^(?:выполни(?:\s+команду)?|терминал(?:\s+выполни)?)\s+(.+)$", command)
     if terminal_match:
         return ParsedCommand("run_terminal", raw, target=terminal_match.group(1).strip())
