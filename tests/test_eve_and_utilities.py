@@ -74,14 +74,17 @@ class EveParserTests(unittest.TestCase):
             _write_pcm_wav([0.0, float("nan"), 0.1], 48000)
 
     def test_commercial_profile_exposes_original_and_russian_reference_styles(self):
-        with patch("eve_local.build_profile", return_value="commercial"):
+        with patch("eve_local.build_profile", return_value="commercial"), patch("eve_local._clone_model_path", return_value=None):
             self.assertEqual([voice["id"] for voice in available_tts_voices()], ["qwen-design", "eve-reference", "eve-guide"])
+        with patch("eve_local.build_profile", return_value="commercial"), patch("eve_local._clone_model_path", return_value=Path("base")), patch("eve_local._sample_voice_path", return_value=Path("sample.wav")), patch("eve_local._sample_voice_text", return_value="Sample transcript"):
+            self.assertEqual(available_tts_voices()[-1]["id"], "eve-sample")
         with patch.dict("os.environ", {"EVE_BUILD_PROFILE": "commercial"}), patch("eve_local.sys.frozen", False, create=True):
             self.assertEqual(build_profile(), "commercial")
         profile = json.loads((Path(__file__).resolve().parents[1] / "build-profiles" / "commercial.json").read_text(encoding="utf-8"))
         self.assertEqual(profile["voice_instruction"], QWEN_VOICE_INSTRUCTION)
         self.assertEqual(profile["reference_voice_instruction"], QWEN_REFERENCE_VOICE_INSTRUCTION)
         self.assertEqual(profile["guide_voice_instruction"], QWEN_GUIDE_VOICE_INSTRUCTION)
+        self.assertEqual(profile["sample_voice_file"], "%LOCALAPPDATA%/RE-FORM LIFE/voice-samples/eve-russian-soft-voice.wav")
         self.assertEqual(_qwen_voice_instruction("eve-reference"), QWEN_REFERENCE_VOICE_INSTRUCTION)
         self.assertEqual(_qwen_voice_instruction("eve-guide"), QWEN_GUIDE_VOICE_INSTRUCTION)
         with self.assertRaises(LocalProviderError):
@@ -680,6 +683,13 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
                 response = self.client.post("/api/assistant/tts", json={"text": "Привет, я Эва."})
             self.assertEqual(response.status_code, 200)
             synthesize.assert_called_once_with("Привет, я Эва.", "eve-reference")
+        with patch("eve_local.build_profile", return_value="commercial"), patch("eve_local._clone_model_path", return_value=Path("base")), patch("eve_local._sample_voice_path", return_value=Path("sample.wav")), patch("eve_local._sample_voice_text", return_value="Sample transcript"):
+            saved = self.client.patch("/api/assistant/settings", json={"voice_name": "eve-sample"})
+            self.assertEqual(saved.get_json()["settings"]["voice_name"], "eve-sample")
+            with patch.object(app_module, "synthesize_speech", return_value=b"RIFFtest") as synthesize:
+                response = self.client.post("/api/assistant/tts", json={"text": "Новая фраза"})
+            self.assertEqual(response.status_code, 200)
+            synthesize.assert_called_once_with("Новая фраза", "eve-sample")
 
     def test_unknown_command_uses_local_model_without_executing_action(self):
         with patch.object(app_module, "generate_local_reply", return_value="Я рядом и готова помочь.") as generate:

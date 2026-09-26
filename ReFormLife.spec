@@ -1,6 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import os
+import json
 import importlib.util
 from pathlib import Path
 
@@ -48,6 +49,25 @@ for item in model_source.rglob('*'):
     relative = item.relative_to(model_source)
     model_data.append((str(item), str(Path(model_dest) / relative.parent)))
 
+clone_data = []
+if build_profile == 'commercial':
+    clone_setting = os.environ.get('EVE_QWEN_BASE_MODEL_DIR', '').strip()
+    clone_source = Path(clone_setting).expanduser() if clone_setting else Path('models/qwen3-tts-0.6b-base')
+    if clone_setting and not clone_source.is_dir():
+        raise RuntimeError('EVE_QWEN_BASE_MODEL_DIR must point to the complete Qwen3-TTS Base model.')
+    if clone_source.is_dir():
+        clone_config = clone_source / 'config.json'
+        clone_tokenizer = clone_source / 'speech_tokenizer'
+        if (not clone_config.is_file()
+                or json.loads(clone_config.read_text(encoding='utf-8')).get('tts_model_type') != 'base'
+                or not (list(clone_source.glob('*.safetensors')) or list(clone_source.glob('*.bin')))
+                or not (list(clone_tokenizer.glob('*.safetensors')) or list(clone_tokenizer.glob('*.bin')))):
+            raise RuntimeError('The Qwen3-TTS Base voice-cloning model is incomplete.')
+        for item in clone_source.rglob('*'):
+            if item.is_file() and not any(part in {'.git', '.cache', '__pycache__'} for part in item.parts):
+                relative = item.relative_to(clone_source)
+                clone_data.append((str(item), str(Path('models/qwen3-tts-0.6b-base') / relative.parent)))
+
 torch_datas, torch_binaries, torch_hiddenimports = collect_all('torch')
 profile_hiddenimports = list(torch_hiddenimports)
 for package in ('pycaw', 'omegaconf', 'yaml'):
@@ -83,6 +103,7 @@ a = Analysis(
         *voice_runtime_data,
         *torch_datas,
         *model_data,
+        *clone_data,
     ],
     hiddenimports=[
         "eve_agent",

@@ -70,15 +70,28 @@ are excluded from Git.
   gigabytes. If the GTX 1660 runs out of VRAM, synthesis retries on CPU.
   The commercial portable build also includes the Apache-2.0 license text.
 
-The commercial profile offers three Russian voice styles. **EVE Original** is
+The commercial profile offers three VoiceDesign styles. **EVE Original** is
 brighter; **EVE · мягкий женский · русский** uses a warmer lower-mid register.
 **EVE · спокойный женский гид · русский** has a softer, steadier delivery and
-is shifted two semitones lower after synthesis. This last style was tuned using
+is tuned to a middle female pitch. This last style was tuned using
 isolated female speech from the user's Karen reference; Peter's male speech
 and the separate Edith recording were not used for its voice description.
-The recordings are not bundled or uploaded. VoiceDesign approximates timbre
-through a written description, so generated phrases can vary; this is an
-original voice style rather than an exact clone.
+The film recordings are not bundled or uploaded. VoiceDesign approximates timbre
+through a written description, so generated phrases can vary.
+
+An optional fourth selection, **EVE · голос по вашему образцу**, uses the
+user-provided four-second original EVE recording and the Apache-2.0 Qwen3-TTS
+0.6B Base model to speak new Russian text in that sample voice. Place the full
+Base snapshot at `models/qwen3-tts-0.6b-base` or set `EVE_QWEN_BASE_MODEL_DIR`.
+Keep the private audio file only on the user's computer at
+`%LOCALAPPDATA%\RE-FORM LIFE\voice-samples\eve-russian-soft-voice.wav`, or set
+`EVE_QWEN_SAMPLE_VOICE_FILE` to its path. Put an exact transcript of that
+sample in a UTF-8 `.txt` file with the same name next to it. The sample and
+transcript are never committed or
+bundled into a distributable build. The selection appears only when both the
+Base model and local sample are available. Commercial builds include the Base
+model when it is available at build time. Voice matching can vary across
+phrases, especially with a short sample.
 
 Install the appropriate `requirements-tts-*.txt`, place the complete official
 model source/checkpoint directory at a local path, then set the profile and

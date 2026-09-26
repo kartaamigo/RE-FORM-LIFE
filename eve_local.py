@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import io
 import json
+import math
 import os
 import re
 import sys
@@ -25,6 +26,9 @@ DEFAULT_OLLAMA_MODEL = "deepseek-r1:8b"
 DEFAULT_CLOUD_MODEL = "gpt-4.1-mini"
 SILERO_REPO_NAME = "silero-v5-ru"
 QWEN_MODEL_NAME = "qwen3-tts-1.7b-voicedesign"
+QWEN_BASE_MODEL_NAME = "qwen3-tts-0.6b-base"
+QWEN_SAMPLE_VOICE_FILE = "eve-russian-soft-voice.wav"
+QWEN_SAMPLE_TARGET_HZ = 230.0
 SILERO_VOICES = {"xenia", "kseniya", "baya"}
 OLLAMA_TIMEOUT_SECONDS = 3.0
 OLLAMA_GENERATE_TIMEOUT_SECONDS = 60.0
@@ -318,11 +322,14 @@ def available_tts_voices() -> list[dict[str, str]]:
             {"id": "kseniya", "name": "Kseniya · мягкий женский"},
             {"id": "baya", "name": "Baya · выразительный женский"},
         ]
-    return [
+    voices = [
         {"id": "qwen-design", "name": "EVE Original · светлый женский"},
         {"id": "eve-reference", "name": "EVE · мягкий женский · русский"},
         {"id": "eve-guide", "name": "EVE · спокойный женский гид · русский"},
     ]
+    if _clone_model_path() and _sample_voice_path() and _sample_voice_text():
+        voices.append({"id": "eve-sample", "name": "EVE · голос по вашему образцу"})
+    return voices
 
 
 def _qwen_voice_instruction(voice_name: str | None) -> str:
@@ -367,6 +374,54 @@ def _profile_model_path(profile: str) -> Path | None:
                     continue
             return candidate.resolve()
     return None
+
+
+def _clone_model_path() -> Path | None:
+    configured = os.environ.get("EVE_QWEN_BASE_MODEL_DIR", "").strip()
+    candidates = [Path(configured).expanduser()] if configured else []
+    local_app_data = os.environ.get("LOCALAPPDATA")
+    if local_app_data:
+        candidates.append(Path(local_app_data) / "RE-FORM LIFE" / "models" / QWEN_BASE_MODEL_NAME)
+    roots = [Path(getattr(sys, "_MEIPASS", Path.cwd()))] if getattr(sys, "frozen", False) else []
+    roots.extend((Path(__file__).resolve().parent, Path.cwd()))
+    candidates.extend(root / "models" / QWEN_BASE_MODEL_NAME for root in roots)
+    for candidate in candidates:
+        if candidate.is_dir() and (candidate / "config.json").is_file():
+            try:
+                config = json.loads((candidate / "config.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            has_weights = any(candidate.glob("*.safetensors")) or any(candidate.glob("*.bin"))
+            tokenizer = candidate / "speech_tokenizer"
+            has_tokenizer = any(tokenizer.glob("*.safetensors")) or any(tokenizer.glob("*.bin"))
+            if config.get("tts_model_type") == "base" and has_weights and has_tokenizer:
+                return candidate.resolve()
+    return None
+
+
+def _sample_voice_path() -> Path | None:
+    configured = os.environ.get("EVE_QWEN_SAMPLE_VOICE_FILE", "").strip()
+    candidates = [Path(configured).expanduser()] if configured else []
+    data_root = os.environ.get("REFORM_LIFE_DATA_DIR", "").strip()
+    if data_root:
+        candidates.append(Path(data_root).expanduser() / "voice-samples" / QWEN_SAMPLE_VOICE_FILE)
+    local_app_data = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA")
+    if local_app_data:
+        candidates.append(Path(local_app_data) / "RE-FORM LIFE" / "voice-samples" / QWEN_SAMPLE_VOICE_FILE)
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate.resolve()
+    return None
+
+
+def _sample_voice_text() -> str:
+    sample = _sample_voice_path()
+    if sample is None:
+        return ""
+    try:
+        return sample.with_suffix(".txt").read_text(encoding="utf-8").strip()
+    except OSError:
+        return ""
 
 
 def _tts_package_status(profile: str) -> tuple[bool, str]:
@@ -472,6 +527,15 @@ def _load_qwen_model(model_path: str, device: str):
         raise LocalProviderError(f"Не удалось загрузить Qwen3-TTS ({device}): {exc}") from exc
 
 
+@lru_cache(maxsize=2)
+def _load_clone_prompt(model_path: str, device: str, sample_path: str, sample_text: str):
+    model = _load_qwen_model(model_path, device)
+    return model.create_voice_clone_prompt(
+        ref_audio=sample_path,
+        ref_text=sample_text,
+    )
+
+
 def _is_gpu_memory_error(exc: BaseException) -> bool:
     value = str(exc).lower()
     return "out of memory" in value or "cuda error: out of memory" in value
@@ -486,6 +550,29 @@ def _audio_samples_are_finite(samples: Any) -> bool:
         samples = samples.detach().float().cpu().numpy()
     values = np.asarray(samples)
     return bool(values.size and np.isfinite(values).all())
+
+
+def _match_sample_pitch(samples: Any, sample_rate: int):
+    """Keep the two sample-inspired voices near the reference's speaking pitch."""
+
+    import librosa
+    import numpy as np
+
+    values = samples.detach().float().cpu().numpy() if hasattr(samples, "detach") else np.asarray(samples)
+    values = np.asarray(values, dtype=np.float32).squeeze()
+    if values.ndim != 1 or values.size < 2048:
+        return samples
+    try:
+        f0, _, _ = librosa.pyin(values, sr=sample_rate, fmin=100, fmax=500)
+        voiced = f0[np.isfinite(f0)]
+        if voiced.size == 0:
+            return samples
+        steps = float(np.clip(12 * math.log2(QWEN_SAMPLE_TARGET_HZ / np.median(voiced)), -3.5, 3.5))
+        if abs(steps) < 0.35:
+            return values
+        return librosa.effects.pitch_shift(values, sr=sample_rate, n_steps=steps)
+    except Exception:
+        return samples
 
 
 def _release_ollama_model() -> None:
@@ -558,6 +645,29 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
 
     import torch
 
+    clone_sample = None
+    clone_sample_text = ""
+    if voice_name == "eve-sample":
+        model_path = _clone_model_path()
+        clone_sample = _sample_voice_path()
+        clone_sample_text = _sample_voice_text()
+        if model_path is None or clone_sample is None or not clone_sample_text:
+            raise LocalProviderError("Голос по образцу недоступен: модель, запись или текст образца не найдены.")
+
+    def generate(model, selected_device: str):
+        if voice_name == "eve-sample":
+            prompt = _load_clone_prompt(str(model_path), selected_device, str(clone_sample), clone_sample_text)
+            return model.generate_voice_clone(
+                text=text,
+                language="Russian",
+                voice_clone_prompt=prompt,
+            )
+        return model.generate_voice_design(
+            text=text,
+            language="Russian",
+            instruct=_qwen_voice_instruction(voice_name),
+        )
+
     _release_ollama_model()
     device = "cpu"
     if torch.cuda.is_available():
@@ -571,11 +681,7 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
     gpu_audio_invalid = False
     try:
         model = _load_qwen_model(str(model_path), device)
-        samples, sample_rate = model.generate_voice_design(
-            text=text,
-            language="Russian",
-            instruct=_qwen_voice_instruction(voice_name),
-        )
+        samples, sample_rate = generate(model, device)
         if device.startswith("cuda") and not _audio_samples_are_finite(samples):
             gpu_audio_invalid = True
             raise LocalProviderError("GPU вернул некорректный аудиосигнал.")
@@ -583,6 +689,7 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
         if device.startswith("cuda") and (_is_gpu_memory_error(exc) or gpu_audio_invalid):
             import gc
 
+            _load_clone_prompt.cache_clear()
             _load_qwen_model.cache_clear()
             if "model" in locals():
                 del model
@@ -593,11 +700,7 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
                 pass
             try:
                 model = _load_qwen_model(str(model_path), "cpu")
-                samples, sample_rate = model.generate_voice_design(
-                    text=text,
-                    language="Russian",
-                    instruct=_qwen_voice_instruction(voice_name),
-                )
+                samples, sample_rate = generate(model, "cpu")
                 if not _audio_samples_are_finite(samples):
                     raise LocalProviderError("CPU вернул некорректный аудиосигнал.")
             except Exception as cpu_exc:
@@ -608,15 +711,10 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
         samples = samples[0] if samples else []
     if not _audio_samples_are_finite(samples):
         raise LocalProviderError("Qwen3-TTS вернул некорректный аудиосигнал.")
-    if voice_name == "eve-guide":
-        import librosa
-        import numpy as np
-
-        values = samples.detach().float().cpu().numpy() if hasattr(samples, "detach") else np.asarray(samples)
-        try:
-            samples = librosa.effects.pitch_shift(values.astype(np.float32), sr=int(sample_rate), n_steps=-2.0)
-        except Exception as exc:
-            raise LocalProviderError(f"Не удалось обработать голос EVE: {exc}") from exc
+    if voice_name in {"eve-guide", "eve-sample"}:
+        samples = _match_sample_pitch(samples, int(sample_rate))
+        if not _audio_samples_are_finite(samples):
+            raise LocalProviderError("Обработка голоса EVE вернула некорректный аудиосигнал.")
     return _write_pcm_wav(samples, int(sample_rate))
 
 
