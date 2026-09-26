@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import choose_command_candidate, parse_command
-from eve_local import QWEN_VOICE_INSTRUCTION, LocalProviderError, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
+from eve_local import QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
 from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
@@ -73,13 +73,17 @@ class EveParserTests(unittest.TestCase):
         with self.assertRaises(LocalProviderError):
             _write_pcm_wav([0.0, float("nan"), 0.1], 48000)
 
-    def test_commercial_profile_exposes_only_qwen_voice(self):
+    def test_commercial_profile_exposes_original_and_russian_reference_styles(self):
         with patch("eve_local.build_profile", return_value="commercial"):
-            self.assertEqual([voice["id"] for voice in available_tts_voices()], ["qwen-design"])
+            self.assertEqual([voice["id"] for voice in available_tts_voices()], ["qwen-design", "eve-reference"])
         with patch.dict("os.environ", {"EVE_BUILD_PROFILE": "commercial"}), patch("eve_local.sys.frozen", False, create=True):
             self.assertEqual(build_profile(), "commercial")
         profile = json.loads((Path(__file__).resolve().parents[1] / "build-profiles" / "commercial.json").read_text(encoding="utf-8"))
         self.assertEqual(profile["voice_instruction"], QWEN_VOICE_INSTRUCTION)
+        self.assertEqual(profile["reference_voice_instruction"], QWEN_REFERENCE_VOICE_INSTRUCTION)
+        self.assertEqual(_qwen_voice_instruction("eve-reference"), QWEN_REFERENCE_VOICE_INSTRUCTION)
+        with self.assertRaises(LocalProviderError):
+            _qwen_voice_instruction("unknown")
 
     def test_voice_command_keeps_time_and_resolves_relative_date(self):
         parsed = parse_command(
@@ -665,6 +669,15 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(response.get_json()["text"], "создай папку")
         transcribe.assert_called_once()
         self.assertEqual(self.client.get("/api/assistant/settings").get_json()["settings"]["assistant_provider"], "local")
+
+    def test_commercial_voice_style_is_selectable_for_russian_answers(self):
+        with patch("eve_local.build_profile", return_value="commercial"):
+            saved = self.client.patch("/api/assistant/settings", json={"voice_name": "eve-reference"})
+            self.assertEqual(saved.get_json()["settings"]["voice_name"], "eve-reference")
+            with patch.object(app_module, "synthesize_speech", return_value=b"RIFFtest") as synthesize:
+                response = self.client.post("/api/assistant/tts", json={"text": "Привет, я Эва."})
+            self.assertEqual(response.status_code, 200)
+            synthesize.assert_called_once_with("Привет, я Эва.", "eve-reference")
 
     def test_unknown_command_uses_local_model_without_executing_action(self):
         with patch.object(app_module, "generate_local_reply", return_value="Я рядом и готова помочь.") as generate:

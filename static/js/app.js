@@ -1353,7 +1353,7 @@ async function initAssistantChat() {
           return option;
         }));
         voiceSelect.value = useSpeechKit ? (settings.yandex_voice || availableVoices[0].id) : (statusResult.assistant?.voice_name || settings.voice_name || availableVoices[0].id);
-        voiceSelect.disabled = !useSpeechKit && statusResult.assistant?.build_profile === 'commercial';
+        voiceSelect.disabled = availableVoices.length < 2;
       }
       if (nativeStatus) nativeStatus.textContent = nativeReady
         ? 'Локальный модуль EVE готов. Микрофон не записывается на диск.'

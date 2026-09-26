@@ -70,6 +70,13 @@ are excluded from Git.
   gigabytes. If the GTX 1660 runs out of VRAM, synthesis retries on CPU.
   The commercial portable build also includes the Apache-2.0 license text.
 
+The commercial profile offers two Russian voice styles. **EVE Original** is
+brighter; **EVE · мягкий женский · русский** uses a warmer lower-mid register
+inspired by the user's short reference clip. The reference recording is not
+bundled or uploaded. VoiceDesign approximates its timbre through a written
+description, so individual generated phrases can vary; exact voice cloning
+would require a separate model and a longer clean recording.
+
 Install the appropriate `requirements-tts-*.txt`, place the complete official
 model source/checkpoint directory at a local path, then set the profile and
 model-directory environment variables before running PyInstaller with

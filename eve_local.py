@@ -36,6 +36,13 @@ QWEN_VOICE_INSTRUCTION = (
     "with clear Russian pronunciation, relaxed pace and short natural pauses. "
     "Avoid a low or masculine register, robotic processing, and imitation of any person or character."
 )
+QWEN_REFERENCE_VOICE_INSTRUCTION = (
+    "A distinctly feminine adult Russian-speaking voice in a warm lower-mid register, "
+    "with soft rounded resonance and a smooth slightly airy texture. Calm, attentive "
+    "and friendly, with subtle cool clarity, natural Russian vowels and consonants, "
+    "a measured pace and short pauses. Speak in Russian only, with no English accent. "
+    "Keep the voice recognizably female, never deep or masculine, and do not imitate any person."
+)
 
 _THINK_BLOCK_RE = re.compile(r"<think\b[^>]*>.*?</think\s*>", re.IGNORECASE | re.DOTALL)
 _THINK_TAG_RE = re.compile(r"</?think\b[^>]*>", re.IGNORECASE)
@@ -303,7 +310,18 @@ def available_tts_voices() -> list[dict[str, str]]:
             {"id": "kseniya", "name": "Kseniya · мягкий женский"},
             {"id": "baya", "name": "Baya · выразительный женский"},
         ]
-    return [{"id": "qwen-design", "name": "EVE Original · спокойный женский"}]
+    return [
+        {"id": "qwen-design", "name": "EVE Original · светлый женский"},
+        {"id": "eve-reference", "name": "EVE · мягкий женский · русский"},
+    ]
+
+
+def _qwen_voice_instruction(voice_name: str | None) -> str:
+    if voice_name in {None, "", "qwen-design"}:
+        return QWEN_VOICE_INSTRUCTION
+    if voice_name == "eve-reference":
+        return QWEN_REFERENCE_VOICE_INSTRUCTION
+    raise LocalProviderError("Выбранный голос EVE недоступен.")
 
 
 def _profile_model_path(profile: str) -> Path | None:
@@ -545,7 +563,7 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
         samples, sample_rate = model.generate_voice_design(
             text=text,
             language="Russian",
-            instruct=QWEN_VOICE_INSTRUCTION,
+            instruct=_qwen_voice_instruction(voice_name),
         )
         if device.startswith("cuda") and not _audio_samples_are_finite(samples):
             gpu_audio_invalid = True
@@ -567,7 +585,7 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
                 samples, sample_rate = model.generate_voice_design(
                     text=text,
                     language="Russian",
-                    instruct=QWEN_VOICE_INSTRUCTION,
+                    instruct=_qwen_voice_instruction(voice_name),
                 )
                 if not _audio_samples_are_finite(samples):
                     raise LocalProviderError("CPU вернул некорректный аудиосигнал.")
