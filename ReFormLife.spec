@@ -114,7 +114,10 @@ if build_onefile:
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
-        upx=True,
+        # The bundle is already dominated by compressed model/runtime files.
+        # UPX adds antivirus scanning and decompression work without a useful
+        # size win here, so keep startup predictable and fast.
+        upx=False,
         upx_exclude=[],
         runtime_tmpdir=None,
         console=False,
@@ -125,6 +128,8 @@ if build_onefile:
         entitlements_file=None,
         icon=['app.ico'],
         exclude_binaries=False,
+        uac_admin=False,
+        uac_uiaccess=False,
     )
 else:
     exe = EXE(
@@ -136,7 +141,7 @@ else:
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
-        upx=True,
+        upx=False,
         upx_exclude=[],
         runtime_tmpdir=None,
         console=False,
@@ -147,6 +152,8 @@ else:
         entitlements_file=None,
         icon=['app.ico'],
         exclude_binaries=True,
+        uac_admin=False,
+        uac_uiaccess=False,
     )
 
     coll = COLLECT(
@@ -154,7 +161,7 @@ else:
         a.binaries,
         a.datas,
         strip=False,
-        upx=True,
+        upx=False,
         upx_exclude=[],
         name='RE-FORM LIFE',
     )

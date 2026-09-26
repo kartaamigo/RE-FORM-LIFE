@@ -80,8 +80,12 @@ pyinstaller --noconfirm --distpath dist\EVE-personal-onefile --workpath build\EV
 The resulting executable contains the complete profile, including Silero's
 checkpoint and license. One-file builds are several gigabytes and unpack their
 contents to a temporary directory on each launch, so the temp drive needs
-enough free space. Leave `EVE_BUILD_ONEFILE` unset (or set it to `0`) for the
-usual portable-folder build.
+enough free space. This can make every launch take several minutes and can also
+trigger extra antivirus checks. Leave `EVE_BUILD_ONEFILE` unset (or set it to
+`0`) for the recommended fast-start portable-folder build. Keep that folder
+together and launch `RE-FORM LIFE.exe` inside it; it does not require
+administrator privileges. User data is stored separately under the current
+user's local application-data directory.
 
 For the commercial profile, set `EVE_BUILD_PROFILE='commercial'` and
 `EVE_QWEN_MODEL_DIR` to the complete VoiceDesign snapshot. Do not commit either
