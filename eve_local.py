@@ -352,7 +352,11 @@ def tts_status() -> dict[str, Any]:
 
             if torch.cuda.is_available():
                 if profile == "commercial":
-                    device = f"CUDA · {torch.cuda.get_device_name(0)} (освобождается перед синтезом; CPU fallback)"
+                    supports_bf16 = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
+                    if supports_bf16:
+                        device = f"CUDA · {torch.cuda.get_device_name(0)} (BF16; CPU fallback)"
+                    else:
+                        device = f"CPU · {torch.cuda.get_device_name(0)} не поддерживает BF16; используется CPU fallback"
                 else:
                     device = f"CPU · доступна CUDA: {torch.cuda.get_device_name(0)}"
         except Exception:
@@ -400,7 +404,11 @@ def _load_qwen_model(model_path: str, device: str):
         import torch
         from qwen_tts import Qwen3TTSModel
 
-        dtype = torch.float16 if device.startswith("cuda") else torch.float32
+        if device.startswith("cuda"):
+            supports_bf16 = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
+            dtype = torch.bfloat16 if supports_bf16 else torch.float16
+        else:
+            dtype = torch.float32
         return Qwen3TTSModel.from_pretrained(
             model_path,
             device_map=device,
@@ -414,6 +422,17 @@ def _load_qwen_model(model_path: str, device: str):
 def _is_gpu_memory_error(exc: BaseException) -> bool:
     value = str(exc).lower()
     return "out of memory" in value or "cuda error: out of memory" in value
+
+
+def _audio_samples_are_finite(samples: Any) -> bool:
+    import numpy as np
+
+    if isinstance(samples, (list, tuple)):
+        samples = samples[0] if samples else []
+    if hasattr(samples, "detach"):
+        samples = samples.detach().float().cpu().numpy()
+    values = np.asarray(samples)
+    return bool(values.size and np.isfinite(values).all())
 
 
 def _release_ollama_model() -> None:
@@ -438,6 +457,8 @@ def _write_pcm_wav(samples: Any, sample_rate: int) -> bytes:
     audio = np.asarray(samples, dtype=np.float32).squeeze()
     if audio.ndim not in {1, 2} or not audio.size or sample_rate < 1:
         raise LocalProviderError("TTS вернул пустой аудиосигнал.")
+    if not np.isfinite(audio).all():
+        raise LocalProviderError("TTS вернул некорректный аудиосигнал.")
     channels = 1 if audio.ndim == 1 else int(audio.shape[-1])
     if audio.ndim == 2 and audio.shape[0] in {1, 2} and audio.shape[-1] > 2:
         audio = audio.T
@@ -476,11 +497,13 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
     device = "cpu"
     if torch.cuda.is_available():
         try:
+            supports_bf16 = bool(getattr(torch.cuda, "is_bf16_supported", lambda: False)())
             free_bytes, _total_bytes = torch.cuda.mem_get_info(0)
-            if free_bytes >= 4_500 * 1024 * 1024:
+            if supports_bf16 and free_bytes >= 4_500 * 1024 * 1024:
                 device = "cuda:0"
         except Exception:
-            device = "cuda:0"
+            device = "cpu"
+    gpu_audio_invalid = False
     try:
         model = _load_qwen_model(str(model_path), device)
         samples, sample_rate = model.generate_voice_design(
@@ -488,8 +511,11 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
             language="Russian",
             instruct=QWEN_VOICE_INSTRUCTION,
         )
+        if device.startswith("cuda") and not _audio_samples_are_finite(samples):
+            gpu_audio_invalid = True
+            raise LocalProviderError("GPU вернул некорректный аудиосигнал.")
     except Exception as exc:
-        if device.startswith("cuda") and _is_gpu_memory_error(exc):
+        if device.startswith("cuda") and (_is_gpu_memory_error(exc) or gpu_audio_invalid):
             import gc
 
             _load_qwen_model.cache_clear()
@@ -507,12 +533,16 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
                     language="Russian",
                     instruct=QWEN_VOICE_INSTRUCTION,
                 )
+                if not _audio_samples_are_finite(samples):
+                    raise LocalProviderError("CPU вернул некорректный аудиосигнал.")
             except Exception as cpu_exc:
                 raise LocalProviderError(f"Не удалось синтезировать на GPU или CPU: {cpu_exc}") from cpu_exc
         else:
             raise LocalProviderError(f"Qwen3-TTS не смог синтезировать речь: {exc}") from exc
     if isinstance(samples, (list, tuple)):
         samples = samples[0] if samples else []
+    if not _audio_samples_are_finite(samples):
+        raise LocalProviderError("Qwen3-TTS вернул некорректный аудиосигнал.")
     return _write_pcm_wav(samples, int(sample_rate))
 
 

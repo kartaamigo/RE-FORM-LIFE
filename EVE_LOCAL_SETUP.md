@@ -70,3 +70,11 @@ pyinstaller --noconfirm ReFormLife.spec
 For the commercial profile, set `EVE_BUILD_PROFILE='commercial'` and
 `EVE_QWEN_MODEL_DIR` to the complete VoiceDesign snapshot. Do not commit either
 model directory or the resulting `dist` folder.
+
+## Hardware verification
+
+On the development PC (GTX 1660 6 GB, PyTorch 2.9.1+cu126), the Qwen BF16
+profile generated a finite 24 kHz WAV in about 17 seconds, including model
+loading. A forced CPU FP32 run on the same PC generated a finite WAV in about
+47 seconds. Actual latency varies with available GPU memory and system load;
+when the GPU cannot use BF16 or has less than 4.5 GiB free, EVE selects CPU.

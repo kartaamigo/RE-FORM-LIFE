@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import parse_command
-from eve_local import _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
+from eve_local import LocalProviderError, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
 
 
 class EveParserTests(unittest.TestCase):
@@ -44,6 +44,10 @@ class EveParserTests(unittest.TestCase):
             self.assertEqual(wav_file.getframerate(), 48000)
             self.assertEqual(wav_file.getnframes(), 3)
             self.assertEqual(wav_file.getsampwidth(), 2)
+
+    def test_wav_serializer_rejects_non_finite_audio(self):
+        with self.assertRaises(LocalProviderError):
+            _write_pcm_wav([0.0, float("nan"), 0.1], 48000)
 
     def test_commercial_profile_exposes_only_qwen_voice(self):
         with patch("eve_local.build_profile", return_value="commercial"):
