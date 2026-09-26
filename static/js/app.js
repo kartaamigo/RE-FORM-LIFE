@@ -1154,6 +1154,25 @@ async function initAssistantChat() {
     } catch (_error) { renderTalkLog(); }
   };
 
+  const speakWithBrowserVoice = text => {
+    if (!('speechSynthesis' in window) || !window.SpeechSynthesisUtterance) return false;
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(String(text || ''));
+      utterance.lang = voiceLangSelect?.value || 'ru-RU';
+      utterance.rate = .96;
+      utterance.pitch = 1;
+      const preferredPrefix = utterance.lang.toLocaleLowerCase().split('-')[0];
+      const systemVoice = window.speechSynthesis.getVoices().find(voice => voice.lang?.toLocaleLowerCase().startsWith(preferredPrefix));
+      if (systemVoice) utterance.voice = systemVoice;
+      window.speechSynthesis.resume?.();
+      window.speechSynthesis.speak(utterance);
+      return true;
+    } catch (_error) {
+      return false;
+    }
+  };
+
   const speak = async text => {
     if (!$('#assistantSpeakToggle')?.checked) return false;
     stopSpeech();
@@ -1184,6 +1203,7 @@ async function initAssistantChat() {
         });
         await localTtsAudio.play();
         if (await playback) return true;
+        localTtsReady = false;
       } catch (_error) {
         if (requestId !== speechRequestId) return;
         localTtsReady = false;
@@ -1202,7 +1222,9 @@ async function initAssistantChat() {
         }
       }
     }
-    return false;
+    // Keep answers audible when a portable build is missing its optional
+    // local model or the local audio endpoint cannot play in the webview.
+    return speakWithBrowserVoice(text);
   };
 
   const answer = text => {
@@ -1684,13 +1706,14 @@ async function initAssistantChat() {
   voiceSelect?.addEventListener('change', () => saveAssistantSetting(speechProviderSelect?.value === 'yandex' ? 'yandex_voice' : 'voice_name', voiceSelect.value));
   $('#assistantPreviewVoice')?.addEventListener('click', async () => {
     const button = $('#assistantPreviewVoice');
+    const previewText = 'Привет. Рада тебя слышать.';
     button.disabled = true;
     try {
       const voice = voiceSelect?.value || (speechProviderSelect?.value === 'yandex' ? 'alena' : 'eve-suit');
       const response = await fetch('/api/assistant/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: 'Привет. Рада тебя слышать.', voice }),
+        body: JSON.stringify({ text: previewText, voice }),
       });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
@@ -1701,6 +1724,7 @@ async function initAssistantChat() {
       localTtsAudio = new Audio(localTtsUrl);
       await localTtsAudio.play();
     } catch (error) {
+      if (speakWithBrowserVoice(previewText)) return;
       showToast(error.message || 'Не удалось воспроизвести образец голоса.', true);
     } finally {
       button.disabled = false;

@@ -1306,8 +1306,17 @@ def api_assistant_chat():
         history = [dict(row) for row in reversed(rows)]
         memories = [item["fact"] for item in assistant_memories()] if settings["personalization_enabled"] else []
         if settings["assistant_provider"] == "cloud":
-            reply = generate_cloud_reply(text, history, memories)
-            provider = "openai-compatible"
+            try:
+                reply = generate_cloud_reply(text, history, memories)
+                provider = "openai-compatible"
+            except LocalProviderError as cloud_error:
+                if not settings["local_llm_enabled"]:
+                    raise
+                try:
+                    reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
+                    provider = "ollama-fallback"
+                except LocalProviderError:
+                    raise cloud_error
         elif settings["local_llm_enabled"]:
             reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
             provider = "ollama"
@@ -1616,11 +1625,23 @@ def api_assistant_command():
                         "provider": "openai-compatible",
                         "reply": reply,
                     })
-                except LocalProviderError as exc:
+                except LocalProviderError as cloud_error:
+                    if settings["local_llm_enabled"]:
+                        try:
+                            reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
+                            return jsonify({
+                                "ok": True,
+                                "action": "local_llm_fallback",
+                                "provider": "ollama-fallback",
+                                "model": settings["local_llm_model"],
+                                "reply": reply,
+                            })
+                        except LocalProviderError:
+                            pass
                     return jsonify({
                         "ok": True,
                         "action": "cloud_llm_unavailable",
-                        "reply": f"Облачный режим пока недоступен. {exc}",
+                        "reply": f"Облачный режим пока недоступен. {cloud_error}",
                     })
             if settings["local_llm_enabled"]:
                 try:

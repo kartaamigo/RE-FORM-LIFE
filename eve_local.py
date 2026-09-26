@@ -21,6 +21,15 @@ from pathlib import Path
 from typing import Any
 
 
+# Librosa ships a few numba helpers with source-file caching enabled. A
+# PyInstaller build executes those modules from its bundled importer, where
+# numba cannot resolve the original source locator and disables the whole TTS
+# runtime. JIT is not required by Qwen3-TTS itself, so disable it only in the
+# frozen app before qwen_tts/librosa can be imported.
+if getattr(sys, "frozen", False):
+    os.environ["NUMBA_DISABLE_JIT"] = "1"
+
+
 DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
 DEFAULT_OLLAMA_MODEL = "deepseek-r1:8b"
 DEFAULT_CLOUD_MODEL = "gpt-4.1-mini"
@@ -34,8 +43,10 @@ QWEN_SAMPLE_VOICES = {
 QWEN_SAMPLE_TARGET_HZ = 230.0
 SILERO_VOICES = {"xenia", "kseniya", "baya"}
 OLLAMA_TIMEOUT_SECONDS = 3.0
-OLLAMA_GENERATE_TIMEOUT_SECONDS = 60.0
+OLLAMA_GENERATE_TIMEOUT_SECONDS = 90.0
 CLOUD_TIMEOUT_SECONDS = 60.0
+OLLAMA_INITIAL_PREDICT_TOKENS = 512
+OLLAMA_RETRY_PREDICT_TOKENS = 768
 
 QWEN_VOICE_INSTRUCTION = (
     "A clearly feminine adult Russian-speaking voice with a moderately high pitch, "
@@ -225,24 +236,43 @@ def generate_local_reply(
         raise LocalProviderError("Пустой запрос к локальной модели.")
     if build_profile() == "commercial":
         release_qwen_model()
-    payload = _json_request(
-        f"{_ollama_url()}/api/chat",
-        method="POST",
-        payload={
-            "model": str(model or DEFAULT_OLLAMA_MODEL).strip() or DEFAULT_OLLAMA_MODEL,
-            "messages": _conversation_messages(user_text, history, memories),
-            "stream": False,
-            "keep_alive": "10m",
-            "think": False,
-            "options": {"temperature": 0.6, "num_predict": 192, "num_ctx": 4096},
-        },
-        timeout=OLLAMA_GENERATE_TIMEOUT_SECONDS,
-    )
+    request_url = f"{_ollama_url()}/api/chat"
+    messages = _conversation_messages(user_text, history, memories)
+    requested_model = str(model or DEFAULT_OLLAMA_MODEL).strip() or DEFAULT_OLLAMA_MODEL
+
+    def request_reply(num_predict: int) -> tuple[str, dict[str, Any]]:
+        payload = _json_request(
+            request_url,
+            method="POST",
+            payload={
+                "model": requested_model,
+                "messages": messages,
+                "stream": False,
+                "keep_alive": "10m",
+                "think": False,
+                "options": {"temperature": 0.6, "num_predict": num_predict, "num_ctx": 4096},
+            },
+            timeout=OLLAMA_GENERATE_TIMEOUT_SECONDS,
+        )
+        message = payload.get("message") if isinstance(payload.get("message"), dict) else {}
+        return strip_reasoning(message.get("content")), payload
+
+    reply, payload = request_reply(OLLAMA_INITIAL_PREDICT_TOKENS)
+    if reply:
+        return reply
+
+    # Some installed DeepSeek-R1/Qwen builds ignore `think: false` and spend
+    # the whole first budget on their hidden reasoning stream. Give that
+    # response one larger, still bounded attempt so the user gets an answer
+    # instead of an empty message and a silent TTS call.
     message = payload.get("message") if isinstance(payload.get("message"), dict) else {}
-    reply = strip_reasoning(message.get("content"))
-    if not reply:
-        raise LocalProviderError("Локальная модель не вернула готовый ответ.")
-    return reply
+    raw_content = str(message.get("content") or "").strip()
+    thinking = str(message.get("thinking") or "").strip()
+    if raw_content or thinking or payload.get("done_reason") == "length":
+        reply, _retry_payload = request_reply(OLLAMA_RETRY_PREDICT_TOKENS)
+        if reply:
+            return reply
+    raise LocalProviderError("Локальная модель не вернула готовый ответ.")
 
 
 def cloud_provider_status() -> dict[str, Any]:
@@ -254,7 +284,7 @@ def cloud_provider_status() -> dict[str, Any]:
         "backend": "openai-compatible",
         "model": os.environ.get("EVE_OPENAI_MODEL", DEFAULT_CLOUD_MODEL).strip() or DEFAULT_CLOUD_MODEL,
         "message": "Ключ API настроен; запросы будут отправляться в облако и могут тарифицироваться." if configured
-        else "Для облачного режима нужен отдельный ключ OpenAI API. Подписка ChatGPT его не заменяет.",
+        else "Облачный режим выключен: не задан OPENAI_API_KEY. Локальный DeepSeek остаётся доступен.",
     }
 
 

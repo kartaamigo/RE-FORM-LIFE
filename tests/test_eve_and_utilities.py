@@ -56,6 +56,20 @@ class EveParserTests(unittest.TestCase):
         self.assertEqual(payload["messages"][-1]["content"], "а что я говорила?")
         self.assertIn("Помню", reply)
 
+    def test_local_chat_retries_when_thinking_uses_the_first_budget(self):
+        with patch(
+            "eve_local._json_request",
+            side_effect=[
+                {"done_reason": "length", "message": {"content": "", "thinking": "внутреннее рассуждение"}},
+                {"done_reason": "stop", "message": {"content": "Готовый ответ."}},
+            ],
+        ) as request:
+            reply = generate_local_reply("Привет")
+        self.assertEqual(reply, "Готовый ответ.")
+        self.assertEqual(request.call_count, 2)
+        self.assertEqual(request.call_args_list[0].kwargs["payload"]["options"]["num_predict"], 512)
+        self.assertEqual(request.call_args_list[1].kwargs["payload"]["options"]["num_predict"], 768)
+
     def test_personal_voice_profile_has_female_samples_and_valid_wav(self):
         with patch.dict("os.environ", {"EVE_BUILD_PROFILE": ""}):
             self.assertEqual(build_profile(), "personal")
@@ -662,6 +676,20 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
             )
         self.assertEqual(response.get_json()["action"], "unsupported")
         run.assert_not_called()
+
+    def test_cloud_without_key_falls_back_to_local_dialogue(self):
+        self.client.patch("/api/assistant/settings", json={"assistant_provider": "cloud"})
+        with patch.object(
+            app_module,
+            "generate_cloud_reply",
+            side_effect=LocalProviderError("Облачный режим выключен: не задан OPENAI_API_KEY."),
+        ), patch.object(app_module, "generate_local_reply", return_value="Я рядом, продолжаем локально.") as local:
+            response = self.client.post("/api/assistant/chat", json={"text": "Привет"})
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertEqual(payload["provider"], "ollama-fallback")
+        self.assertEqual(payload["reply"], "Я рядом, продолжаем локально.")
+        local.assert_called_once()
 
     def test_speechkit_mode_routes_audio_and_keeps_dialogue_provider_separate(self):
         saved = self.client.patch("/api/assistant/settings", json={"speech_provider": "yandex", "yandex_voice": "jane"})
