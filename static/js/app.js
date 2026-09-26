@@ -1017,12 +1017,19 @@ async function initAssistantChat() {
   const autoStartToggle = $('#assistantAutoStartToggle');
   const wakeWordSelect = $('#assistantWakeWord');
   const voiceLangSelect = $('#assistantVoiceLang');
+  const localLlmToggle = $('#assistantLocalLlmToggle');
+  const localTtsToggle = $('#assistantLocalTtsToggle');
   const nativeStatus = $('#assistantNativeStatus');
+  const localStatus = $('#assistantLocalStatus');
   const recognitionType = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognition = null;
   let listening = false;
   let pendingTranscript = '';
   let nativeReady = false;
+  let localTtsReady = false;
+  let localTtsAudio = null;
+  let localTtsUrl = null;
+  let speechRequestId = 0;
 
   try {
     const stored = JSON.parse(window.localStorage.getItem(historyKey) || '[]');
@@ -1063,14 +1070,54 @@ async function initAssistantChat() {
     commandInput.style.height = `${Math.min(Math.max(commandInput.scrollHeight, 44), 132)}px`;
   };
 
-  const speak = text => {
-    if (!$('#assistantSpeakToggle')?.checked || !('speechSynthesis' in window) || !window.SpeechSynthesisUtterance) return;
-    window.speechSynthesis.cancel();
+  const stopSpeech = () => {
+    speechRequestId += 1;
+    window.speechSynthesis?.cancel();
+    if (localTtsAudio) {
+      localTtsAudio.pause();
+      localTtsAudio.currentTime = 0;
+      localTtsAudio = null;
+    }
+    if (localTtsUrl) {
+      URL.revokeObjectURL(localTtsUrl);
+      localTtsUrl = null;
+    }
+  };
+
+  const speakInBrowser = text => {
+    if (!('speechSynthesis' in window) || !window.SpeechSynthesisUtterance) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = voiceLangSelect?.value || 'ru-RU'; utterance.rate = .96; utterance.pitch = 1;
     const russianVoice = window.speechSynthesis.getVoices().find(voice => voice.lang?.toLocaleLowerCase().startsWith('ru'));
     if (russianVoice && utterance.lang.toLocaleLowerCase().startsWith('ru')) utterance.voice = russianVoice;
     window.speechSynthesis.speak(utterance);
+  };
+
+  const speak = async text => {
+    if (!$('#assistantSpeakToggle')?.checked) return;
+    stopSpeech();
+    const requestId = speechRequestId;
+    if (localTtsReady) {
+      try {
+        const response = await fetch('/api/assistant/tts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text }),
+        });
+        if (!response.ok) throw new Error('Локальный голос недоступен');
+        const blob = await response.blob();
+        if (requestId !== speechRequestId) return;
+        localTtsUrl = URL.createObjectURL(blob);
+        localTtsAudio = new Audio(localTtsUrl);
+        localTtsAudio.onended = () => stopSpeech();
+        await localTtsAudio.play();
+        return;
+      } catch (_error) {
+        if (requestId !== speechRequestId) return;
+        localTtsReady = false;
+      }
+    }
+    if (requestId === speechRequestId) speakInBrowser(text);
   };
 
   const answer = text => {
@@ -1118,14 +1165,27 @@ async function initAssistantChat() {
       const [statusResult, settingsResult] = await Promise.all([api('/api/assistant/status'), api('/api/assistant/settings')]);
       const settings = settingsResult.settings || {};
       const native = statusResult.assistant?.native || {};
+      const local = statusResult.assistant?.local || {};
       nativeReady = Boolean(native.ready);
+      localTtsReady = Boolean(settings.local_tts_enabled && local.tts?.ready);
       if (enabledToggle) enabledToggle.checked = Boolean(settings.enabled);
       if (autoStartToggle) autoStartToggle.checked = Boolean(settings.auto_start);
       if (wakeWordSelect) wakeWordSelect.value = settings.wake_word || 'эва';
       if (voiceLangSelect) voiceLangSelect.value = settings.voice_lang || 'ru-RU';
+      if (localLlmToggle) localLlmToggle.checked = Boolean(settings.local_llm_enabled);
+      if (localTtsToggle) localTtsToggle.checked = Boolean(settings.local_tts_enabled);
       if (nativeStatus) nativeStatus.textContent = nativeReady
         ? 'Локальный модуль EVE готов. Микрофон не записывается на диск.'
         : `${native.message || 'Локальный модуль пока не готов.'} Браузерный ввод остаётся доступен.`;
+      if (localStatus) {
+        const modelText = local.llm?.ready
+          ? `DeepSeek ${local.llm.model || settings.local_llm_model || ''} готова.`
+          : `DeepSeek: ${local.llm?.message || 'нет соединения с Ollama'}`;
+        const ttsText = local.tts?.ready
+          ? 'Piper готов.'
+          : `Piper: ${local.tts?.message || 'модель не найдена'}`;
+        localStatus.textContent = `${modelText} ${ttsText}`;
+      }
       renderAssistantSupport(settings);
     } catch (_error) {
       if (nativeStatus) nativeStatus.textContent = 'Не удалось проверить локальный голосовой модуль. Ручной ввод доступен.';
@@ -1155,6 +1215,10 @@ async function initAssistantChat() {
       const result = await api('/api/assistant/settings', { method: 'PATCH', body: JSON.stringify({ [key]: value }) });
       if (key === 'auto_start' && result.autostart && !result.autostart.supported) showToast(result.autostart.message || 'Автозапуск для этой системы недоступен', true);
       else showToast(key === 'auto_start' ? 'Автозапуск EVE сохранён' : 'Настройка EVE сохранена');
+      if (key === 'local_tts_enabled') {
+        localTtsReady = Boolean(result.settings.local_tts_enabled) && localTtsReady;
+        if (!result.settings.local_tts_enabled) stopSpeech();
+      }
       renderAssistantSupport(result.settings);
     } catch (error) {
       showToast(error.message, true);
@@ -1221,7 +1285,7 @@ async function initAssistantChat() {
   $('#assistantSend')?.addEventListener('click', () => execute(commandInput?.value));
   commandInput?.addEventListener('input', resizeComposer);
   commandInput?.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); execute(commandInput.value); } });
-  $('#assistantStopSpeech')?.addEventListener('click', () => window.speechSynthesis?.cancel());
+  $('#assistantStopSpeech')?.addEventListener('click', stopSpeech);
   $('#assistantClearLog')?.addEventListener('click', async () => {
     try {
       await api('/api/assistant/history', { method: 'DELETE' });
@@ -1238,8 +1302,10 @@ async function initAssistantChat() {
   autoStartToggle?.addEventListener('change', () => saveAssistantSetting('auto_start', autoStartToggle.checked));
   wakeWordSelect?.addEventListener('change', () => saveAssistantSetting('wake_word', wakeWordSelect.value));
   voiceLangSelect?.addEventListener('change', () => { if (recognition) recognition.lang = voiceLangSelect.value; saveAssistantSetting('voice_lang', voiceLangSelect.value); });
+  localLlmToggle?.addEventListener('change', () => saveAssistantSetting('local_llm_enabled', localLlmToggle.checked));
+  localTtsToggle?.addEventListener('change', () => saveAssistantSetting('local_tts_enabled', localTtsToggle.checked));
   window.speechSynthesis?.addEventListener('voiceschanged', () => window.speechSynthesis.getVoices());
-  window.addEventListener('beforeunload', () => { if (listening) recognition?.stop(); window.speechSynthesis?.cancel(); }, { once: true });
+  window.addEventListener('beforeunload', () => { if (listening) recognition?.stop(); stopSpeech(); }, { once: true });
 
   pageRefresh = () => {};
   window.refreshCurrentPage = () => {};
