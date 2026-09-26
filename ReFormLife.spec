@@ -46,7 +46,7 @@ for item in model_source.rglob('*'):
 
 torch_datas, torch_binaries, torch_hiddenimports = collect_all('torch')
 profile_hiddenimports = list(torch_hiddenimports)
-for package in ('pycaw', 'comtypes', 'omegaconf', 'yaml'):
+for package in ('pycaw', 'omegaconf', 'yaml'):
     package_datas, package_bins, package_hidden = collect_all(package)
     torch_datas += package_datas
     torch_binaries += package_bins
@@ -57,6 +57,9 @@ if build_profile == 'commercial':
         torch_datas += package_datas
         torch_binaries += package_bins
         profile_hiddenimports += package_hidden
+profile_excludes = []
+if build_profile == 'personal':
+    profile_excludes = ['qwen_tts', 'transformers', 'accelerate', 'safetensors', 'torchaudio']
 
 profile_file = (Path('build-profiles') / f'{build_profile}.json').as_posix()
 license_data = [('licenses/Apache-2.0.txt', 'licenses')] if build_profile == 'commercial' else []
@@ -90,7 +93,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=profile_excludes,
     noarchive=False,
     optimize=0,
 )
