@@ -46,7 +46,7 @@ for item in model_source.rglob('*'):
 
 torch_datas, torch_binaries, torch_hiddenimports = collect_all('torch')
 profile_hiddenimports = list(torch_hiddenimports)
-for package in ('pycaw', 'comtypes'):
+for package in ('pycaw', 'comtypes', 'omegaconf', 'yaml'):
     package_datas, package_bins, package_hidden = collect_all(package)
     torch_datas += package_datas
     torch_binaries += package_bins

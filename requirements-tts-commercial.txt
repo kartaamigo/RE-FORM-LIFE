@@ -3,3 +3,4 @@
 torch==2.9.1+cu126
 torchaudio==2.9.1+cu126
 qwen-tts==0.1.1
+omegaconf==2.3.0
