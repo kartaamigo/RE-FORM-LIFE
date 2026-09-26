@@ -381,6 +381,17 @@ def _speak(text: str) -> None:
         return
     if sys.platform == "win32":
         try:
+            import winsound
+
+            from eve_local import synthesize_speech
+
+            winsound.PlaySound(synthesize_speech(text), winsound.SND_MEMORY)
+            return
+        except Exception:
+            # Keep the native agent usable if the optional Piper model is
+            # missing or the Windows audio device is temporarily unavailable.
+            pass
+        try:
             import pyttsx3
 
             engine = pyttsx3.init()
