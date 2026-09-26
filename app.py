@@ -17,9 +17,13 @@ from eve_assistant import normalize_text, parse_command
 from eve_local import (
     DEFAULT_OLLAMA_MODEL,
     LocalProviderError,
+    available_tts_voices,
+    build_profile,
+    generate_cloud_reply,
     generate_local_reply,
     local_providers_status,
     synthesize_speech,
+    tts_status,
 )
 
 
@@ -42,7 +46,7 @@ DEFAULT_ASSISTANT_SETTINGS = {
     "wake_word": "эва",
     "voice_lang": "ru-RU",
     "voice_name": "",
-    "cloud_enabled": "1",
+    "assistant_provider": "local",
     "local_llm_enabled": "1",
     "local_tts_enabled": "1",
     "local_llm_model": DEFAULT_OLLAMA_MODEL,
@@ -681,7 +685,7 @@ def serialize_mood(row: dict[str, Any] | None) -> dict[str, Any] | None:
 def assistant_settings_payload() -> dict[str, Any]:
     rows = get_db().execute("SELECT key,value FROM assistant_settings").fetchall()
     raw = {row["key"]: row["value"] for row in rows}
-    boolean_keys = {"enabled", "auto_start", "cloud_enabled", "local_llm_enabled", "local_tts_enabled"}
+    boolean_keys = {"enabled", "auto_start", "local_llm_enabled", "local_tts_enabled"}
     result: dict[str, Any] = {}
     for key, default in DEFAULT_ASSISTANT_SETTINGS.items():
         value = raw.get(key, default)
@@ -689,6 +693,9 @@ def assistant_settings_payload() -> dict[str, Any]:
             result[key] = bool(parse_bool(value))
         elif key == "local_llm_model":
             result[key] = value or default
+        elif key == "voice_name":
+            allowed_voices = {voice["id"] for voice in available_tts_voices()}
+            result[key] = value if value in allowed_voices else available_tts_voices()[0]["id"]
         else:
             result[key] = value
     return result
@@ -817,23 +824,7 @@ def execute_pending_action(pending: dict[str, Any]) -> dict[str, Any]:
         path.mkdir(parents=True, exist_ok=True)
         return {"action": "create_folder", "reply": f"Папка создана: {path.name}.", "path": str(path)}
     if kind == "run_terminal":
-        command = str(pending.get("target") or "").strip()
-        if not command:
-            raise ValueError("Команда Terminal пустая.")
-        completed = subprocess.run(
-            command,
-            shell=True,
-            cwd=str(Path.home()),
-            capture_output=True,
-            text=True,
-            timeout=30,
-            check=False,
-        )
-        output = (completed.stdout or completed.stderr or "").strip()
-        output = output[-1200:] if output else ""
-        if completed.returncode != 0:
-            return {"action": "run_terminal", "returncode": completed.returncode, "reply": f"Команда завершилась с ошибкой ({completed.returncode}). {output}".strip()}
-        return {"action": "run_terminal", "returncode": 0, "reply": f"Команда выполнена.{(' Результат: ' + output) if output else ''}"}
+        raise ValueError("EVE не исполняет произвольные команды терминала или скрипты.")
     if kind in {"toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
         result = perform_external_action(kind, str(pending.get("target") or ""))
         return {"action": kind, **result, "reply": result.get("reply", "Действие выполнено.")}
@@ -954,12 +945,17 @@ def api_assistant_status():
             "auto_start": settings["auto_start"],
             "native": native,
             "voice": settings["voice_lang"],
+            "voice_name": settings["voice_name"],
+            "voices": local["tts"].get("voices", []),
+            "build_profile": build_profile(),
             "local": {
                 **local,
                 "llm_enabled": settings["local_llm_enabled"],
                 "tts_enabled": settings["local_tts_enabled"],
                 "model": settings["local_llm_model"],
+                "provider": settings["assistant_provider"],
             },
+            "cloud": local.get("cloud", {}),
         },
     })
 
@@ -970,15 +966,20 @@ def api_assistant_tts():
         settings = assistant_settings_payload()
         if not settings["local_tts_enabled"]:
             return json_error("Локальный голос выключен в настройках EVE.", 503)
-        text = require_text(body().get("text"), "Текст", 2000)
-        audio = synthesize_speech(text)
+        data = body()
+        text = require_text(data.get("text"), "Текст", 2000)
+        requested_voice = optional_text(data.get("voice"), 80) or settings["voice_name"]
+        allowed_voices = {voice["id"] for voice in available_tts_voices()}
+        if requested_voice not in allowed_voices:
+            return json_error("Этот голос недоступен в выбранном профиле сборки.")
+        audio = synthesize_speech(text, requested_voice)
     except LocalProviderError as exc:
         return json_error(str(exc), 503)
     except ValueError as exc:
         return json_error(str(exc))
     response = Response(audio, mimetype="audio/wav")
     response.headers["Cache-Control"] = "no-store"
-    response.headers["X-EVE-TTS"] = "piper"
+    response.headers["X-EVE-TTS"] = str(tts_status().get("backend", "local"))
     return response
 
 
@@ -997,8 +998,18 @@ def api_assistant_settings_patch():
     try:
         values: dict[str, str] = {}
         for key, value in data.items():
-            if key in {"enabled", "auto_start", "cloud_enabled"}:
+            if key in {"enabled", "auto_start"}:
                 values[key] = "1" if parse_bool(value) else "0"
+            elif key == "assistant_provider":
+                provider = str(value or "").strip().lower()
+                if provider not in {"local", "cloud"}:
+                    raise ValueError("Выбери локальный или облачный режим EVE.")
+                values[key] = provider
+            elif key == "voice_name":
+                voice_name = str(value or "").strip().lower()
+                if voice_name not in {voice["id"] for voice in available_tts_voices()}:
+                    raise ValueError("Этот голос недоступен в выбранном профиле сборки.")
+                values[key] = voice_name
             elif key == "wake_word":
                 wake_word = normalize_text(value)
                 if wake_word not in ASSISTANT_WAKE_WORDS:
@@ -1061,6 +1072,12 @@ def api_assistant_command():
         text = require_text(data.get("text"), "Команда", 500)
         g.assistant_command_text = text
         parsed = parse_command(text)
+        if parsed.intent == "run_terminal":
+            return jsonify({
+                "ok": True,
+                "action": "unsupported",
+                "reply": "Я не запускаю произвольные команды терминала и скрипты. Попроси открыть приложение, папку или сайт либо используй одну из поддерживаемых команд.",
+            })
         confirmation_phrase = normalize_text(text)
         if confirmation_phrase in {"да", "подтверждаю", "подтвердить", "подтверждаю действие"} and assistant_pending_actions:
             confirmation_id, pending = max(
@@ -1107,7 +1124,7 @@ def api_assistant_command():
                 }
                 reply = f"Открываю Проводник: {labels.get(opened['location'], opened['location'])}."
             return jsonify({"ok": True, "action": parsed.intent, "target": opened["location"], "reply": reply})
-        if parsed.intent in {"run_terminal", "create_folder", "toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
+        if parsed.intent in {"create_folder", "toggle_wifi", "close_window", "shutdown", "restart", "delete_file"}:
             confirmation_id = uuid.uuid4().hex
             assistant_pending_actions[confirmation_id] = {
                 "kind": parsed.intent,
@@ -1115,12 +1132,11 @@ def api_assistant_command():
                 "created_at": datetime.now().timestamp(),
             }
             labels = {
-                "run_terminal": "выполнить команду Terminal",
                 "create_folder": f"создать папку «{parsed.target}»",
                 "toggle_wifi": f"{'включить' if parsed.target == 'on' else 'выключить'} Wi‑Fi",
                 "close_window": "закрыть текущее окно",
-                "shutdown": "выключить Mac",
-                "restart": "перезагрузить Mac",
+                "shutdown": "выключить компьютер",
+                "restart": "перезагрузить компьютер",
                 "delete_file": f"удалить файл «{parsed.target}»",
             }
             label = labels[parsed.intent]
@@ -1266,9 +1282,28 @@ def api_assistant_command():
             return jsonify({"ok": True, "action": "reschedule_task", "task_id": task["id"], "date": task_date, "reply": f"Перенесла задачу «{task['text']}» на {assistant_date_label(task_date)}."})
         if parsed.intent == "unknown":
             settings = assistant_settings_payload()
+            history_rows = get_db().execute(
+                "SELECT role,text FROM assistant_history ORDER BY id DESC LIMIT 16"
+            ).fetchall()
+            history = [dict(row) for row in reversed(history_rows)]
+            if settings["assistant_provider"] == "cloud":
+                try:
+                    reply = generate_cloud_reply(text, history)
+                    return jsonify({
+                        "ok": True,
+                        "action": "cloud_llm_reply",
+                        "provider": "openai-compatible",
+                        "reply": reply,
+                    })
+                except LocalProviderError as exc:
+                    return jsonify({
+                        "ok": True,
+                        "action": "cloud_llm_unavailable",
+                        "reply": f"Облачный режим пока недоступен. {exc}",
+                    })
             if settings["local_llm_enabled"]:
                 try:
-                    reply = generate_local_reply(text, settings["local_llm_model"])
+                    reply = generate_local_reply(text, settings["local_llm_model"], history)
                     return jsonify({
                         "ok": True,
                         "action": "local_llm_reply",
@@ -1282,7 +1317,7 @@ def api_assistant_command():
                         "action": "local_llm_unavailable",
                         "reply": f"Не смогла обратиться к локальной модели. {exc} Попробуй сформулировать команду точнее.",
                     })
-        return jsonify({"ok": True, "action": "unsupported", "reply": "Я умею управлять задачами, финансами, коммуналкой и сбережениями, открывать приложения и Finder, искать в интернете, а опасные системные действия выполнять только после подтверждения."})
+        return jsonify({"ok": True, "action": "unsupported", "reply": "Я могу поддержать разговор, управлять задачами, финансами и коммуналкой, открыть папку или приложение из меню Пуск, сайт и поиск. Некоторые действия с компьютером попрошу подтвердить. Произвольные команды терминала и скрипты я не запускаю."})
     except ValueError as exc:
         return json_error(str(exc))
 

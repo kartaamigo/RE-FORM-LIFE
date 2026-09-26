@@ -14,12 +14,12 @@
     <div class="assistant-hero-copy">
       <div class="section-kicker">EVE · ЭВА</div>
       <h2>Я рядом, говори</h2>
-      <p id="assistantStatus" role="status" aria-live="polite">Напиши сообщение в диалог или нажми на микрофон — я выполню команду.</p>
+      <p id="assistantStatus" role="status" aria-live="polite">Напиши сообщение или нажми на микрофон: EVE ответит, а после каждой реплики продолжит слушать.</p>
       <div class="assistant-hero-actions">
         <label class="assistant-speech-toggle"><input id="assistantSpeakToggle" type="checkbox" checked><span>Отвечать голосом</span></label>
         <label class="assistant-speech-toggle"><input id="assistantEnabledToggle" type="checkbox" checked><span>Включить EVE</span></label>
         <label class="assistant-speech-toggle"><input id="assistantAutoStartToggle" type="checkbox"><span>Запускать EVE вместе с системой</span></label>
-        <button class="button ghost small" id="assistantStopSpeech" type="button">Остановить голос</button>
+        <button class="button ghost small" id="assistantStopSpeech" type="button">Остановить диалог</button>
       </div>
     </div>
     <div class="assistant-hero-badge" id="assistantSupportBadge">Проверяю микрофон</div>
@@ -59,13 +59,18 @@
       </section>
       <section class="panel assistant-settings-panel" aria-label="Настройки EVE">
         <div class="section-kicker">НАСТРОЙКИ EVE</div>
-        <h2>Голос и запуск</h2>
+        <h2>Диалог и запуск</h2>
         <label class="assistant-setting-field">Ключевое слово<select id="assistantWakeWord"><option value="эва">Эва</option><option value="ева">Ева</option><option value="eve">EVE</option></select></label>
         <label class="assistant-setting-field">Язык распознавания<select id="assistantVoiceLang"><option value="ru-RU">Русский · ru-RU</option><option value="en-US">English · en-US</option></select></label>
-        <label class="assistant-speech-toggle"><input id="assistantLocalLlmToggle" type="checkbox" checked><span>Локальный DeepSeek</span></label>
-        <label class="assistant-speech-toggle"><input id="assistantLocalTtsToggle" type="checkbox" checked><span>Локальный голос Piper</span></label>
+        <label class="assistant-setting-field">Режим разговора<select id="assistantProvider"><option value="local">Локально · DeepSeek</option><option value="cloud">Облако · OpenAI API</option></select></label>
+        <p class="assistant-native-status" id="assistantCloudStatus">Облачный режим выключен по умолчанию. Для него нужен отдельный ключ OpenAI API; запросы будут отправляться из интернета.</p>
+        <label class="assistant-speech-toggle"><input id="assistantLocalLlmToggle" type="checkbox" checked><span>Разрешить локальный DeepSeek</span></label>
+        <label class="assistant-speech-toggle"><input id="assistantLocalTtsToggle" type="checkbox" checked><span>Локальный голос EVE</span></label>
+        <label class="assistant-setting-field">Женский тембр<select id="assistantVoiceName"><option value="xenia">Xenia · тёплый женский</option></select></label>
+        <button class="button ghost small" id="assistantPreviewVoice" type="button">Послушать голос</button>
+        <p class="assistant-native-status">В фоне распознавание Vosk остаётся на устройстве. Голосовой ввод кнопкой может использовать службу распознавания браузера.</p>
         <p class="assistant-native-status" id="assistantNativeStatus">Проверяю локальный голосовой модуль…</p>
-        <p class="assistant-native-status" id="assistantLocalStatus">Проверяю Ollama и Piper…</p>
+        <p class="assistant-native-status" id="assistantLocalStatus">Проверяю DeepSeek и локальный голос…</p>
       </section>
     </aside>
   </div>

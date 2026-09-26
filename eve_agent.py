@@ -9,9 +9,11 @@ No audio is written to disk.
 from __future__ import annotations
 
 import json
+import io
 import os
 import plistlib
 import queue
+import re
 import shlex
 import subprocess
 import sys
@@ -19,6 +21,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import wave
 from pathlib import Path
 from typing import Any
 
@@ -121,12 +124,149 @@ def _safe_location(value: str | None) -> tuple[str, Path]:
         "downloads": home / "Downloads",
         "desktop": home / "Desktop",
         "documents": home / "Documents",
-        "applications": Path("/Applications"),
+        "applications": Path.home() / "AppData" / "Roaming" / "Microsoft" / "Windows" / "Start Menu" / "Programs"
+        if sys.platform == "win32" else Path("/Applications"),
     }
     path = paths[location]
     if not path.exists():
         raise ValueError(f"Папка «{requested}» не найдена на этом компьютере.")
     return location, path
+
+
+def _windows_start_menu_shortcut(application: str) -> Path | None:
+    """Find a named app shortcut without accepting executable paths or shell text."""
+
+    requested = normalize_text(application).replace("ё", "е")
+    if not requested or len(requested) > 100 or re.search(r"[\\/:*?\"<>|\x00-\r\n]", application):
+        return None
+    roots = (
+        Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs",
+        Path(os.environ.get("PROGRAMDATA", "C:\\ProgramData")) / "Microsoft" / "Windows" / "Start Menu" / "Programs",
+    )
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for shortcut in root.rglob("*.lnk"):
+            if normalize_text(shortcut.stem).replace("ё", "е") == requested:
+                return shortcut
+    return None
+
+
+def _send_file_to_trash(path: Path) -> None:
+    if sys.platform == "win32":
+        import ctypes
+        from ctypes import wintypes
+
+        class SHFILEOPSTRUCTW(ctypes.Structure):
+            _fields_ = [
+                ("hwnd", wintypes.HWND),
+                ("wFunc", wintypes.UINT),
+                ("pFrom", wintypes.LPCWSTR),
+                ("pTo", wintypes.LPCWSTR),
+                ("fFlags", wintypes.WORD),
+                ("fAnyOperationsAborted", wintypes.BOOL),
+                ("hNameMappings", ctypes.c_void_p),
+                ("lpszProgressTitle", wintypes.LPCWSTR),
+            ]
+
+        operation = SHFILEOPSTRUCTW()
+        operation.wFunc = 3  # FO_DELETE
+        operation.pFrom = str(path) + "\0"
+        operation.fFlags = 0x0040 | 0x0010 | 0x0004  # allow undo; silent; no second prompt
+        result = ctypes.windll.shell32.SHFileOperationW(ctypes.byref(operation))
+        if result != 0 or operation.fAnyOperationsAborted:
+            raise OSError("Windows не смог переместить файл в Корзину.")
+        return
+    if sys.platform == "darwin":
+        escaped = str(path).replace("\\", "\\\\").replace('"', '\\"')
+        _run_osascript(f'tell application "Finder" to delete POSIX file "{escaped}"')
+        return
+    try:
+        from send2trash import send2trash
+
+        send2trash(str(path))
+    except ImportError as exc:
+        raise OSError("Для безопасного перемещения в Корзину нужен модуль send2trash.") from exc
+
+
+def _windows_audio_endpoint():
+    try:
+        from comtypes import CLSCTX_ALL, POINTER, cast
+        from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+
+        device = AudioUtilities.GetSpeakers()
+        interface = device.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        return cast(interface, POINTER(IAudioEndpointVolume))
+    except Exception as exc:
+        raise OSError(f"Управление звуком Windows недоступно: {exc}") from exc
+
+
+def _windows_wifi_adapter() -> str:
+    script = "Get-NetAdapter -Physical | Where-Object { $_.NdisPhysicalMedium -eq 9 } | Select-Object -First 1 -ExpandProperty Name"
+    completed = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    name = (completed.stdout or "").strip()
+    if completed.returncode != 0 or not name:
+        detail = (completed.stderr or "Беспроводной адаптер не найден.").strip()
+        raise OSError(detail[-300:])
+    return name
+
+
+def _windows_wifi_status() -> str:
+    adapter = _windows_wifi_adapter()
+    escaped = adapter.replace("'", "''")
+    script = f"(Get-NetAdapter -Name '{escaped}').Status"
+    completed = subprocess.run(
+        ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
+        capture_output=True,
+        text=True,
+        timeout=10,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise OSError((completed.stderr or "Не удалось прочитать состояние Wi-Fi.").strip()[-300:])
+    state = (completed.stdout or "").strip()
+    return f"Wi-Fi {adapter}: {'включён' if state.lower() == 'up' else 'выключен'}"
+
+
+def _set_windows_wifi(state: str) -> str:
+    adapter = _windows_wifi_adapter()
+    cmdlet = "Enable-NetAdapter" if state == "on" else "Disable-NetAdapter"
+    completed = subprocess.run(
+        [
+            "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
+            f"{cmdlet} -Name $args[0] -Confirm:$false",
+            adapter,
+        ],
+        capture_output=True,
+        text=True,
+        timeout=15,
+        check=False,
+    )
+    if completed.returncode != 0:
+        raise OSError((completed.stderr or completed.stdout or "Windows не разрешил переключить Wi-Fi.").strip()[-300:])
+    return _windows_wifi_status()
+
+
+def _windows_active_window(intent: str) -> str:
+    import ctypes
+
+    user32 = ctypes.windll.user32
+    hwnd = user32.GetForegroundWindow()
+    if not hwnd:
+        raise OSError("Не нашла активное окно.")
+    if intent == "minimize_window":
+        user32.ShowWindow(hwnd, 6)  # SW_MINIMIZE
+        return "Свернула активное окно."
+    if intent == "close_window":
+        user32.PostMessageW(hwnd, 0x0010, 0, 0)  # WM_CLOSE
+        return "Отправила активному окну запрос на закрытие."
+    raise ValueError("Неизвестное действие с окном.")
 
 
 def perform_external_action(intent: str, target: str | None = None) -> dict[str, Any]:
@@ -187,40 +327,66 @@ def perform_external_action(intent: str, target: str | None = None) -> dict[str,
             raise ValueError("Громкость должна быть от 0 до 100 процентов.")
         if sys.platform == "darwin":
             _run_osascript(f"set volume output volume {level}")
+        elif sys.platform == "win32":
+            _windows_audio_endpoint().SetMasterVolumeLevelScalar(level / 100.0, None)
         else:
-            raise ValueError("Изменение громкости голосом пока настроено для macOS.")
+            raise ValueError("Изменение громкости голосом для этой ОС не настроено.")
         return {"location": "audio", "path": str(level), "reply": f"Громкость установлена на {level} процентов."}
 
     if intent == "mute_audio":
         muted = str(target or "on").lower() == "on"
         if sys.platform == "darwin":
             _run_osascript(f"set volume output muted {str(muted).lower()}")
+        elif sys.platform == "win32":
+            _windows_audio_endpoint().SetMute(1 if muted else 0, None)
         else:
-            raise ValueError("Управление звуком голосом пока настроено для macOS.")
+            raise ValueError("Управление звуком голосом для этой ОС не настроено.")
         return {"location": "audio", "path": "muted" if muted else "unmuted", "reply": "Звук выключен." if muted else "Звук включён."}
 
     if intent == "minimize_window":
-        _run_osascript('tell application "System Events" to keystroke "m" using {command down}')
-        return {"location": "window", "path": "minimized", "reply": "Текущее окно свернуто."}
+        if sys.platform == "win32":
+            reply = _windows_active_window(intent)
+        else:
+            _run_osascript('tell application "System Events" to keystroke "m" using {command down}')
+            reply = "Текущее окно свернуто."
+        return {"location": "window", "path": "minimized", "reply": reply}
 
     if intent == "close_window":
-        _run_osascript('tell application "System Events" to keystroke "w" using {command down}')
-        return {"location": "window", "path": "closed", "reply": "Текущее окно закрыто."}
+        if sys.platform == "win32":
+            reply = _windows_active_window(intent)
+        else:
+            _run_osascript('tell application "System Events" to keystroke "w" using {command down}')
+            reply = "Текущее окно закрыто."
+        return {"location": "window", "path": "closed", "reply": reply}
 
     if intent == "wifi_status":
-        output = _run_networksetup(["-getairportpower"])
+        output = _windows_wifi_status() if sys.platform == "win32" else _run_networksetup(["-getairportpower"])
         return {"location": "wifi", "path": output or "Состояние Wi‑Fi не определено.", "reply": output or "Состояние Wi‑Fi не определено."}
 
     if intent == "toggle_wifi":
         state = str(target or "").lower()
         if state not in {"on", "off"}:
             raise ValueError("Укажи, включить или выключить Wi‑Fi.")
-        output = _run_networksetup(["-setairportpower", state])
+        if sys.platform == "win32":
+            output = _set_windows_wifi(state)
+        else:
+            output = _run_networksetup(["-setairportpower", state])
         return {"location": "wifi", "path": state, "reply": f"Wi‑Fi {'включён' if state == 'on' else 'выключен'}. {output}".strip()}
 
     if intent in {"shutdown", "restart"}:
+        if sys.platform == "win32":
+            action = "/r" if intent == "restart" else "/s"
+            shutdown_exe = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "shutdown.exe"
+            subprocess.Popen(
+                [str(shutdown_exe), action, "/t", "0"],
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            verb = "Перезагружаю компьютер." if intent == "restart" else "Выключаю компьютер."
+            return {"location": "system", "path": intent, "reply": verb}
         if sys.platform != "darwin":
-            raise ValueError("Системное выключение голосом пока настроено для macOS.")
+            raise ValueError("Системное выключение голосом для этой ОС не настроено.")
         verb = "restart" if intent == "restart" else "shut down"
         _run_osascript(f'tell application "System Events" to {verb}')
         return {"location": "system", "path": intent, "reply": "Перезагружаю Mac." if intent == "restart" else "Выключаю Mac."}
@@ -235,8 +401,8 @@ def perform_external_action(intent: str, target: str | None = None) -> dict[str,
             raise ValueError("Эва удаляет только файлы внутри домашней папки пользователя.") from exc
         if path == home or not path.exists() or not path.is_file():
             raise ValueError("Найден только обычный файл внутри домашней папки.")
-        path.unlink()
-        return {"location": "file", "path": str(path), "reply": f"Файл «{path.name}» удалён."}
+        _send_file_to_trash(path)
+        return {"location": "file", "path": str(path), "reply": f"Файл «{path.name}» перемещён в Корзину."}
 
     if intent == "open_application":
         application = str(target or "").strip()
@@ -247,7 +413,11 @@ def perform_external_action(intent: str, target: str | None = None) -> dict[str,
         if sys.platform == "darwin":
             subprocess.Popen(["open", "-a", application], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         elif sys.platform == "win32":
-            os.startfile(application)  # type: ignore[attr-defined]
+            shortcut = _windows_start_menu_shortcut(application)
+            if shortcut is None:
+                raise ValueError("Не нашла такое приложение в меню Пуск. Назови приложение ровно как в списке программ.")
+            os.startfile(str(shortcut))  # type: ignore[attr-defined]
+            application = shortcut.stem
         elif sys.platform.startswith("linux"):
             subprocess.Popen([application], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         else:
@@ -376,29 +546,29 @@ def _post_command(server_url: str, text: str) -> dict[str, Any]:
 def _speak(text: str) -> None:
     if not text:
         return
-    if sys.platform == "darwin":
-        subprocess.Popen(["say", "-v", os.environ.get("EVE_MAC_VOICE", "Milena"), text])
-        return
-    if sys.platform == "win32":
-        try:
+    try:
+        from eve_local import synthesize_speech
+
+        wav_payload = synthesize_speech(text)
+        if sys.platform == "win32":
             import winsound
 
-            from eve_local import synthesize_speech
-
-            winsound.PlaySound(synthesize_speech(text), winsound.SND_MEMORY)
+            winsound.PlaySound(wav_payload, winsound.SND_MEMORY)
             return
-        except Exception:
-            # Keep the native agent usable if the optional Piper model is
-            # missing or the Windows audio device is temporarily unavailable.
-            pass
-        try:
-            import pyttsx3
+        import numpy as np
+        import sounddevice as sd
 
-            engine = pyttsx3.init()
-            engine.say(text)
-            engine.runAndWait()
-        except Exception:
-            return
+        with wave.open(io.BytesIO(wav_payload), "rb") as stream:
+            audio = np.frombuffer(stream.readframes(stream.getnframes()), dtype="<i2").astype(np.float32) / 32768.0
+            channels = stream.getnchannels()
+            sample_rate = stream.getframerate()
+        if channels > 1:
+            audio = audio.reshape(-1, channels)
+        sd.play(audio, sample_rate, blocking=True)
+    except Exception:
+        # Do not silently switch to an unrelated system voice: the selected
+        # build profile is the only permitted TTS engine.
+        return
 
 
 def run_native_agent(
@@ -424,11 +594,50 @@ def run_native_agent(
 
     accepted_wake_words = tuple(dict.fromkeys((wake_word or "эва", "эва", "ева", "eve")))
     wake = KaldiRecognizer(model, 16000, json.dumps([*accepted_wake_words, "[unk]"], ensure_ascii=False))
+
+    def discard_queued_audio() -> None:
+        while True:
+            try:
+                audio_queue.get_nowait()
+            except queue.Empty:
+                return
+
+    def respond(command_text: str) -> None:
+        try:
+            response = _post_command(server_url, command_text)
+            _speak(str(response.get("reply", "")))
+        except (urllib.error.URLError, OSError, ValueError):
+            _speak("Не удалось связаться с планером")
+        discard_queued_audio()
+
+    conversation_recognizer = None
+    conversation_deadline = 0.0
     with sd.RawInputStream(samplerate=16000, blocksize=4000, dtype="int16", channels=1, callback=callback):
         while not (stop_event and stop_event.is_set()):
+            if conversation_recognizer is not None and time.monotonic() >= conversation_deadline:
+                conversation_recognizer = None
+                wake = KaldiRecognizer(model, 16000, json.dumps([*accepted_wake_words, "[unk]"], ensure_ascii=False))
             try:
                 chunk = audio_queue.get(timeout=.25)
             except queue.Empty:
+                continue
+            if conversation_recognizer is not None:
+                if conversation_recognizer.AcceptWaveform(chunk):
+                    command_text = normalize_text(json.loads(conversation_recognizer.Result()).get("text", ""))
+                    if command_text:
+                        if command_text in {"стоп разговор", "заверши разговор", "хватит слушать", "останови разговор"}:
+                            _speak("Хорошо. Скажи «Эва», когда понадоблюсь.")
+                            discard_queued_audio()
+                            conversation_recognizer = None
+                            wake = KaldiRecognizer(model, 16000, json.dumps([*accepted_wake_words, "[unk]"], ensure_ascii=False))
+                            continue
+                        respond(command_text)
+                        conversation_deadline = time.monotonic() + 20
+                        conversation_recognizer = KaldiRecognizer(model, 16000)
+                else:
+                    partial = json.loads(conversation_recognizer.PartialResult()).get("partial", "")
+                    if partial:
+                        conversation_deadline = time.monotonic() + 12
                 continue
             if not wake.AcceptWaveform(chunk):
                 continue
@@ -440,7 +649,7 @@ def run_native_agent(
             command_text = inline_command.strip()
             if not command_text:
                 command_recognizer = KaldiRecognizer(model, 16000)
-                deadline = time.monotonic() + 8
+                deadline = time.monotonic() + 12
                 while time.monotonic() < deadline and not (stop_event and stop_event.is_set()):
                     try:
                         command_chunk = audio_queue.get(timeout=.25)
@@ -457,11 +666,9 @@ def run_native_agent(
                         command_text = ""
             if not command_text:
                 continue
-            try:
-                response = _post_command(server_url, command_text)
-                _speak(str(response.get("reply", "")))
-            except (urllib.error.URLError, OSError, ValueError):
-                _speak("Не удалось связаться с планером")
+            respond(command_text)
+            conversation_recognizer = KaldiRecognizer(model, 16000)
+            conversation_deadline = time.monotonic() + 20
 
 
 if __name__ == "__main__":

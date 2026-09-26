@@ -1,0 +1,8 @@
+{
+  "profile": "commercial",
+  "tts_backend": "qwen3-tts-voicedesign",
+  "model_id": "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+  "model_folder": "qwen3-tts-1.7b-voicedesign",
+  "license": "Apache-2.0",
+  "voice_instruction": "Тёплый, естественный, живой русскоязычный женский голос. Дружелюбная выразительная речь с мягкой интонацией и натуральными паузами; без дикторской сухости и чрезмерной театральности."
+}

@@ -8,13 +8,46 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import parse_command
-from eve_local import strip_reasoning
+from eve_local import _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
 
 
 class EveParserTests(unittest.TestCase):
     def test_local_reasoning_markup_is_not_shown_to_user(self):
         self.assertEqual(strip_reasoning("<think>внутренний план</think>Готово."), "Готово.")
         self.assertEqual(strip_reasoning("<think>незавершённое рассуждение"), "")
+
+    def test_local_chat_request_includes_recent_conversation_context(self):
+        with patch(
+            "eve_local._json_request",
+            return_value={"message": {"content": "Помню, ты говорила про поездку."}},
+        ) as request:
+            reply = generate_local_reply(
+                "а что я говорила?",
+                history=[{"role": "user", "text": "Я планирую поездку."}, {"role": "assistant", "text": "Куда хочешь поехать?"}],
+            )
+        payload = request.call_args.kwargs["payload"]
+        self.assertFalse(payload["think"])
+        self.assertEqual(payload["options"]["num_ctx"], 4096)
+        self.assertEqual(payload["messages"][-3]["content"], "Я планирую поездку.")
+        self.assertEqual(payload["messages"][-2]["content"], "Куда хочешь поехать?")
+        self.assertEqual(payload["messages"][-1]["content"], "а что я говорила?")
+        self.assertIn("Помню", reply)
+
+    def test_personal_voice_profile_has_female_samples_and_valid_wav(self):
+        self.assertEqual(build_profile(), "personal")
+        self.assertEqual([voice["id"] for voice in available_tts_voices()], ["xenia", "kseniya", "baya"])
+        payload = _write_pcm_wav([0.0, 0.25, -0.25], 48000)
+        import wave
+        import io
+
+        with wave.open(io.BytesIO(payload), "rb") as wav_file:
+            self.assertEqual(wav_file.getframerate(), 48000)
+            self.assertEqual(wav_file.getnframes(), 3)
+            self.assertEqual(wav_file.getsampwidth(), 2)
+
+    def test_commercial_profile_exposes_only_qwen_voice(self):
+        with patch("eve_local.build_profile", return_value="commercial"):
+            self.assertEqual([voice["id"] for voice in available_tts_voices()], ["qwen-design"])
 
     def test_voice_command_keeps_time_and_resolves_relative_date(self):
         parsed = parse_command(
@@ -390,6 +423,24 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertTrue(payload["local"]["llm"]["ready"])
         self.assertTrue(payload["local"]["tts"]["ready"])
 
+    def test_cloud_mode_is_explicit_and_terminal_requests_are_not_executed(self):
+        settings = self.client.get("/api/assistant/settings").get_json()["settings"]
+        self.assertEqual(settings["assistant_provider"], "local")
+        saved = self.client.patch("/api/assistant/settings", json={"assistant_provider": "cloud"})
+        self.assertEqual(saved.get_json()["settings"]["assistant_provider"], "cloud")
+        with patch.object(app_module, "generate_cloud_reply", return_value="Привет, я на связи.") as generate:
+            chat = self.client.post("/api/assistant/command", json={"text": "как дела?"})
+        self.assertEqual(chat.get_json()["action"], "cloud_llm_reply")
+        self.assertEqual(chat.get_json()["provider"], "openai-compatible")
+        self.assertEqual(generate.call_args.args[0], "как дела?")
+        with patch.object(app_module.subprocess, "run") as run:
+            response = self.client.post(
+                "/api/assistant/command",
+                json={"text": "выполни команду whoami"},
+            )
+        self.assertEqual(response.get_json()["action"], "unsupported")
+        run.assert_not_called()
+
     def test_unknown_command_uses_local_model_without_executing_action(self):
         with patch.object(app_module, "generate_local_reply", return_value="Я рядом и готова помочь.") as generate:
             response = self.client.post(
@@ -410,7 +461,7 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.mimetype, "audio/wav")
         self.assertEqual(response.data, wav_payload)
-        synthesize.assert_called_once_with("Проверка голоса")
+        synthesize.assert_called_once_with("Проверка голоса", "xenia")
 
 
 if __name__ == "__main__":

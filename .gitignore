@@ -12,5 +12,11 @@ __pycache__/
 venv/
 
 # Generated build and distribution artifacts
-build*/
-dist*/
+/build*/
+!/build-profiles/
+/dist*/
+
+# Local TTS model code and checkpoints (multi-GB, license-specific)
+/tts-models/
+/models/
+voice-models/silero-v5-ru/

@@ -1,0 +1,8 @@
+{
+  "profile": "personal",
+  "tts_backend": "silero-v5",
+  "model_id": "snakers4/silero-models · v5_ru",
+  "license": "CC BY-NC",
+  "default_voice": "xenia",
+  "female_voices": ["xenia", "kseniya", "baya"]
+}
