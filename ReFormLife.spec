@@ -11,6 +11,10 @@ voice_runtime_data = collect_data_files('vosk', include_py_files=False) + collec
 build_profile = os.environ.get('EVE_BUILD_PROFILE', 'personal').strip().lower()
 if build_profile not in {'personal', 'commercial'}:
     raise RuntimeError('EVE_BUILD_PROFILE must be either personal or commercial.')
+onefile_setting = os.environ.get('EVE_BUILD_ONEFILE', '0').strip().lower()
+if onefile_setting not in {'0', '1', 'false', 'true', 'no', 'yes', 'off', 'on'}:
+    raise RuntimeError('EVE_BUILD_ONEFILE must be a boolean value (0 or 1).')
+build_onefile = onefile_setting in {'1', 'true', 'yes', 'on'}
 if importlib.util.find_spec('torch') is None:
     raise RuntimeError('Install the TTS runtime for the selected EVE profile before building.')
 
@@ -99,34 +103,58 @@ a = Analysis(
 )
 pyz = PYZ(a.pure)
 
-exe = EXE(
-    pyz,
-    a.scripts,
-    [],
-    [],
-    name='RE-FORM LIFE',
-    debug=False,
-    bootloader_ignore_signals=False,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
-    console=False,
-    disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
-    codesign_identity=None,
-    entitlements_file=None,
-    icon=['app.ico'],
-    exclude_binaries=True,
-)
+if build_onefile:
+    exe = EXE(
+        pyz,
+        a.scripts,
+        a.binaries,
+        a.datas,
+        [],
+        name='RE-FORM LIFE',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        runtime_tmpdir=None,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=['app.ico'],
+        exclude_binaries=False,
+    )
+else:
+    exe = EXE(
+        pyz,
+        a.scripts,
+        [],
+        [],
+        name='RE-FORM LIFE',
+        debug=False,
+        bootloader_ignore_signals=False,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        runtime_tmpdir=None,
+        console=False,
+        disable_windowed_traceback=False,
+        argv_emulation=False,
+        target_arch=None,
+        codesign_identity=None,
+        entitlements_file=None,
+        icon=['app.ico'],
+        exclude_binaries=True,
+    )
 
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.datas,
-    strip=False,
-    upx=True,
-    upx_exclude=[],
-    name='RE-FORM LIFE',
-)
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.datas,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        name='RE-FORM LIFE',
+    )

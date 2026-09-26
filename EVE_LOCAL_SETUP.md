@@ -67,6 +67,22 @@ $env:EVE_SILERO_MODEL_DIR = 'F:\EVE-models\silero-v5-ru'
 pyinstaller --noconfirm ReFormLife.spec
 ```
 
+To make a single-file executable that embeds the selected voice model and all
+runtime files, set `EVE_BUILD_ONEFILE='1'` before building. For example:
+
+```powershell
+$env:EVE_BUILD_PROFILE = 'personal'
+$env:EVE_SILERO_MODEL_DIR = 'F:\RE-FORM-LIFE\voice-models\silero-v5-ru'
+$env:EVE_BUILD_ONEFILE = '1'
+pyinstaller --noconfirm --distpath dist\EVE-personal-onefile --workpath build\EVE-personal-onefile ReFormLife.spec
+```
+
+The resulting executable contains the complete profile, including Silero's
+checkpoint and license. One-file builds are several gigabytes and unpack their
+contents to a temporary directory on each launch, so the temp drive needs
+enough free space. Leave `EVE_BUILD_ONEFILE` unset (or set it to `0`) for the
+usual portable-folder build.
+
 For the commercial profile, set `EVE_BUILD_PROFILE='commercial'` and
 `EVE_QWEN_MODEL_DIR` to the complete VoiceDesign snapshot. Do not commit either
 model directory or the resulting `dist` folder.
