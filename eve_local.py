@@ -309,7 +309,7 @@ def _profile_model_path(profile: str) -> Path | None:
                     continue
             if profile == "commercial":
                 has_config = (candidate / "config.json").is_file()
-                has_weights = any(candidate.rglob("*.safetensors")) or any(candidate.rglob("*.bin"))
+                has_weights = any(candidate.glob("*.safetensors")) or any(candidate.glob("*.bin"))
                 if not has_config or not has_weights:
                     continue
             return candidate.resolve()
@@ -362,7 +362,7 @@ def tts_status() -> dict[str, Any]:
         "backend": "silero-v5" if profile == "personal" else "qwen3-tts",
         "profile": profile,
         "engine": engine,
-        "license": "CC BY-NC" if profile == "personal" else "Apache-2.0",
+        "license": "CC BY-NC-SA 4.0" if profile == "personal" else "Apache-2.0",
         "voices": available_tts_voices(),
         "model_ready": model_path is not None,
         "model_path": str(model_path) if model_path else None,

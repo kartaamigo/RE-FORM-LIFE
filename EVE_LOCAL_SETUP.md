@@ -40,11 +40,14 @@ file, model weights, and license notice are packaged together; model weights
 are excluded from Git.
 
 - `personal`: Silero Russian V5 with Xenia selected by default and optional
-  Kseniya/Baya samples. Silero voice weights have a non-commercial CC BY-NC
-  restriction. Do not redistribute or use this profile commercially.
+  Kseniya/Baya samples. The upstream Silero repository's license is
+  CC BY-NC-SA 4.0: attribution is required, commercial use is prohibited,
+  and adapted material must retain the same license. Its complete license
+  travels with the model files in the personal build.
 - `commercial`: Qwen3-TTS VoiceDesign 1.7B, Apache-2.0, with EVE's warm,
   natural Russian female voice description. The local model snapshot is several
   gigabytes. If the GTX 1660 runs out of VRAM, synthesis retries on CPU.
+  The commercial portable build also includes the Apache-2.0 license text.
 
 Install the appropriate `requirements-tts-*.txt`, place the complete official
 model source/checkpoint directory at a local path, then set the profile and

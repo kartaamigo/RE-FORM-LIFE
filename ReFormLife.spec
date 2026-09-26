@@ -34,7 +34,7 @@ if build_profile == 'commercial' and not (model_source / 'config.json').is_file(
     raise RuntimeError('The commercial Qwen directory must be a complete local Hugging Face model snapshot.')
 if build_profile == 'personal' and not list(model_source.rglob('*.pt')):
     raise RuntimeError('The Silero voice checkpoint is missing; the portable build must include it.')
-if build_profile == 'commercial' and not any(model_source.rglob('*.safetensors')) and not any(model_source.rglob('*.bin')):
+if build_profile == 'commercial' and not any(model_source.glob('*.safetensors')) and not any(model_source.glob('*.bin')):
     raise RuntimeError('The Qwen model weight files are missing; the portable build must include them.')
 
 model_data = []
@@ -59,6 +59,7 @@ if build_profile == 'commercial':
         profile_hiddenimports += package_hidden
 
 profile_file = (Path('build-profiles') / f'{build_profile}.json').as_posix()
+license_data = [('licenses/Apache-2.0.txt', 'licenses')] if build_profile == 'commercial' else []
 
 
 a = Analysis(
@@ -71,6 +72,7 @@ a = Analysis(
         ('voice-models/vosk-model-small-ru-0.22', 'voice-models/vosk-model-small-ru-0.22'),
         (profile_file, 'build-profiles'),
         ('THIRD_PARTY_NOTICES.md', '.'),
+        *license_data,
         *voice_runtime_data,
         *torch_datas,
         *model_data,

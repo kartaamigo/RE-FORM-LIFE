@@ -2,7 +2,7 @@
   "profile": "personal",
   "tts_backend": "silero-v5",
   "model_id": "snakers4/silero-models · v5_ru",
-  "license": "CC BY-NC",
+  "license": "CC BY-NC-SA 4.0",
   "default_voice": "xenia",
   "female_voices": ["xenia", "kseniya", "baya"]
 }
