@@ -62,7 +62,10 @@
         <h2>Голос и запуск</h2>
         <label class="assistant-setting-field">Ключевое слово<select id="assistantWakeWord"><option value="эва">Эва</option><option value="ева">Ева</option><option value="eve">EVE</option></select></label>
         <label class="assistant-setting-field">Язык распознавания<select id="assistantVoiceLang"><option value="ru-RU">Русский · ru-RU</option><option value="en-US">English · en-US</option></select></label>
+        <label class="assistant-speech-toggle"><input id="assistantLocalLlmToggle" type="checkbox" checked><span>Локальный DeepSeek</span></label>
+        <label class="assistant-speech-toggle"><input id="assistantLocalTtsToggle" type="checkbox" checked><span>Локальный голос Piper</span></label>
         <p class="assistant-native-status" id="assistantNativeStatus">Проверяю локальный голосовой модуль…</p>
+        <p class="assistant-native-status" id="assistantLocalStatus">Проверяю Ollama и Piper…</p>
       </section>
     </aside>
   </div>
