@@ -217,7 +217,19 @@ def _load_piper_voice(model_path: str):
     try:
         from piper.voice import PiperVoice
 
-        return PiperVoice.load(model_path)
+        espeak_data_dir = None
+        roots: list[Path] = []
+        if getattr(sys, "frozen", False):
+            roots.append(Path(getattr(sys, "_MEIPASS", Path.cwd())))
+        roots.append(Path(__file__).resolve().parent)
+        for root in roots:
+            candidate = root / "piper" / "espeak-ng-data"
+            if candidate.is_dir():
+                espeak_data_dir = candidate
+                break
+        if espeak_data_dir is None:
+            return PiperVoice.load(model_path)
+        return PiperVoice.load(model_path, espeak_data_dir=espeak_data_dir)
     except Exception as exc:
         raise LocalProviderError(f"Не удалось загрузить голос Piper: {exc}") from exc
 
