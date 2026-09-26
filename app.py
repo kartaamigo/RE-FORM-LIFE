@@ -10,10 +10,17 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from flask import Flask, g, jsonify, redirect, render_template, request, url_for
+from flask import Flask, Response, g, jsonify, redirect, render_template, request, url_for
 
 from eve_agent import configure_autostart, native_agent_status, perform_external_action
 from eve_assistant import normalize_text, parse_command
+from eve_local import (
+    DEFAULT_OLLAMA_MODEL,
+    LocalProviderError,
+    generate_local_reply,
+    local_providers_status,
+    synthesize_speech,
+)
 
 
 APP_NAME = "RE:FORM LIFE"
@@ -36,9 +43,13 @@ DEFAULT_ASSISTANT_SETTINGS = {
     "voice_lang": "ru-RU",
     "voice_name": "",
     "cloud_enabled": "1",
+    "local_llm_enabled": "1",
+    "local_tts_enabled": "1",
+    "local_llm_model": DEFAULT_OLLAMA_MODEL,
 }
 
 ASSISTANT_WAKE_WORDS = {"эва", "ева", "eve"}
+LOCAL_LLM_MODEL_RE = re.compile(r"^[A-Za-z0-9._:/-]{1,120}$")
 assistant_pending_actions: dict[str, dict[str, Any]] = {}
 
 app = Flask(__name__)
@@ -674,7 +685,12 @@ def assistant_settings_payload() -> dict[str, Any]:
     result: dict[str, Any] = {}
     for key, default in DEFAULT_ASSISTANT_SETTINGS.items():
         value = raw.get(key, default)
-        result[key] = bool(parse_bool(value)) if key in boolean_keys else value
+        if key in boolean_keys:
+            result[key] = bool(parse_bool(value))
+        elif key == "local_llm_model":
+            result[key] = value or default
+        else:
+            result[key] = value
     return result
 
 
@@ -927,6 +943,7 @@ def api_health():
 def api_assistant_status():
     native = native_agent_status()
     settings = assistant_settings_payload()
+    local = local_providers_status(settings["local_llm_model"])
     return jsonify({
         "ok": True,
         "assistant": {
@@ -937,8 +954,32 @@ def api_assistant_status():
             "auto_start": settings["auto_start"],
             "native": native,
             "voice": settings["voice_lang"],
+            "local": {
+                **local,
+                "llm_enabled": settings["local_llm_enabled"],
+                "tts_enabled": settings["local_tts_enabled"],
+                "model": settings["local_llm_model"],
+            },
         },
     })
+
+
+@app.post("/api/assistant/tts")
+def api_assistant_tts():
+    try:
+        settings = assistant_settings_payload()
+        if not settings["local_tts_enabled"]:
+            return json_error("Локальный голос выключен в настройках EVE.", 503)
+        text = require_text(body().get("text"), "Текст", 2000)
+        audio = synthesize_speech(text)
+    except LocalProviderError as exc:
+        return json_error(str(exc), 503)
+    except ValueError as exc:
+        return json_error(str(exc))
+    response = Response(audio, mimetype="audio/wav")
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-EVE-TTS"] = "piper"
+    return response
 
 
 @app.get("/api/assistant/settings")
@@ -968,6 +1009,11 @@ def api_assistant_settings_patch():
                 if not re.match(r"^[a-z]{2}(?:-[A-Z]{2})?$", voice_lang):
                     raise ValueError("Некорректный язык голоса.")
                 values[key] = voice_lang
+            elif key == "local_llm_model":
+                model = optional_text(value, 120) or DEFAULT_OLLAMA_MODEL
+                if not LOCAL_LLM_MODEL_RE.fullmatch(model):
+                    raise ValueError("Некорректное имя локальной модели.")
+                values[key] = model
             else:
                 values[key] = optional_text(value, 80)
         db = get_db()
@@ -1218,6 +1264,24 @@ def api_assistant_command():
             db.execute("UPDATE tasks SET task_date=?,updated_at=? WHERE id=?", (task_date, now_iso(), task["id"]))
             db.commit()
             return jsonify({"ok": True, "action": "reschedule_task", "task_id": task["id"], "date": task_date, "reply": f"Перенесла задачу «{task['text']}» на {assistant_date_label(task_date)}."})
+        if parsed.intent == "unknown":
+            settings = assistant_settings_payload()
+            if settings["local_llm_enabled"]:
+                try:
+                    reply = generate_local_reply(text, settings["local_llm_model"])
+                    return jsonify({
+                        "ok": True,
+                        "action": "local_llm_reply",
+                        "provider": "ollama",
+                        "model": settings["local_llm_model"],
+                        "reply": reply,
+                    })
+                except LocalProviderError as exc:
+                    return jsonify({
+                        "ok": True,
+                        "action": "local_llm_unavailable",
+                        "reply": f"Не смогла обратиться к локальной модели. {exc} Попробуй сформулировать команду точнее.",
+                    })
         return jsonify({"ok": True, "action": "unsupported", "reply": "Я умею управлять задачами, финансами, коммуналкой и сбережениями, открывать приложения и Finder, искать в интернете, а опасные системные действия выполнять только после подтверждения."})
     except ValueError as exc:
         return json_error(str(exc))
