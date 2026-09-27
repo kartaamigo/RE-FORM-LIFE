@@ -1,26 +1,24 @@
-# EVE: local conversation, voice profiles, and PC actions
+# EVE: Gemini conversation, voice profiles, and PC actions
 
 ## Conversation and privacy
 
-EVE now sends recent conversation turns to the selected language model. The
-default is local Ollama / `deepseek-r1:8b`; conversation text stays on this
-computer. Known planner, finance, utility, and allow-listed PC commands are
-handled separately and are never passed to the language model as executable
-instructions.
+EVE uses one simple conversation provider: the Gemini Developer API. Unknown
+chat messages and recent chat history are sent to Gemini, while known planner,
+finance, utility, and allow-listed PC commands are handled by the deterministic
+command parser. Gemini never receives executable instructions and cannot run
+commands by itself.
 
-The optional cloud selector is off by default. Choosing it sends unknown chat
-messages and recent chat history to the configured OpenAI-compatible API. Set
-`OPENAI_API_KEY` in the Windows user environment and restart RE:FORM LIFE to
-enable the official API. A ChatGPT subscription is not an API key, and API
-usage may be billed. The key is not stored in the application database. The
-default API base is `https://api.openai.com/v1`; `EVE_OPENAI_MODEL` may be
-configured separately. The API key is sent only to the official HTTPS API host.
+Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey),
+set `GEMINI_API_KEY` in the Windows user environment, and restart RE:FORM LIFE.
+The default model is `gemini-2.5-flash-lite`; set `GEMINI_MODEL` only when you
+need another model. Google may offer a free quota, but limits and availability
+can change. The key is read only from the environment, never stored in the
+application database, and sent only to the official Gemini HTTPS endpoint.
 
 ## Optional Yandex SpeechKit voice
 
 EVE can use the official Yandex Cloud SpeechKit API for microphone recognition
-and spoken answers. This is a speech service, not the Alice conversation engine;
-the selected local DeepSeek or OpenAI-compatible provider still writes replies.
+and spoken answers. This is a speech service; Gemini still writes replies.
 The default speech mode remains local. In SpeechKit mode, microphone clips from
 the assistant window and text being spoken are sent to Yandex Cloud. The wake
 word and background microphone recognition remain local in Vosk; background
