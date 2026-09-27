@@ -1301,23 +1301,10 @@ def api_assistant_chat():
         ).fetchall()
         history = [dict(row) for row in reversed(rows)]
         memories = [item["fact"] for item in assistant_memories()] if settings["personalization_enabled"] else []
-        if settings["assistant_provider"] == "cloud":
-            try:
-                reply = generate_cloud_reply(text, history, memories)
-                provider = "openai-compatible"
-            except LocalProviderError as cloud_error:
-                if not settings["local_llm_enabled"]:
-                    raise
-                try:
-                    reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
-                    provider = "ollama-fallback"
-                except LocalProviderError:
-                    raise cloud_error
-        elif settings["local_llm_enabled"]:
-            reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
-            provider = "ollama"
-        else:
-            return json_error("Разговорная модель выключена в настройках EVE.", 503)
+        if not settings["gemini_enabled"]:
+            return json_error("Разговорная модель Gemini выключена в настройках EVE.", 503)
+        reply = generate_gemini_reply(text, settings["gemini_model"], history, memories)
+        provider = "gemini"
         record_assistant_chat_message("user", text)
         record_assistant_chat_message("assistant", reply)
         return jsonify({"ok": True, "action": "conversation_reply", "provider": provider, "reply": reply})
@@ -1612,49 +1599,27 @@ def api_assistant_command():
             ).fetchall()
             history = [dict(row) for row in reversed(history_rows)]
             memories = [item["fact"] for item in assistant_memories()] if settings["personalization_enabled"] else []
-            if settings["assistant_provider"] == "cloud":
-                try:
-                    reply = generate_cloud_reply(text, history, memories)
-                    return jsonify({
-                        "ok": True,
-                        "action": "cloud_llm_reply",
-                        "provider": "openai-compatible",
-                        "reply": reply,
-                    })
-                except LocalProviderError as cloud_error:
-                    if settings["local_llm_enabled"]:
-                        try:
-                            reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
-                            return jsonify({
-                                "ok": True,
-                                "action": "local_llm_fallback",
-                                "provider": "ollama-fallback",
-                                "model": settings["local_llm_model"],
-                                "reply": reply,
-                            })
-                        except LocalProviderError:
-                            pass
-                    return jsonify({
-                        "ok": True,
-                        "action": "cloud_llm_unavailable",
-                        "reply": f"Облачный режим пока недоступен. {cloud_error}",
-                    })
-            if settings["local_llm_enabled"]:
-                try:
-                    reply = generate_local_reply(text, settings["local_llm_model"], history, memories)
-                    return jsonify({
-                        "ok": True,
-                        "action": "local_llm_reply",
-                        "provider": "ollama",
-                        "model": settings["local_llm_model"],
-                        "reply": reply,
-                    })
-                except LocalProviderError as exc:
-                    return jsonify({
-                        "ok": True,
-                        "action": "local_llm_unavailable",
-                        "reply": f"Не смогла обратиться к локальной модели. {exc} Попробуй сформулировать команду точнее.",
-                    })
+            if not settings["gemini_enabled"]:
+                return jsonify({
+                    "ok": True,
+                    "action": "gemini_unavailable",
+                    "reply": "Разговорная модель Gemini выключена в настройках EVE.",
+                })
+            try:
+                reply = generate_gemini_reply(text, settings["gemini_model"], history, memories)
+                return jsonify({
+                    "ok": True,
+                    "action": "gemini_reply",
+                    "provider": "gemini",
+                    "model": settings["gemini_model"],
+                    "reply": reply,
+                })
+            except LocalProviderError as exc:
+                return jsonify({
+                    "ok": True,
+                    "action": "gemini_unavailable",
+                    "reply": f"Не смогла обратиться к Gemini. {exc} Попробуй сформулировать команду точнее.",
+                })
         return jsonify({"ok": True, "action": "unsupported", "reply": "Я могу поддержать разговор, управлять задачами, финансами и коммуналкой, открыть папку или приложение из меню Пуск, сайт и поиск. Некоторые действия с компьютером попрошу подтвердить. Произвольные команды терминала и скрипты я не запускаю."})
     except ValueError as exc:
         return json_error(str(exc))
