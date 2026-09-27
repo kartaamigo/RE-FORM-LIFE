@@ -1140,7 +1140,7 @@ async function initAssistantChat() {
     } catch (error) {
       talkState.log.push({ role: 'assistant', text: error.message || 'Не получилось ответить.' });
       renderTalkLog();
-      if (talkStatus) talkStatus.textContent = 'Проверь, что локальная DeepSeek запущена.';
+      if (talkStatus) talkStatus.textContent = 'Проверь GEMINI_API_KEY и доступ к интернету.';
     }
   };
 
@@ -1334,15 +1334,15 @@ async function initAssistantChat() {
       const [statusResult, settingsResult] = await Promise.all([api('/api/assistant/status'), api('/api/assistant/settings')]);
       const settings = settingsResult.settings || {};
       const native = statusResult.assistant?.native || {};
-      const local = statusResult.assistant?.local || {};
-      const cloud = statusResult.assistant?.cloud || {};
+      const gemini = statusResult.assistant?.gemini || {};
+      const tts = statusResult.assistant?.tts || {};
       const speechkit = statusResult.assistant?.speechkit || {};
       const useSpeechKit = settings.speech_provider === 'yandex';
-      const voices = useSpeechKit ? speechkit.voices : local.tts?.voices;
+      const voices = useSpeechKit ? speechkit.voices : tts.voices;
       const availableVoices = Array.isArray(voices) ? voices : [];
       const microphones = Array.isArray(statusResult.assistant?.microphones) ? statusResult.assistant.microphones : [];
       nativeReady = Boolean(native.ready);
-      localTtsReady = Boolean(settings.local_tts_enabled && (useSpeechKit ? speechkit.ready : local.tts?.ready));
+      localTtsReady = Boolean(settings.local_tts_enabled && (useSpeechKit ? speechkit.ready : tts.ready));
       if (enabledToggle) enabledToggle.checked = Boolean(settings.enabled);
       if (autoStartToggle) autoStartToggle.checked = Boolean(settings.auto_start);
       if (wakeWordSelect) wakeWordSelect.value = settings.wake_word || 'эва';
@@ -1355,14 +1355,13 @@ async function initAssistantChat() {
         }));
         microphoneSelect.value = settings.microphone_device || '';
       }
-      if (localLlmToggle) localLlmToggle.checked = Boolean(settings.local_llm_enabled);
+      if (geminiToggle) geminiToggle.checked = settings.gemini_enabled !== false;
       if (localTtsToggle) localTtsToggle.checked = Boolean(settings.local_tts_enabled);
       continuousDialogEnabled = settings.continuous_dialog !== false;
       interruptResponsesEnabled = Boolean(settings.interrupt_responses);
       if (continuousDialogToggle) continuousDialogToggle.checked = continuousDialogEnabled;
       if (interruptToggle) interruptToggle.checked = interruptResponsesEnabled;
       if (personalizationToggle) personalizationToggle.checked = settings.personalization_enabled !== false;
-      if (providerSelect) providerSelect.value = settings.assistant_provider || 'local';
       if (speechProviderSelect) speechProviderSelect.value = settings.speech_provider || 'local';
       if (speechKitStatus) speechKitStatus.textContent = speechkit.message || 'SpeechKit недоступен.';
       if (voiceSelect && availableVoices.length) {
@@ -1378,19 +1377,19 @@ async function initAssistantChat() {
       if (nativeStatus) nativeStatus.textContent = nativeReady
         ? 'Локальный модуль EVE готов. Микрофон не записывается на диск.'
         : `${native.message || 'Локальный модуль пока не готов.'} Браузерный ввод остаётся доступен.`;
-      if (localStatus) {
-        const modelText = local.llm?.ready
-          ? `DeepSeek ${local.llm.model || settings.local_llm_model || ''} готова.`
-          : `DeepSeek: ${local.llm?.message || 'нет соединения с Ollama'}`;
-        const ttsText = local.tts?.ready
-          ? `${local.tts.engine || local.tts.backend} готов · ${local.tts.device || 'локально'} · лицензия ${local.tts.license || 'не указана'}.`
-          : `${local.tts?.engine || 'Локальный голос'}: ${local.tts?.message || 'модель не найдена'}`;
-        localStatus.textContent = `${modelText} ${useSpeechKit ? speechkit.message : ttsText}`;
+      if (geminiStatus) {
+        const modelText = gemini.ready
+          ? `Gemini ${gemini.model || settings.gemini_model || ''} готова.`
+          : `Gemini: ${gemini.message || 'ключ не настроен'}`;
+        const ttsText = tts.ready
+          ? `${tts.engine || tts.backend} готов · ${tts.device || 'локально'} · лицензия ${tts.license || 'не указана'}.`
+          : `${tts.engine || 'Локальный голос'}: ${tts.message || 'модель не найдена'}`;
+        geminiStatus.textContent = `${modelText} ${useSpeechKit ? speechkit.message : ttsText}`;
       }
-      if (cloudStatus) cloudStatus.textContent = cloud.message || 'Облачный режим выключен по умолчанию.';
       renderAssistantSupport(settings);
     } catch (_error) {
       if (nativeStatus) nativeStatus.textContent = 'Не удалось проверить локальный голосовой модуль. Ручной ввод доступен.';
+      if (geminiStatus) geminiStatus.textContent = 'Не удалось проверить Gemini. Проверь GEMINI_API_KEY.';
       renderAssistantSupport();
     }
   };
@@ -1694,12 +1693,11 @@ async function initAssistantChat() {
   voiceLangSelect?.addEventListener('change', () => { if (recognition) recognition.lang = voiceLangSelect.value; saveAssistantSetting('voice_lang', voiceLangSelect.value); });
   microphoneSelect?.addEventListener('change', () => saveAssistantSetting('microphone_device', microphoneSelect.value));
   $('#assistantRefreshMicrophones')?.addEventListener('click', loadAssistantSettings);
-  localLlmToggle?.addEventListener('change', () => saveAssistantSetting('local_llm_enabled', localLlmToggle.checked));
+  geminiToggle?.addEventListener('change', () => saveAssistantSetting('gemini_enabled', geminiToggle.checked));
   localTtsToggle?.addEventListener('change', () => saveAssistantSetting('local_tts_enabled', localTtsToggle.checked));
   continuousDialogToggle?.addEventListener('change', () => saveAssistantSetting('continuous_dialog', continuousDialogToggle.checked));
   interruptToggle?.addEventListener('change', () => saveAssistantSetting('interrupt_responses', interruptToggle.checked));
   personalizationToggle?.addEventListener('change', () => saveAssistantSetting('personalization_enabled', personalizationToggle.checked));
-  providerSelect?.addEventListener('change', () => saveAssistantSetting('assistant_provider', providerSelect.value));
   speechProviderSelect?.addEventListener('change', () => saveAssistantSetting('speech_provider', speechProviderSelect.value));
   voiceSelect?.addEventListener('change', () => saveAssistantSetting(speechProviderSelect?.value === 'yandex' ? 'yandex_voice' : 'voice_name', voiceSelect.value));
   $('#assistantPreviewVoice')?.addEventListener('click', async () => {
