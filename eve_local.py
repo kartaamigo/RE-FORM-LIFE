@@ -78,7 +78,7 @@ def _configure_numba_cache() -> None:
         return
 
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
+DEFAULT_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite").strip() or "gemini-2.5-flash-lite"
 GEMINI_TIMEOUT_SECONDS = 45.0
 SILERO_REPO_NAME = "silero-v5-ru"
 QWEN_MODEL_NAME = "qwen3-tts-1.7b-voicedesign"
