@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import choose_command_candidate, parse_command
-from eve_local import QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_local_reply, strip_reasoning
+from eve_local import QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_gemini_reply, gemini_status, strip_reasoning
 from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
@@ -35,40 +35,37 @@ class EveParserTests(unittest.TestCase):
         with patch.dict("os.environ", {"YANDEX_SPEECHKIT_API_KEY": "", "YANDEX_SPEECHKIT_FOLDER_ID": ""}):
             self.assertFalse(speechkit_status()["ready"])
 
-    def test_local_reasoning_markup_is_not_shown_to_user(self):
+    def test_reasoning_markup_is_not_shown_to_user(self):
         self.assertEqual(strip_reasoning("<think>внутренний план</think>Готово."), "Готово.")
         self.assertEqual(strip_reasoning("<think>незавершённое рассуждение"), "")
 
-    def test_local_chat_request_includes_recent_conversation_context(self):
-        with patch(
+    def test_gemini_chat_request_includes_recent_conversation_context(self):
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}), patch(
             "eve_local._json_request",
-            return_value={"message": {"content": "Помню, ты говорила про поездку."}},
+            return_value={"candidates": [{"content": {"parts": [{"text": "Помню, ты говорила про поездку."}]}}]},
         ) as request:
-            reply = generate_local_reply(
+            reply = generate_gemini_reply(
                 "а что я говорила?",
+                "gemini-test",
                 history=[{"role": "user", "text": "Я планирую поездку."}, {"role": "assistant", "text": "Куда хочешь поехать?"}],
             )
         payload = request.call_args.kwargs["payload"]
-        self.assertFalse(payload["think"])
-        self.assertEqual(payload["options"]["num_ctx"], 4096)
-        self.assertEqual(payload["messages"][-3]["content"], "Я планирую поездку.")
-        self.assertEqual(payload["messages"][-2]["content"], "Куда хочешь поехать?")
-        self.assertEqual(payload["messages"][-1]["content"], "а что я говорила?")
+        self.assertEqual(payload["generationConfig"]["maxOutputTokens"], 320)
+        self.assertEqual(payload["contents"][-3]["role"], "user")
+        self.assertEqual(payload["contents"][-3]["parts"][0]["text"], "Я планирую поездку.")
+        self.assertEqual(payload["contents"][-2]["role"], "model")
+        self.assertEqual(payload["contents"][-2]["parts"][0]["text"], "Куда хочешь поехать?")
+        self.assertEqual(payload["contents"][-1]["parts"][0]["text"], "а что я говорила?")
+        request_url = urllib.parse.urlparse(request.call_args.args[0])
+        self.assertEqual(request_url.hostname, "generativelanguage.googleapis.com")
+        self.assertEqual(urllib.parse.parse_qs(request_url.query)["key"], ["test-key"])
         self.assertIn("Помню", reply)
 
-    def test_local_chat_retries_when_thinking_uses_the_first_budget(self):
-        with patch(
-            "eve_local._json_request",
-            side_effect=[
-                {"done_reason": "length", "message": {"content": "", "thinking": "внутреннее рассуждение"}},
-                {"done_reason": "stop", "message": {"content": "Готовый ответ."}},
-            ],
-        ) as request:
-            reply = generate_local_reply("Привет")
-        self.assertEqual(reply, "Готовый ответ.")
-        self.assertEqual(request.call_count, 2)
-        self.assertEqual(request.call_args_list[0].kwargs["payload"]["options"]["num_predict"], 512)
-        self.assertEqual(request.call_args_list[1].kwargs["payload"]["options"]["num_predict"], 768)
+    def test_gemini_requires_an_environment_key(self):
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}, clear=True):
+            self.assertFalse(gemini_status()["ready"])
+            with self.assertRaises(LocalProviderError):
+                generate_gemini_reply("Привет")
 
     def test_personal_voice_profile_has_female_samples_and_valid_wav(self):
         with patch.dict("os.environ", {"EVE_BUILD_PROFILE": ""}):
