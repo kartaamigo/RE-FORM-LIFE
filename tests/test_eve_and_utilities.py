@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import choose_command_candidate, clean_assistant_reply, has_wake_word, parse_command
-from eve_local import DEFAULT_GEMINI_MODEL, QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _gemini_api_key, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_gemini_reply, gemini_status, strip_reasoning
+from eve_local import DEFAULT_GEMINI_MODEL, QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _gemini_api_key, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_gemini_reply, gemini_status, resolve_gemini_model, strip_reasoning
 from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
@@ -44,6 +44,9 @@ class EveParserTests(unittest.TestCase):
     def test_reasoning_markup_is_not_shown_to_user(self):
         self.assertEqual(strip_reasoning("<think>внутренний план</think>Готово."), "Готово.")
         self.assertEqual(strip_reasoning("<think>незавершённое рассуждение"), "")
+
+    def test_retired_gemini_model_resolves_to_latest_alias(self):
+        self.assertEqual(resolve_gemini_model("gemini-2.5-flash-lite"), "gemini-flash-lite-latest")
 
     def test_gemini_chat_request_includes_recent_conversation_context(self):
         with patch.dict("os.environ", {"GEMINI_API_KEY": "test-key"}), patch(
@@ -247,6 +250,15 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
     def tearDown(self):
         app_module.app.config["DATABASE"] = self.previous_database
         self.temp_dir.cleanup()
+
+    def test_assistant_page_keeps_chat_history_and_voice_panel(self):
+        response = self.client.get("/assistant")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn('data-page="assistant"', html)
+        self.assertIn('id="assistantLog"', html)
+        self.assertIn('id="assistantVoiceVisualizer"', html)
+        self.assertIn("Flash Lite", html)
 
     def test_planner_voice_create_and_complete(self):
         tomorrow = date.today() + timedelta(days=1)

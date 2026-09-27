@@ -78,7 +78,14 @@ def _configure_numba_cache() -> None:
         return
 
 
-DEFAULT_GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-flash-lite-latest").strip() or "gemini-flash-lite-latest"
+LATEST_GEMINI_MODEL = "gemini-flash-lite-latest"
+RETIRED_GEMINI_MODELS = {"gemini-2.5-flash-lite"}
+_configured_gemini_model = os.environ.get("GEMINI_MODEL", "").strip()
+DEFAULT_GEMINI_MODEL = (
+    LATEST_GEMINI_MODEL
+    if not _configured_gemini_model or _configured_gemini_model in RETIRED_GEMINI_MODELS
+    else _configured_gemini_model
+)
 GEMINI_TIMEOUT_SECONDS = 45.0
 SILERO_REPO_NAME = "silero-v5-ru"
 QWEN_MODEL_NAME = "qwen3-tts-1.7b-voicedesign"
@@ -235,10 +242,21 @@ def _windows_user_environment_value(name: str) -> str:
     return str(value or "").strip()
 
 
+def resolve_gemini_model(model: str | None = None) -> str:
+    """Keep retired Gemini model names on the current stable alias."""
+
+    requested_model = str(model or "").strip()
+    if not requested_model:
+        return DEFAULT_GEMINI_MODEL
+    if requested_model in RETIRED_GEMINI_MODELS:
+        return LATEST_GEMINI_MODEL
+    return requested_model
+
+
 def gemini_status(model: str = DEFAULT_GEMINI_MODEL) -> dict[str, Any]:
     """Return a local, non-networking readiness snapshot for Gemini."""
 
-    requested_model = str(model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+    requested_model = resolve_gemini_model(model)
     configured = bool(_gemini_api_key())
     return {
         "ready": configured,
@@ -262,7 +280,7 @@ def generate_gemini_reply(
         raise LocalProviderError("Пустой запрос к Gemini.")
     if not api_key:
         raise LocalProviderError("Gemini недоступна: задай GEMINI_API_KEY в окружении.")
-    requested_model = str(model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+    requested_model = resolve_gemini_model(model)
     messages = _conversation_messages(user_text, history, memories)
     system_text = "\n\n".join(item["content"] for item in messages if item.get("role") == "system")
     contents = []

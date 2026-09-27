@@ -3196,3 +3196,194 @@ body[data-page="week"] .legacy-date-badge {
     display: none;
   }
 }
+
+/* Экран EVE держится в пределах окна и повторяет спокойную композицию Gemini. */
+body[data-page="assistant"] {
+  min-width: 0;
+  width: 100%;
+  max-width: 1920px;
+  height: min(100vh, 1080px);
+  max-height: 1080px;
+  margin: 0 auto;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 68% 60% at 55% 43%, rgba(33, 55, 146, .32) 0%, rgba(16, 25, 66, .12) 48%, transparent 75%),
+    #0c0d11 !important;
+}
+
+body[data-page="assistant"] .app-shell {
+  height: min(100vh, 1080px);
+  min-height: 0;
+  max-height: 1080px;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+body[data-page="assistant"] .sidebar {
+  height: 100%;
+  max-height: 1080px;
+}
+
+body[data-page="assistant"] .main-area {
+  height: 100%;
+  min-height: 0;
+  padding: 26px 34px 28px !important;
+  overflow: hidden;
+  background: transparent !important;
+}
+
+body[data-page="assistant"] .topbar {
+  display: none !important;
+}
+
+body[data-page="assistant"] .page-content,
+body[data-page="assistant"] .assistant-layout,
+body[data-page="assistant"] .assistant-interface-grid {
+  height: 100%;
+  min-height: 0;
+}
+
+body[data-page="assistant"] .page-content {
+  gap: 0;
+  overflow: hidden;
+}
+
+body[data-page="assistant"] .assistant-layout {
+  gap: 0;
+}
+
+body[data-page="assistant"] .assistant-interface-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 350px);
+  gap: 20px;
+}
+
+body[data-page="assistant"] .assistant-chat-shell {
+  height: 100%;
+  min-height: 0;
+  border-color: rgba(77, 103, 255, .26) !important;
+  border-radius: 22px;
+  background: rgba(13, 14, 18, .88) !important;
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .24), inset 0 1px rgba(255, 255, 255, .025);
+}
+
+body[data-page="assistant"] .assistant-chat-header {
+  position: relative;
+  display: block;
+  min-height: 112px;
+  padding: 28px 28px 21px;
+  text-align: center;
+}
+
+body[data-page="assistant"] .assistant-chat-header h2 {
+  margin: 10px 0 8px;
+  font-size: clamp(28px, 2.5vw, 38px);
+  letter-spacing: -1.45px;
+}
+
+body[data-page="assistant"] .assistant-chat-header p {
+  font-size: 12px;
+}
+
+body[data-page="assistant"] .assistant-chat-actions {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+}
+
+body[data-page="assistant"] .assistant-chat-log {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-color: #344985 transparent;
+  scrollbar-width: thin;
+  background: radial-gradient(ellipse at 50% 0%, rgba(37, 58, 138, .13), transparent 58%);
+}
+
+body[data-page="assistant"] .assistant-chat-log .assistant-log-empty {
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+body[data-page="assistant"] .assistant-chat-compose {
+  padding: 17px 22px 15px;
+  background: rgba(16, 17, 21, .94);
+}
+
+body[data-page="assistant"] .assistant-chat-compose .assistant-dialog-composer {
+  max-width: 760px;
+}
+
+body[data-page="assistant"] .assistant-chat-compose-footer {
+  width: min(100%, 760px);
+  margin: 0 auto;
+  text-align: center;
+}
+
+body[data-page="assistant"] .assistant-chat-compose .assistant-dialog-status,
+body[data-page="assistant"] .assistant-chat-compose .assistant-interim {
+  text-align: center;
+}
+
+body[data-page="assistant"] .assistant-voice-column {
+  min-height: 0;
+  height: 100%;
+}
+
+body[data-page="assistant"] .assistant-voice-visualizer {
+  min-height: 0;
+  height: 100%;
+  border-radius: 22px;
+  background: radial-gradient(circle at 50% 42%, rgba(64, 44, 174, .28), rgba(8, 10, 17, .98) 54%), #090b11;
+}
+
+@media (max-width: 900px) {
+  body[data-page="assistant"] {
+    max-width: none;
+    height: 100vh;
+    max-height: none;
+  }
+
+  body[data-page="assistant"] .app-shell {
+    height: 100vh;
+    max-height: none;
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-page="assistant"] .sidebar {
+    display: none;
+  }
+
+  body[data-page="assistant"] .main-area {
+    padding: 16px !important;
+  }
+
+  body[data-page="assistant"] .assistant-interface-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-page="assistant"] .assistant-voice-column {
+    display: none;
+  }
+
+  body[data-page="assistant"] .assistant-chat-header {
+    min-height: 96px;
+    padding: 20px 16px 16px;
+  }
+
+  body[data-page="assistant"] .assistant-chat-actions {
+    top: 15px;
+    right: 15px;
+  }
+
+  body[data-page="assistant"] .assistant-chat-actions .assistant-clear-log,
+  body[data-page="assistant"] .assistant-chat-actions .assistant-hero-badge {
+    display: none;
+  }
+
+  body[data-page="assistant"] .assistant-chat-compose {
+    padding-right: 11px;
+    padding-left: 11px;
+  }
+}

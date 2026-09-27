@@ -27,6 +27,7 @@ from eve_local import (
     build_profile,
     generate_gemini_reply,
     providers_status,
+    resolve_gemini_model,
     synthesize_speech,
     tts_status,
 )
@@ -789,9 +790,9 @@ def assistant_settings_payload() -> dict[str, Any]:
             result[key] = bool(parse_bool(value))
         elif key == "gemini_model":
             environment_model = os.environ.get("GEMINI_MODEL", "").strip()
-            saved_model = value or default
-            if saved_model in RETIRED_GEMINI_MODELS:
-                saved_model = default
+            saved_model = resolve_gemini_model(value or default)
+            if environment_model in RETIRED_GEMINI_MODELS:
+                environment_model = resolve_gemini_model(environment_model)
             result[key] = environment_model if GEMINI_MODEL_RE.fullmatch(environment_model) else saved_model
         elif key == "voice_name":
             allowed_voices = {voice["id"] for voice in available_tts_voices()}
@@ -1255,7 +1256,7 @@ def api_assistant_settings_patch():
                 model = optional_text(value, 120) or DEFAULT_GEMINI_MODEL
                 if not GEMINI_MODEL_RE.fullmatch(model):
                     raise ValueError("Некорректное имя модели Gemini.")
-                values[key] = model
+                values[key] = resolve_gemini_model(model)
             else:
                 values[key] = optional_text(value, 80)
         db = get_db()
