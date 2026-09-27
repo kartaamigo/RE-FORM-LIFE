@@ -63,6 +63,7 @@ DEFAULT_ASSISTANT_SETTINGS = {
 
 ASSISTANT_WAKE_WORDS = {"эва", "ева", "eve"}
 GEMINI_MODEL_RE = re.compile(r"^[A-Za-z0-9._:/-]{1,120}$")
+RETIRED_GEMINI_MODELS = {"gemini-2.5-flash-lite"}
 assistant_pending_actions: dict[str, dict[str, Any]] = {}
 
 app = Flask(__name__)
@@ -765,7 +766,10 @@ def assistant_settings_payload() -> dict[str, Any]:
             result[key] = bool(parse_bool(value))
         elif key == "gemini_model":
             environment_model = os.environ.get("GEMINI_MODEL", "").strip()
-            result[key] = environment_model if GEMINI_MODEL_RE.fullmatch(environment_model) else (value or default)
+            saved_model = value or default
+            if saved_model in RETIRED_GEMINI_MODELS:
+                saved_model = default
+            result[key] = environment_model if GEMINI_MODEL_RE.fullmatch(environment_model) else saved_model
         elif key == "voice_name":
             allowed_voices = {voice["id"] for voice in available_tts_voices()}
             result[key] = value if value in allowed_voices else available_tts_voices()[0]["id"]

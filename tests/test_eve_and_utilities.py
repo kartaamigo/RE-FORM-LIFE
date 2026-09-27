@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import choose_command_candidate, parse_command
-from eve_local import QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _gemini_api_key, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_gemini_reply, gemini_status, strip_reasoning
+from eve_local import DEFAULT_GEMINI_MODEL, QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _gemini_api_key, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_gemini_reply, gemini_status, strip_reasoning
 from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
@@ -682,6 +682,14 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
             )
         self.assertEqual(response.get_json()["action"], "unsupported")
         run.assert_not_called()
+
+    def test_retired_gemini_model_is_replaced_for_existing_settings(self):
+        saved = self.client.patch(
+            "/api/assistant/settings",
+            json={"gemini_model": "gemini-2.5-flash-lite"},
+        )
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.get_json()["settings"]["gemini_model"], DEFAULT_GEMINI_MODEL)
 
     def test_gemini_without_key_does_not_fall_back_to_local_dialogue(self):
         with patch.object(

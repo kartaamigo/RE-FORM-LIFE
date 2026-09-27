@@ -10,10 +10,12 @@ commands by itself.
 
 Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey),
 set `GEMINI_API_KEY` in the Windows user environment, and restart RE:FORM LIFE.
-The default model is `gemini-2.5-flash-lite`; set `GEMINI_MODEL` only when you
-need another model. Google may offer a free quota, but limits and availability
-can change. The key is read only from the environment, never stored in the
-application database, and sent only to the official Gemini HTTPS endpoint.
+The default model is the stable `gemini-flash-lite-latest` alias, so the app
+does not remain pinned to a retired model version. Set `GEMINI_MODEL` only when
+you need a specific model. Google may offer a free quota, but limits and
+availability can change. The key is read only from the environment, never
+stored in the application database, and sent only to the official Gemini HTTPS
+endpoint.
 
 ## Optional Yandex SpeechKit voice
 
