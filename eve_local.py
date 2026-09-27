@@ -1,6 +1,6 @@
-"""Local/optional cloud language-model and profile-locked TTS adapters.
+"""Gemini language-model and profile-locked TTS adapters.
 
-The adapters deliberately expose text and audio only.  Command execution is
+The adapters deliberately expose text and audio only. Command execution is
 still owned by :mod:`eve_assistant` and ``app.py`` so a model response cannot
 silently turn into a system action.
 """
@@ -16,6 +16,7 @@ import re
 import sys
 import tempfile
 import urllib.error
+import urllib.parse
 import urllib.request
 import wave
 from functools import lru_cache
@@ -77,9 +78,8 @@ def _configure_numba_cache() -> None:
         return
 
 
-DEFAULT_OLLAMA_URL = "http://127.0.0.1:11434"
-DEFAULT_OLLAMA_MODEL = "deepseek-r1:8b"
-DEFAULT_CLOUD_MODEL = "gpt-4.1-mini"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-lite"
+GEMINI_TIMEOUT_SECONDS = 45.0
 SILERO_REPO_NAME = "silero-v5-ru"
 QWEN_MODEL_NAME = "qwen3-tts-1.7b-voicedesign"
 QWEN_BASE_MODEL_NAME = "qwen3-tts-0.6b-base"
@@ -89,11 +89,6 @@ QWEN_SAMPLE_VOICES = {
 }
 QWEN_SAMPLE_TARGET_HZ = 230.0
 SILERO_VOICES = {"xenia", "kseniya", "baya"}
-OLLAMA_TIMEOUT_SECONDS = 3.0
-OLLAMA_GENERATE_TIMEOUT_SECONDS = 90.0
-CLOUD_TIMEOUT_SECONDS = 60.0
-OLLAMA_INITIAL_PREDICT_TOKENS = 512
-OLLAMA_RETRY_PREDICT_TOKENS = 768
 
 QWEN_VOICE_INSTRUCTION = (
     "A clearly feminine adult Russian-speaking voice with a moderately high pitch, "
@@ -126,7 +121,7 @@ class LocalProviderError(RuntimeError):
 
 
 def strip_reasoning(text: Any) -> str:
-    """Remove DeepSeek/Ollama reasoning markup before it reaches the user."""
+    """Remove accidental reasoning markup before text reaches the user."""
 
     value = str(text or "").replace("\x00", "").strip()
     if not value:
@@ -140,22 +135,13 @@ def strip_reasoning(text: Any) -> str:
     return re.sub(r"\n{3,}", "\n\n", value).strip()
 
 
-def _ollama_url() -> str:
-    configured = os.environ.get("OLLAMA_HOST", DEFAULT_OLLAMA_URL).strip()
-    if not configured:
-        configured = DEFAULT_OLLAMA_URL
-    if "://" not in configured:
-        configured = f"http://{configured}"
-    return configured.rstrip("/")
-
-
 def _json_request(
     url: str,
     *,
     method: str = "GET",
     payload: dict[str, Any] | None = None,
     extra_headers: dict[str, str] | None = None,
-    service_name: str = "локальный сервис",
+    service_name: str = "внешний API",
     timeout: float,
 ) -> dict[str, Any]:
     data = None
@@ -181,42 +167,10 @@ def _json_request(
     try:
         result = json.loads(raw or "{}")
     except json.JSONDecodeError as exc:
-        raise LocalProviderError("Локальный сервис вернул некорректный ответ.") from exc
+        raise LocalProviderError(f"{service_name} вернул некорректный ответ.") from exc
     if not isinstance(result, dict):
-        raise LocalProviderError("Локальный сервис вернул неожиданный ответ.")
+        raise LocalProviderError(f"{service_name} вернул неожиданный ответ.")
     return result
-
-
-def ollama_status(model: str = DEFAULT_OLLAMA_MODEL) -> dict[str, Any]:
-    """Return a non-throwing health snapshot for Ollama and its model."""
-
-    url = _ollama_url()
-    requested_model = str(model or DEFAULT_OLLAMA_MODEL).strip() or DEFAULT_OLLAMA_MODEL
-    try:
-        payload = _json_request(f"{url}/api/tags", timeout=OLLAMA_TIMEOUT_SECONDS)
-    except LocalProviderError as exc:
-        return {
-            "ready": False,
-            "service_ready": False,
-            "model_ready": False,
-            "backend": "ollama",
-            "url": url,
-            "model": requested_model,
-            "message": str(exc),
-        }
-    models = payload.get("models") if isinstance(payload.get("models"), list) else []
-    names = {str(item.get("name")) for item in models if isinstance(item, dict) and item.get("name")}
-    model_ready = requested_model in names
-    return {
-        "ready": model_ready,
-        "service_ready": True,
-        "model_ready": model_ready,
-        "backend": "ollama",
-        "url": url,
-        "model": requested_model,
-        "installed_models": sorted(names),
-        "message": "DeepSeek готова к работе" if model_ready else f"Модель «{requested_model}» не загружена в Ollama.",
-    }
 
 
 def _conversation_messages(
@@ -255,118 +209,86 @@ def _conversation_messages(
     return messages
 
 
-def release_qwen_model() -> None:
-    """Free CUDA memory before the local LLM takes over the shared GPU."""
+def _gemini_api_key() -> str:
+    """Read the Gemini key without ever persisting it in the application."""
 
-    _load_qwen_model.cache_clear()
-    try:
-        import gc
-        import torch
-
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
-    except Exception:
-        pass
+    return (
+        os.environ.get("GEMINI_API_KEY", "").strip()
+        or os.environ.get("GOOGLE_API_KEY", "").strip()
+    )
 
 
-def generate_local_reply(
-    text: str,
-    model: str = DEFAULT_OLLAMA_MODEL,
-    history: list[dict[str, Any]] | None = None,
-    memories: list[str] | None = None,
-) -> str:
-    """Ask the local model for a context-aware conversational response."""
+def gemini_status(model: str = DEFAULT_GEMINI_MODEL) -> dict[str, Any]:
+    """Return a local, non-networking readiness snapshot for Gemini."""
 
-    user_text = str(text or "").strip()
-    if not user_text:
-        raise LocalProviderError("Пустой запрос к локальной модели.")
-    if build_profile() == "commercial":
-        release_qwen_model()
-    request_url = f"{_ollama_url()}/api/chat"
-    messages = _conversation_messages(user_text, history, memories)
-    requested_model = str(model or DEFAULT_OLLAMA_MODEL).strip() or DEFAULT_OLLAMA_MODEL
-
-    def request_reply(num_predict: int) -> tuple[str, dict[str, Any]]:
-        payload = _json_request(
-            request_url,
-            method="POST",
-            payload={
-                "model": requested_model,
-                "messages": messages,
-                "stream": False,
-                "keep_alive": "10m",
-                "think": False,
-                "options": {"temperature": 0.6, "num_predict": num_predict, "num_ctx": 4096},
-            },
-            timeout=OLLAMA_GENERATE_TIMEOUT_SECONDS,
-        )
-        message = payload.get("message") if isinstance(payload.get("message"), dict) else {}
-        return strip_reasoning(message.get("content")), payload
-
-    reply, payload = request_reply(OLLAMA_INITIAL_PREDICT_TOKENS)
-    if reply:
-        return reply
-
-    # Some installed DeepSeek-R1/Qwen builds ignore `think: false` and spend
-    # the whole first budget on their hidden reasoning stream. Give that
-    # response one larger, still bounded attempt so the user gets an answer
-    # instead of an empty message and a silent TTS call.
-    message = payload.get("message") if isinstance(payload.get("message"), dict) else {}
-    raw_content = str(message.get("content") or "").strip()
-    thinking = str(message.get("thinking") or "").strip()
-    if raw_content or thinking or payload.get("done_reason") == "length":
-        reply, _retry_payload = request_reply(OLLAMA_RETRY_PREDICT_TOKENS)
-        if reply:
-            return reply
-    raise LocalProviderError("Локальная модель не вернула готовый ответ.")
-
-
-def cloud_provider_status() -> dict[str, Any]:
-    """Report whether the optional, explicitly selected API has a local key."""
-
-    configured = bool(os.environ.get("OPENAI_API_KEY", "").strip())
+    requested_model = str(model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+    configured = bool(_gemini_api_key())
     return {
         "ready": configured,
-        "backend": "openai-compatible",
-        "model": os.environ.get("EVE_OPENAI_MODEL", DEFAULT_CLOUD_MODEL).strip() or DEFAULT_CLOUD_MODEL,
-        "message": "Ключ API настроен; запросы будут отправляться в облако и могут тарифицироваться." if configured
-        else "Облачный режим выключен: не задан OPENAI_API_KEY. Локальный DeepSeek остаётся доступен.",
+        "backend": "gemini",
+        "model": requested_model,
+        "message": "Gemini API готова к работе." if configured else "Задай GEMINI_API_KEY в окружении и перезапусти приложение.",
     }
 
 
-def generate_cloud_reply(
+def generate_gemini_reply(
     text: str,
+    model: str = DEFAULT_GEMINI_MODEL,
     history: list[dict[str, Any]] | None = None,
     memories: list[str] | None = None,
 ) -> str:
-    """Ask the opt-in OpenAI API; secrets are read only from the process env."""
+    """Ask Gemini for a conversational response; commands stay deterministic."""
 
     user_text = str(text or "").strip()
-    api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    api_key = _gemini_api_key()
     if not user_text:
-        raise LocalProviderError("Пустой запрос к облачной модели.")
+        raise LocalProviderError("Пустой запрос к Gemini.")
     if not api_key:
-        raise LocalProviderError("Облачный режим выключен: не задан OPENAI_API_KEY.")
-    model = os.environ.get("EVE_OPENAI_MODEL", DEFAULT_CLOUD_MODEL).strip() or DEFAULT_CLOUD_MODEL
+        raise LocalProviderError("Gemini недоступна: задай GEMINI_API_KEY в окружении.")
+    requested_model = str(model or DEFAULT_GEMINI_MODEL).strip() or DEFAULT_GEMINI_MODEL
+    messages = _conversation_messages(user_text, history, memories)
+    system_text = "\n\n".join(item["content"] for item in messages if item.get("role") == "system")
+    contents = []
+    for item in messages:
+        if item.get("role") == "system":
+            continue
+        content = str(item.get("content") or "").strip()
+        if not content:
+            continue
+        role = "model" if item.get("role") == "assistant" else "user"
+        if contents and contents[-1]["role"] == role:
+            contents[-1]["parts"][0]["text"] += f"\n\n{content}"
+        else:
+            contents.append({"role": role, "parts": [{"text": content}]})
+    request_url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{urllib.parse.quote(requested_model, safe='')}:generateContent"
+        f"?key={urllib.parse.quote(api_key, safe='')}"
+    )
     payload = _json_request(
-        "https://api.openai.com/v1/chat/completions",
+        request_url,
         method="POST",
         payload={
-            "model": model,
-            "messages": _conversation_messages(user_text, history, memories),
-            "temperature": 0.6,
-            "max_tokens": 320,
+            "systemInstruction": {"parts": [{"text": system_text}]},
+            "contents": contents,
+            "generationConfig": {"temperature": 0.6, "maxOutputTokens": 320},
         },
-        extra_headers={"Authorization": f"Bearer {api_key}"},
-        service_name="Облачный API",
-        timeout=CLOUD_TIMEOUT_SECONDS,
+        service_name="Gemini API",
+        timeout=GEMINI_TIMEOUT_SECONDS,
     )
-    choices = payload.get("choices") if isinstance(payload.get("choices"), list) else []
-    message = choices[0].get("message", {}) if choices and isinstance(choices[0], dict) else {}
-    reply = strip_reasoning(message.get("content") if isinstance(message, dict) else "")
+    candidates = payload.get("candidates") if isinstance(payload.get("candidates"), list) else []
+    candidate = candidates[0] if candidates and isinstance(candidates[0], dict) else {}
+    content = candidate.get("content") if isinstance(candidate.get("content"), dict) else {}
+    parts = content.get("parts") if isinstance(content.get("parts"), list) else []
+    reply = strip_reasoning(
+        "\n".join(
+            str(part.get("text") or "")
+            for part in parts
+            if isinstance(part, dict) and not part.get("thought")
+        )
+    )
     if not reply:
-        raise LocalProviderError("Облачная модель не вернула готовый ответ.")
+        raise LocalProviderError("Gemini не вернула готовый ответ.")
     return reply
 
 
@@ -665,20 +587,6 @@ def _match_sample_pitch(samples: Any, sample_rate: int):
         return samples
 
 
-def _release_ollama_model() -> None:
-    """Unload Ollama's idle model before reserving the GPU for Qwen TTS."""
-
-    try:
-        _json_request(
-            f"{_ollama_url()}/api/generate",
-            method="POST",
-            payload={"model": os.environ.get("EVE_OLLAMA_MODEL", DEFAULT_OLLAMA_MODEL), "keep_alive": 0},
-            timeout=5,
-        )
-    except LocalProviderError:
-        return
-
-
 def _write_pcm_wav(samples: Any, sample_rate: int) -> bytes:
     import numpy as np
 
@@ -760,7 +668,6 @@ def _synthesize_profile_speech(text: str, profile: str, model_path: Path, voice_
             instruct=_qwen_voice_instruction(voice_name),
         )
 
-    _release_ollama_model()
     device = "cpu"
     if torch.cuda.is_available():
         try:
@@ -825,5 +732,5 @@ def synthesize_speech(text: str, voice_name: str | None = None) -> bytes:
     return _synthesize_profile_speech(cleaned, profile, model, voice_name)
 
 
-def local_providers_status(model: str = DEFAULT_OLLAMA_MODEL) -> dict[str, Any]:
-    return {"llm": ollama_status(model), "tts": tts_status(), "cloud": cloud_provider_status()}
+def providers_status(model: str = DEFAULT_GEMINI_MODEL) -> dict[str, Any]:
+    return {"gemini": gemini_status(model), "tts": tts_status()}
