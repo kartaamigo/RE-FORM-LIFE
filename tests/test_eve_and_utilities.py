@@ -325,7 +325,7 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/assistant/history").get_json()["messages"], [])
 
     def test_separate_chat_never_executes_commands(self):
-        with patch.object(app_module, "generate_local_reply", return_value="Привет! У меня всё хорошо."), patch.object(
+        with patch.object(app_module, "generate_gemini_reply", return_value="Привет! У меня всё хорошо."), patch.object(
             app_module, "perform_external_action"
         ) as external:
             response = self.client.post("/api/assistant/chat", json={"text": "Открой Ютуб и расскажи, как дела"})
@@ -399,9 +399,9 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         ).get_json()
         self.assertIn("я люблю прогулки вечером", listed["reply"])
 
-        with patch.object(app_module, "generate_local_reply", return_value="Тогда предложу вечернюю прогулку.") as generate:
+        with patch.object(app_module, "generate_gemini_reply", return_value="Тогда предложу вечернюю прогулку.") as generate:
             response = self.client.post("/api/assistant/command", json={"text": "Чем заняться?"})
-        self.assertEqual(response.get_json()["action"], "local_llm_reply")
+        self.assertEqual(response.get_json()["action"], "gemini_reply")
         self.assertEqual(generate.call_args.args[3], ["я люблю прогулки вечером"])
 
         forgotten = self.client.post(
@@ -641,9 +641,9 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
     def test_assistant_status_exposes_native_capability(self):
         with patch.object(
             app_module,
-            "local_providers_status",
+            "providers_status",
             return_value={
-                "llm": {"ready": True, "model": "deepseek-r1:8b"},
+                "gemini": {"ready": True, "model": "gemini-test"},
                 "tts": {"ready": True, "backend": "piper"},
             },
         ):
@@ -653,18 +653,16 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(payload["display_name"], "EVE · Эва")
         self.assertIn("native", payload)
         self.assertIn("model_path", payload["native"])
-        self.assertTrue(payload["local"]["llm"]["ready"])
-        self.assertTrue(payload["local"]["tts"]["ready"])
+        self.assertTrue(payload["gemini"]["ready"])
+        self.assertTrue(payload["tts"]["ready"])
 
-    def test_cloud_mode_is_explicit_and_terminal_requests_are_not_executed(self):
+    def test_gemini_mode_is_explicit_and_terminal_requests_are_not_executed(self):
         settings = self.client.get("/api/assistant/settings").get_json()["settings"]
-        self.assertEqual(settings["assistant_provider"], "local")
-        saved = self.client.patch("/api/assistant/settings", json={"assistant_provider": "cloud"})
-        self.assertEqual(saved.get_json()["settings"]["assistant_provider"], "cloud")
-        with patch.object(app_module, "generate_cloud_reply", return_value="Привет, я на связи.") as generate:
+        self.assertTrue(settings["gemini_enabled"])
+        with patch.object(app_module, "generate_gemini_reply", return_value="Привет, я на связи.") as generate:
             chat = self.client.post("/api/assistant/command", json={"text": "как дела?"})
-        self.assertEqual(chat.get_json()["action"], "cloud_llm_reply")
-        self.assertEqual(chat.get_json()["provider"], "openai-compatible")
+        self.assertEqual(chat.get_json()["action"], "gemini_reply")
+        self.assertEqual(chat.get_json()["provider"], "gemini")
         self.assertEqual(generate.call_args.args[0], "как дела?")
         with patch.object(app_module.subprocess, "run") as run:
             response = self.client.post(
@@ -674,19 +672,16 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertEqual(response.get_json()["action"], "unsupported")
         run.assert_not_called()
 
-    def test_cloud_without_key_falls_back_to_local_dialogue(self):
-        self.client.patch("/api/assistant/settings", json={"assistant_provider": "cloud"})
+    def test_gemini_without_key_does_not_fall_back_to_local_dialogue(self):
         with patch.object(
             app_module,
-            "generate_cloud_reply",
-            side_effect=LocalProviderError("Облачный режим выключен: не задан OPENAI_API_KEY."),
-        ), patch.object(app_module, "generate_local_reply", return_value="Я рядом, продолжаем локально.") as local:
+            "generate_gemini_reply",
+            side_effect=LocalProviderError("Gemini недоступна: задай GEMINI_API_KEY в окружении."),
+        ):
             response = self.client.post("/api/assistant/chat", json={"text": "Привет"})
-        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.status_code, 503)
         payload = response.get_json()
-        self.assertEqual(payload["provider"], "ollama-fallback")
-        self.assertEqual(payload["reply"], "Я рядом, продолжаем локально.")
-        local.assert_called_once()
+        self.assertIn("GEMINI_API_KEY", payload["error"])
 
     def test_speechkit_mode_routes_audio_and_keeps_dialogue_provider_separate(self):
         saved = self.client.patch("/api/assistant/settings", json={"speech_provider": "yandex", "yandex_voice": "jane"})
@@ -699,7 +694,7 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
             response = self.client.post("/api/assistant/transcribe", data=b"\x00\x00" * 1600)
         self.assertEqual(response.get_json()["text"], "создай папку")
         transcribe.assert_called_once()
-        self.assertEqual(self.client.get("/api/assistant/settings").get_json()["settings"]["assistant_provider"], "local")
+        self.assertTrue(self.client.get("/api/assistant/settings").get_json()["settings"]["gemini_enabled"])
 
     def test_commercial_voice_style_is_selectable_for_russian_answers(self):
         with patch("eve_local.build_profile", return_value="commercial"):
@@ -723,16 +718,16 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
             synthesize.assert_called_once_with("Ещё одна фраза", "eve-sample-final")
 
-    def test_unknown_command_uses_local_model_without_executing_action(self):
-        with patch.object(app_module, "generate_local_reply", return_value="Я рядом и готова помочь.") as generate:
+    def test_unknown_command_uses_gemini_without_executing_action(self):
+        with patch.object(app_module, "generate_gemini_reply", return_value="Я рядом и готова помочь.") as generate:
             response = self.client.post(
                 "/api/assistant/command",
                 json={"text": "Расскажи мне что-нибудь интересное"},
             )
         self.assertEqual(response.status_code, 200)
         payload = response.get_json()
-        self.assertEqual(payload["action"], "local_llm_reply")
-        self.assertEqual(payload["provider"], "ollama")
+        self.assertEqual(payload["action"], "gemini_reply")
+        self.assertEqual(payload["provider"], "gemini")
         self.assertEqual(payload["reply"], "Я рядом и готова помочь.")
         generate.assert_called_once()
 
