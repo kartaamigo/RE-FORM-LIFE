@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 import app as app_module
 from eve_assistant import choose_command_candidate, parse_command
-from eve_local import QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_gemini_reply, gemini_status, strip_reasoning
+from eve_local import QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _gemini_api_key, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_gemini_reply, gemini_status, strip_reasoning
 from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
@@ -66,6 +66,17 @@ class EveParserTests(unittest.TestCase):
             self.assertFalse(gemini_status()["ready"])
             with self.assertRaises(LocalProviderError):
                 generate_gemini_reply("Привет")
+
+    def test_frozen_windows_app_reads_fresh_user_gemini_key(self):
+        with patch.dict("os.environ", {"GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}, clear=True), patch(
+            "eve_local.sys.platform", "win32"
+        ), patch("eve_local.sys.frozen", True, create=True), patch(
+            "winreg.OpenKey"
+        ) as open_key, patch(
+            "winreg.QueryValueEx", return_value=("fresh-user-key", 1)
+        ):
+            open_key.return_value.__enter__.return_value = object()
+            self.assertEqual(_gemini_api_key(), "fresh-user-key")
 
     def test_personal_voice_profile_has_female_samples_and_valid_wav(self):
         with patch.dict("os.environ", {"EVE_BUILD_PROFILE": ""}):

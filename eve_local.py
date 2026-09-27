@@ -215,7 +215,24 @@ def _gemini_api_key() -> str:
     return (
         os.environ.get("GEMINI_API_KEY", "").strip()
         or os.environ.get("GOOGLE_API_KEY", "").strip()
+        or _windows_user_environment_value("GEMINI_API_KEY")
+        or _windows_user_environment_value("GOOGLE_API_KEY")
     )
+
+
+def _windows_user_environment_value(name: str) -> str:
+    """Read a newly saved user variable when a frozen app has a stale parent environment."""
+
+    if sys.platform != "win32" or not getattr(sys, "frozen", False):
+        return ""
+    try:
+        import winreg
+
+        with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment") as key:
+            value, _ = winreg.QueryValueEx(key, name)
+    except (OSError, ImportError):
+        return ""
+    return str(value or "").strip()
 
 
 def gemini_status(model: str = DEFAULT_GEMINI_MODEL) -> dict[str, Any]:
