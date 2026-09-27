@@ -43,7 +43,7 @@
 
     <section class="panel assistant-chat-panel assistant-conversation-panel" aria-label="Свободный разговор с EVE">
       <div class="panel-heading assistant-panel-heading">
-        <div><div class="section-kicker">ТОЛЬКО ДИАЛОГ · DEEPSEEK</div><h2>Поговорить с EVE</h2><p class="assistant-chat-intro">Как с Алисой: приветствия, идеи, новости и обычная беседа. Команды из этого окна никогда не выполняются.</p></div>
+        <div><div class="section-kicker">ТОЛЬКО ДИАЛОГ · GEMINI</div><h2>Поговорить с EVE</h2><p class="assistant-chat-intro">Как с Алисой: приветствия, идеи, новости и обычная беседа. Команды из этого окна никогда не выполняются.</p></div>
         <button class="text-button" id="assistantTalkClear" type="button">Очистить</button>
       </div>
       <div class="assistant-log" id="assistantTalkLog" aria-live="polite">
@@ -64,9 +64,7 @@
         <label class="assistant-setting-field">Язык распознавания<select id="assistantVoiceLang"><option value="ru-RU">Русский · ru-RU</option><option value="en-US">English · en-US</option></select></label>
         <label class="assistant-setting-field">Микрофон<select id="assistantMicrophone"><option value="">Системный по умолчанию</option></select></label>
         <button class="button ghost small" id="assistantRefreshMicrophones" type="button">Обновить список микрофонов</button>
-        <label class="assistant-setting-field">Режим разговора<select id="assistantProvider"><option value="local">Локально · DeepSeek</option><option value="cloud">Облако · OpenAI API</option></select></label>
-        <p class="assistant-native-status" id="assistantCloudStatus">Облачный режим выключен по умолчанию. Для него нужен отдельный ключ OpenAI API; запросы будут отправляться из интернета.</p>
-        <label class="assistant-speech-toggle"><input id="assistantLocalLlmToggle" type="checkbox" checked><span>Разрешить локальный DeepSeek</span></label>
+        <label class="assistant-speech-toggle"><input id="assistantGeminiToggle" type="checkbox" checked><span>Разрешить разговоры через Gemini</span></label>
         <label class="assistant-setting-field">Голос и распознавание<select id="assistantSpeechProvider"><option value="local">Локально · на этом компьютере</option><option value="yandex">Yandex SpeechKit · через интернет</option></select></label>
         <p class="assistant-native-status" id="assistantSpeechKitStatus">Для SpeechKit нужен ключ Yandex Cloud. Аудио отправляется в Яндекс только после выбора этого режима.</p>
         <label class="assistant-speech-toggle"><input id="assistantLocalTtsToggle" type="checkbox" checked><span>Озвучивать ответы</span></label>
@@ -79,7 +77,7 @@
         <p class="assistant-native-status" id="assistantMemoryStatus">Проверяю персональную память…</p>
         <p class="assistant-native-status">Фоновое слово «Эва» распознаётся локально через Vosk. При выборе SpeechKit записи с микрофона в окне ассистента отправляются в Yandex Cloud.</p>
         <p class="assistant-native-status" id="assistantNativeStatus">Проверяю локальный голосовой модуль…</p>
-        <p class="assistant-native-status" id="assistantLocalStatus">Проверяю DeepSeek и локальный голос…</p>
+        <p class="assistant-native-status" id="assistantGeminiStatus">Проверяю Gemini и локальный голос…</p>
       </section>
     </aside>
   </div>
