@@ -764,7 +764,8 @@ def assistant_settings_payload() -> dict[str, Any]:
         if key in boolean_keys:
             result[key] = bool(parse_bool(value))
         elif key == "gemini_model":
-            result[key] = value or default
+            environment_model = os.environ.get("GEMINI_MODEL", "").strip()
+            result[key] = environment_model if GEMINI_MODEL_RE.fullmatch(environment_model) else (value or default)
         elif key == "voice_name":
             allowed_voices = {voice["id"] for voice in available_tts_voices()}
             result[key] = value if value in allowed_voices else available_tts_voices()[0]["id"]
