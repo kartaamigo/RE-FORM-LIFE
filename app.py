@@ -19,13 +19,12 @@ from flask import Flask, Response, g, jsonify, redirect, render_template, reques
 from eve_agent import configure_autostart, input_devices, native_agent_status, perform_external_action, transcribe_pcm
 from eve_assistant import choose_command_candidate, normalize_text, parse_command
 from eve_local import (
-    DEFAULT_OLLAMA_MODEL,
+    DEFAULT_GEMINI_MODEL,
     LocalProviderError,
     available_tts_voices,
     build_profile,
-    generate_cloud_reply,
-    generate_local_reply,
-    local_providers_status,
+    generate_gemini_reply,
+    providers_status,
     synthesize_speech,
     tts_status,
 )
@@ -52,19 +51,18 @@ DEFAULT_ASSISTANT_SETTINGS = {
     "voice_lang": "ru-RU",
     "voice_name": "",
     "microphone_device": "",
-    "assistant_provider": "local",
     "speech_provider": "local",
     "yandex_voice": "alena",
-    "local_llm_enabled": "1",
+    "gemini_enabled": "1",
     "local_tts_enabled": "1",
-    "local_llm_model": DEFAULT_OLLAMA_MODEL,
+    "gemini_model": DEFAULT_GEMINI_MODEL,
     "continuous_dialog": "1",
     "interrupt_responses": "0",
     "personalization_enabled": "1",
 }
 
 ASSISTANT_WAKE_WORDS = {"эва", "ева", "eve"}
-LOCAL_LLM_MODEL_RE = re.compile(r"^[A-Za-z0-9._:/-]{1,120}$")
+GEMINI_MODEL_RE = re.compile(r"^[A-Za-z0-9._:/-]{1,120}$")
 assistant_pending_actions: dict[str, dict[str, Any]] = {}
 
 app = Flask(__name__)
@@ -757,7 +755,7 @@ def assistant_settings_payload() -> dict[str, Any]:
     rows = get_db().execute("SELECT key,value FROM assistant_settings").fetchall()
     raw = {row["key"]: row["value"] for row in rows}
     boolean_keys = {
-        "enabled", "auto_start", "local_llm_enabled", "local_tts_enabled",
+        "enabled", "auto_start", "gemini_enabled", "local_tts_enabled",
         "continuous_dialog", "interrupt_responses", "personalization_enabled",
     }
     result: dict[str, Any] = {}
@@ -765,7 +763,7 @@ def assistant_settings_payload() -> dict[str, Any]:
         value = raw.get(key, default)
         if key in boolean_keys:
             result[key] = bool(parse_bool(value))
-        elif key == "local_llm_model":
+        elif key == "gemini_model":
             result[key] = value or default
         elif key == "voice_name":
             allowed_voices = {voice["id"] for voice in available_tts_voices()}
@@ -1100,7 +1098,9 @@ def api_health():
 def api_assistant_status():
     native = native_agent_status()
     settings = assistant_settings_payload()
-    local = local_providers_status(settings["local_llm_model"])
+    providers = providers_status(settings["gemini_model"])
+    gemini = providers["gemini"]
+    tts = providers["tts"]
     return jsonify({
         "ok": True,
         "assistant": {
@@ -1113,17 +1113,18 @@ def api_assistant_status():
             "microphones": input_devices(),
             "voice": settings["voice_lang"],
             "voice_name": settings["voice_name"],
-            "voices": local["tts"].get("voices", []),
+            "voices": tts.get("voices", []),
             "build_profile": build_profile(),
             "speechkit": speechkit_status(),
-            "local": {
-                **local,
-                "llm_enabled": settings["local_llm_enabled"],
-                "tts_enabled": settings["local_tts_enabled"],
-                "model": settings["local_llm_model"],
-                "provider": settings["assistant_provider"],
+            "gemini": {
+                **gemini,
+                "enabled": settings["gemini_enabled"],
+                "model": settings["gemini_model"],
             },
-            "cloud": local.get("cloud", {}),
+            "tts": {
+                **tts,
+                "tts_enabled": settings["local_tts_enabled"],
+            },
         },
     })
 
@@ -1187,15 +1188,10 @@ def api_assistant_settings_patch():
         values: dict[str, str] = {}
         for key, value in data.items():
             if key in {
-                "enabled", "auto_start", "local_llm_enabled", "local_tts_enabled",
+                "enabled", "auto_start", "gemini_enabled", "local_tts_enabled",
                 "continuous_dialog", "interrupt_responses", "personalization_enabled",
             }:
                 values[key] = "1" if parse_bool(value) else "0"
-            elif key == "assistant_provider":
-                provider = str(value or "").strip().lower()
-                if provider not in {"local", "cloud"}:
-                    raise ValueError("Выбери локальный или облачный режим EVE.")
-                values[key] = provider
             elif key == "speech_provider":
                 provider = str(value or "").strip().lower()
                 if provider not in {"local", "yandex"}:
@@ -1227,10 +1223,10 @@ def api_assistant_settings_patch():
                 if microphone and microphone not in available:
                     raise ValueError("Выбранный микрофон больше недоступен.")
                 values[key] = microphone
-            elif key == "local_llm_model":
-                model = optional_text(value, 120) or DEFAULT_OLLAMA_MODEL
-                if not LOCAL_LLM_MODEL_RE.fullmatch(model):
-                    raise ValueError("Некорректное имя локальной модели.")
+            elif key == "gemini_model":
+                model = optional_text(value, 120) or DEFAULT_GEMINI_MODEL
+                if not GEMINI_MODEL_RE.fullmatch(model):
+                    raise ValueError("Некорректное имя модели Gemini.")
                 values[key] = model
             else:
                 values[key] = optional_text(value, 80)
