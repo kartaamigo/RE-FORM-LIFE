@@ -11,12 +11,18 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app as app_module
-from eve_assistant import choose_command_candidate, parse_command
+from eve_assistant import choose_command_candidate, clean_assistant_reply, has_wake_word, parse_command
 from eve_local import DEFAULT_GEMINI_MODEL, QWEN_GUIDE_VOICE_INSTRUCTION, QWEN_REFERENCE_VOICE_INSTRUCTION, QWEN_VOICE_INSTRUCTION, LocalProviderError, _gemini_api_key, _qwen_voice_instruction, _write_pcm_wav, available_tts_voices, build_profile, generate_gemini_reply, gemini_status, strip_reasoning
 from eve_speechkit import speechkit_status, synthesize_speechkit, transcribe_speechkit
 
 
 class EveParserTests(unittest.TestCase):
+    def test_voice_wake_word_and_reply_cleanup(self):
+        self.assertTrue(has_wake_word("Эва, создай задачу"))
+        self.assertTrue(has_wake_word("EVE открой браузер"))
+        self.assertFalse(has_wake_word("создай задачу"))
+        self.assertEqual(clean_assistant_reply("Эва, Эва, готово."), "готово.")
+
     def test_speechkit_sends_only_selected_audio_to_official_endpoints(self):
         environment = {"YANDEX_SPEECHKIT_API_KEY": "test-key", "YANDEX_SPEECHKIT_FOLDER_ID": "test-folder"}
         with patch.dict("os.environ", environment), patch("eve_speechkit.urllib.request.urlopen") as open_url:
@@ -235,6 +241,7 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         app_module.app.config["TESTING"] = True
         app_module.app.config["DATABASE"] = str(Path(self.temp_dir.name) / "test.sqlite3")
         app_module.assistant_pending_actions.clear()
+        app_module._recent_voice_commands.clear()
         self.client = app_module.app.test_client()
 
     def tearDown(self):
@@ -307,7 +314,7 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
                 "/api/assistant/command",
                 json={
                     "text": "неразборчивая фраза",
-                    "alternatives": ["открой YouTube в Яндекс Браузере"],
+                    "alternatives": ["Эва, открой YouTube в Яндекс Браузере"],
                     "source": "browser_voice",
                 },
             )
@@ -319,6 +326,15 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
             browser="yandex",
             search_engine="",
         )
+
+    def test_voice_without_wake_word_is_ignored(self):
+        response = self.client.post(
+            "/api/assistant/command",
+            json={"text": "создай задачу купить молоко", "source": "browser_voice"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json()["action"], "ignored")
+        self.assertEqual(self.client.get("/api/assistant/history").get_json()["messages"], [])
 
     def test_assistant_history_is_stored_in_database(self):
         response = self.client.post(

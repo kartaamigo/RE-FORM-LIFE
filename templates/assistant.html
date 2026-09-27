@@ -2,71 +2,96 @@
 
 {% block content %}
 <div class="assistant-layout">
-  <section class="panel assistant-hero assistant-dialog-hero" aria-label="Единый AI-чат EVE">
-    <div class="assistant-dialog-glow" aria-hidden="true"></div>
-    <div class="assistant-dialog-content">
-      <div class="section-kicker">EVE · AI-ЧАТ И УПРАВЛЕНИЕ</div>
-      <h2>Чем я могу помочь?</h2>
-      <p class="assistant-dialog-subtitle">Живой разговор, идеи и управление задачами — всё в одном окне.</p>
-      <div class="assistant-command-row assistant-dialog-composer">
-        <button class="assistant-composer-tool" id="assistantComposerHelp" type="button" aria-label="Что умеет EVE" title="Что умеет EVE">＋</button>
-        <textarea id="assistantCommand" rows="1" maxlength="500" autocomplete="off" placeholder="Спросить EVE" aria-label="Сообщение для EVE"></textarea>
-        <span class="assistant-model-label" aria-label="Модель Gemini Flash">Flash <span aria-hidden="true">⌄</span></span>
-        <button class="assistant-composer-send" id="assistantSend" type="button" aria-label="Отправить сообщение" title="Отправить сообщение">↑</button>
-        <button class="assistant-mic-button assistant-composer-mic" id="assistantMicButton" type="button" aria-label="Начать разговор с EVE" aria-pressed="false" title="Говорить с EVE">
-          <svg class="assistant-mic-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
-            <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7"></path>
-          </svg>
-        </button>
-      </div>
-      <div class="assistant-dialog-options">
-        <label class="assistant-speech-toggle"><input id="assistantSpeakToggle" type="checkbox" checked><span>Отвечать голосом</span></label>
-        <label class="assistant-speech-toggle"><input id="assistantEnabledToggle" type="checkbox" checked><span>Включить EVE</span></label>
-        <label class="assistant-speech-toggle"><input id="assistantAutoStartToggle" type="checkbox"><span>Запускать вместе с системой</span></label>
-        <button class="button ghost small" id="assistantStopSpeech" type="button">Остановить голос</button>
-      </div>
-      <p class="assistant-dialog-status" id="assistantStatus" role="status" aria-live="polite">Спроси что-нибудь, попроси создать задачу или просто начни разговор.</p>
-    </div>
-    <div class="assistant-hero-badge" id="assistantSupportBadge">Проверяю микрофон</div>
-  </section>
+  <div class="assistant-interface-grid">
+    <section class="panel assistant-chat-shell" aria-label="Единый AI-чат EVE">
+      <header class="assistant-chat-header">
+        <div>
+          <div class="section-kicker">EVE · AI-ЧАТ И УПРАВЛЕНИЕ</div>
+          <h2>Чем я могу помочь?</h2>
+          <p>Разговор, идеи и управление задачами — всё в одном чате.</p>
+        </div>
+        <div class="assistant-chat-actions">
+          <span class="assistant-hero-badge" id="assistantSupportBadge">Проверяю микрофон</span>
+          <button class="text-button assistant-clear-log" id="assistantClearLog" type="button">Очистить чат</button>
+          <button class="assistant-settings-toggle" id="assistantSettingsToggle" type="button" aria-label="Открыть настройки EVE" aria-expanded="false" title="Настройки EVE">⚙</button>
+        </div>
+      </header>
 
-  <div class="assistant-content-grid">
-    <section class="panel assistant-chat-panel assistant-history-panel" aria-label="Единый чат EVE">
-      <div class="panel-heading assistant-panel-heading">
-        <div><div class="section-kicker">ДИАЛОГ EVE</div><h2>Твой AI-чат</h2><p class="assistant-chat-intro">EVE понимает обычную речь, отвечает через Gemini и умеет выполнять команды для задач и компьютера.</p></div>
-        <button class="text-button" id="assistantClearLog" type="button">Очистить историю</button>
+      <div class="assistant-log assistant-chat-log" id="assistantLog" aria-live="polite">
+        <div class="assistant-log-empty">Здесь появится история твоих сообщений и ответов Эвы.</div>
       </div>
-      <div class="assistant-log" id="assistantLog" aria-live="polite">
-        <div class="assistant-log-empty">Здесь появится история ваших сообщений и ответов Эвы.</div>
+
+      <div class="assistant-chat-compose">
+        <div class="assistant-command-row assistant-dialog-composer">
+          <button class="assistant-composer-tool" id="assistantComposerHelp" type="button" aria-label="Что умеет EVE" title="Что умеет EVE">＋</button>
+          <textarea id="assistantCommand" rows="1" maxlength="500" autocomplete="off" placeholder="Спросить EVE" aria-label="Сообщение для EVE"></textarea>
+          <span class="assistant-model-label" aria-label="Модель Gemini Flash">Flash <span aria-hidden="true">⌄</span></span>
+          <button class="assistant-composer-send" id="assistantSend" type="button" aria-label="Отправить сообщение" title="Отправить сообщение">↑</button>
+          <button class="assistant-mic-button assistant-composer-mic" id="assistantMicButton" type="button" aria-label="Начать разговор с EVE" aria-pressed="false" title="Говорить с EVE">
+            <svg class="assistant-mic-glyph" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+              <path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3M8.5 21h7"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="assistant-chat-compose-footer">
+          <p class="assistant-dialog-status" id="assistantStatus" role="status" aria-live="polite">Спроси что-нибудь, попроси создать задачу или просто начни разговор.</p>
+          <div class="assistant-interim" id="assistantInterim" aria-live="polite">Для голосовой команды скажи «Эва» и затем команду. Фразы без имени я проигнорирую.</div>
+        </div>
       </div>
-      <div class="assistant-interim" id="assistantInterim" aria-live="polite">Эва готова: напиши или нажми на микрофон.</div>
     </section>
 
-    <aside class="assistant-side-column assistant-tools-column">
-      <section class="panel assistant-settings-panel" aria-label="Настройки EVE">
-        <div class="section-kicker">НАСТРОЙКИ EVE</div>
-        <h2>Голос и память</h2>
-        <label class="assistant-setting-field">Ключевое слово<select id="assistantWakeWord"><option value="эва">Эва</option><option value="ева">Ева</option><option value="eve">EVE</option></select></label>
-        <label class="assistant-setting-field">Язык распознавания<select id="assistantVoiceLang"><option value="ru-RU">Русский · ru-RU</option><option value="en-US">English · en-US</option></select></label>
-        <label class="assistant-setting-field">Микрофон<select id="assistantMicrophone"><option value="">Системный по умолчанию</option></select></label>
-        <button class="button ghost small" id="assistantRefreshMicrophones" type="button">Обновить список микрофонов</button>
-        <label class="assistant-speech-toggle"><input id="assistantGeminiToggle" type="checkbox" checked><span>Gemini для обычных вопросов</span></label>
-        <label class="assistant-setting-field">Голос и распознавание<select id="assistantSpeechProvider"><option value="local">Локально · на этом компьютере</option><option value="yandex">Yandex SpeechKit · через интернет</option></select></label>
-        <p class="assistant-native-status" id="assistantSpeechKitStatus">Для SpeechKit нужен ключ Yandex Cloud. Аудио отправляется в Яндекс только после выбора этого режима.</p>
-        <label class="assistant-speech-toggle"><input id="assistantLocalTtsToggle" type="checkbox" checked><span>Озвучивать ответы</span></label>
-        <label class="assistant-speech-toggle"><input id="assistantContinuousDialogToggle" type="checkbox" checked><span>Непрерывный диалог · 20 секунд</span></label>
-        <label class="assistant-speech-toggle"><input id="assistantInterruptToggle" type="checkbox"><span>Реагировать на перебивание</span></label>
-        <label class="assistant-speech-toggle"><input id="assistantPersonalizationToggle" type="checkbox" checked><span>Персональная память</span></label>
-        <label class="assistant-setting-field">Женский тембр<select id="assistantVoiceName"><option value="xenia">Xenia · тёплый женский</option></select></label>
-        <button class="button ghost small" id="assistantPreviewVoice" type="button">Послушать голос</button>
-        <button class="button ghost small" id="assistantClearMemory" type="button">Очистить память обо мне</button>
-        <p class="assistant-native-status" id="assistantMemoryStatus">Проверяю персональную память…</p>
-        <p class="assistant-native-status">Фоновое слово «Эва» распознаётся локально через Vosk. При выборе SpeechKit записи с микрофона в окне ассистента отправляются в Yandex Cloud.</p>
-        <p class="assistant-native-status" id="assistantNativeStatus">Проверяю локальный голосовой модуль…</p>
-        <p class="assistant-native-status" id="assistantGeminiStatus">Проверяю Gemini и локальный голос…</p>
+    <aside class="assistant-voice-column" aria-label="Голосовая реакция EVE">
+      <section class="panel assistant-voice-visualizer" id="assistantVoiceVisualizer">
+        <div class="section-kicker">ГОЛОС EVE</div>
+        <div class="assistant-voice-orb" aria-hidden="true">
+          <span class="assistant-voice-orb-ring assistant-voice-orb-ring-one"></span>
+          <span class="assistant-voice-orb-ring assistant-voice-orb-ring-two"></span>
+          <span class="assistant-voice-orb-ring assistant-voice-orb-ring-three"></span>
+          <span class="assistant-voice-orb-ring assistant-voice-orb-ring-four"></span>
+          <span class="assistant-voice-orb-core"></span>
+        </div>
+        <h2>Я рядом</h2>
+        <p id="assistantVoiceStatus">Скажи «Эва» и команду</p>
       </section>
     </aside>
   </div>
+</div>
+
+<div class="assistant-settings-backdrop" id="assistantSettingsBackdrop" aria-hidden="true" hidden>
+  <aside class="assistant-settings-drawer" id="assistantSettingsDrawer" role="dialog" aria-modal="true" aria-labelledby="assistantSettingsTitle">
+    <div class="assistant-settings-drawer-header">
+      <div>
+        <div class="section-kicker">НАСТРОЙКИ EVE</div>
+        <h2 id="assistantSettingsTitle">Голос и память</h2>
+      </div>
+      <button class="assistant-settings-close" id="assistantSettingsClose" type="button" aria-label="Закрыть настройки">×</button>
+    </div>
+
+    <section class="panel assistant-settings-panel" aria-label="Настройки EVE">
+      <label class="assistant-speech-toggle"><input id="assistantEnabledToggle" type="checkbox" checked><span>Включить EVE</span></label>
+      <label class="assistant-speech-toggle"><input id="assistantSpeakToggle" type="checkbox" checked><span>Отвечать голосом</span></label>
+      <label class="assistant-speech-toggle"><input id="assistantAutoStartToggle" type="checkbox" checked><span>Запускать вместе с системой</span></label>
+      <button class="button ghost small" id="assistantStopSpeech" type="button">Остановить голос</button>
+      <label class="assistant-setting-field">Слово активации<select id="assistantWakeWord"><option value="эва">Эва</option><option value="ева">Ева</option><option value="eve">EVE</option></select></label>
+      <label class="assistant-setting-field">Язык распознавания<select id="assistantVoiceLang"><option value="ru-RU">Русский · ru-RU</option><option value="en-US">English · en-US</option></select></label>
+      <label class="assistant-setting-field">Микрофон<select id="assistantMicrophone"><option value="">Системный по умолчанию</option></select></label>
+      <button class="button ghost small" id="assistantRefreshMicrophones" type="button">Обновить список микрофонов</button>
+      <label class="assistant-speech-toggle"><input id="assistantGeminiToggle" type="checkbox" checked><span>Gemini для обычных вопросов</span></label>
+      <label class="assistant-setting-field">Голос и распознавание<select id="assistantSpeechProvider"><option value="local">Локально · на этом компьютере</option><option value="yandex">Yandex SpeechKit · через интернет</option></select></label>
+      <p class="assistant-native-status" id="assistantSpeechKitStatus">Для SpeechKit нужен ключ Yandex Cloud. Аудио отправляется в Яндекс только после выбора этого режима.</p>
+      <label class="assistant-speech-toggle"><input id="assistantLocalTtsToggle" type="checkbox" checked><span>Озвучивать ответы</span></label>
+      <label class="assistant-speech-toggle"><input id="assistantContinuousDialogToggle" type="checkbox" checked><span>Непрерывный диалог · 20 секунд</span></label>
+      <label class="assistant-speech-toggle"><input id="assistantInterruptToggle" type="checkbox"><span>Реагировать на перебивание</span></label>
+      <label class="assistant-speech-toggle"><input id="assistantPersonalizationToggle" type="checkbox" checked><span>Персональная память</span></label>
+      <label class="assistant-setting-field">Женский тембр<select id="assistantVoiceName"><option value="xenia">Xenia · тёплый женский</option></select></label>
+      <button class="button ghost small" id="assistantPreviewVoice" type="button">Послушать голос</button>
+      <button class="button ghost small" id="assistantClearMemory" type="button">Очистить память обо мне</button>
+      <p class="assistant-native-status" id="assistantMemoryStatus">Проверяю персональную память…</p>
+      <p class="assistant-native-status">Фоновое слово «Эва» распознаётся локально через Vosk. При выборе SpeechKit записи с микрофона отправляются в Yandex Cloud.</p>
+      <p class="assistant-native-status" id="assistantNativeStatus">Проверяю локальный голосовой модуль…</p>
+      <p class="assistant-native-status" id="assistantGeminiStatus">Проверяю Gemini и локальный голос…</p>
+    </section>
+  </aside>
 </div>
 {% endblock %}

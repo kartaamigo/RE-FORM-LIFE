@@ -1015,6 +1015,11 @@ async function initAssistantChat() {
   const state = { log: [], pendingConfirmation: null };
   const status = $('#assistantStatus');
   const interim = $('#assistantInterim');
+  const voiceVisualizer = $('#assistantVoiceVisualizer');
+  const voiceStatus = $('#assistantVoiceStatus');
+  const settingsBackdrop = $('#assistantSettingsBackdrop');
+  const settingsToggle = $('#assistantSettingsToggle');
+  const settingsClose = $('#assistantSettingsClose');
   const commandInput = $('#assistantCommand');
   const micButton = $('#assistantMicButton');
   const enabledToggle = $('#assistantEnabledToggle');
@@ -1055,10 +1060,43 @@ async function initAssistantChat() {
   let lastVoiceCommandAt = 0;
   let lastSubmittedText = '';
   let lastSubmittedAt = 0;
+  let lastReplyText = '';
+  let lastReplyAt = 0;
+
+  const voiceWakePattern = /^\s*(?:эва|ева|eve)(?=\s|$|[,.:;!?—-])\s*(?:[,.:;!?—-]\s*)?/iu;
+  const normalizeCommandKey = value => String(value || '')
+    .toLocaleLowerCase('ru-RU')
+    .replace(/ё/g, 'е')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ')
+    .trim();
+  const cleanAssistantText = value => {
+    const original = String(value || '').trim();
+    if (!original) return '';
+    const cleaned = original.replace(/^(?:(?:эва|ева|eve)\s*[,.:;!?—-]?\s*)+/iu, '').trim();
+    return cleaned || original;
+  };
+  const extractVoiceCommand = (primary, alternatives = []) => {
+    const candidates = [primary, ...(Array.isArray(alternatives) ? alternatives : [])]
+      .map(item => String(item || '').trim())
+      .filter(Boolean);
+    let wakeOnly = null;
+    for (const candidate of candidates) {
+      const match = candidate.match(voiceWakePattern);
+      if (!match) continue;
+      const command = candidate.slice(match[0].length).trim();
+      if (command) return { accepted: true, command, sourceText: candidate };
+      wakeOnly = { accepted: true, command: '', sourceText: candidate };
+    }
+    return wakeOnly || { accepted: false, command: '', sourceText: '' };
+  };
 
   try {
     const stored = JSON.parse(window.localStorage.getItem(historyKey) || '[]');
-    if (Array.isArray(stored)) state.log = stored.filter(item => item && ['user', 'assistant'].includes(item.role) && item.text).slice(-maxHistoryMessages);
+    if (Array.isArray(stored)) state.log = stored
+      .filter(item => item && ['user', 'assistant'].includes(item.role) && item.text)
+      .map(item => ({ role: item.role, text: item.role === 'assistant' ? cleanAssistantText(item.text) : String(item.text).trim() }))
+      .filter(item => item.text)
+      .slice(-maxHistoryMessages);
   } catch (_error) {
     state.log = [];
   }
@@ -1067,11 +1105,32 @@ async function initAssistantChat() {
     try { window.localStorage.setItem(historyKey, JSON.stringify(state.log.slice(-maxHistoryMessages))); } catch (_error) { /* storage is optional */ }
   };
 
+  const setSettingsOpen = open => {
+    if (!settingsBackdrop) return;
+    settingsBackdrop.hidden = !open;
+    settingsBackdrop.classList.toggle('open', open);
+    settingsBackdrop.setAttribute('aria-hidden', String(!open));
+    settingsToggle?.setAttribute('aria-expanded', String(open));
+    if (open) settingsClose?.focus();
+    else settingsToggle?.focus();
+  };
+
+  const updateVoiceStatus = text => {
+    if (voiceStatus) voiceStatus.textContent = text;
+  };
+
+  const setSpeakingState = active => {
+    voiceVisualizer?.classList.toggle('is-speaking', active);
+    if (active) updateVoiceStatus('Эва отвечает голосом');
+    else if (conversationActive) updateVoiceStatus(listening ? 'Слушаю тебя…' : 'Готова продолжить разговор');
+    else updateVoiceStatus('Скажи «Эва» и команду');
+  };
+
   const renderLog = () => {
     const root = $('#assistantLog');
     if (!root) return;
     const historyMarkup = state.log.length
-      ? state.log.map(item => `<div class="assistant-log-item ${item.role}"><span class="assistant-log-avatar">${item.role === 'user' ? 'Я' : '✦'}</span><div><small>${item.role === 'user' ? 'Ты' : 'Эва'}</small><p>${escapeHtml(item.text)}</p></div></div>`).join('')
+      ? state.log.map(item => `<div class="assistant-log-item ${item.role}"><span class="assistant-log-avatar">${item.role === 'user' ? 'Я' : '✦'}</span><div><small>${item.role === 'user' ? 'Ты' : 'Эва'}</small><p>${escapeHtml(item.role === 'assistant' ? cleanAssistantText(item.text) : item.text)}</p></div></div>`).join('')
       : '<div class="assistant-log-empty">Здесь появится история ваших сообщений и ответов Эвы.</div>';
     const confirmationMarkup = state.pendingConfirmation
       ? `<div class="assistant-confirm-card" role="alert"><div><small>ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ</small><p>${escapeHtml(state.pendingConfirmation.label || 'Опасное действие')}</p></div><div class="assistant-confirm-actions"><button class="button primary small" data-assistant-confirm="approve" type="button">Подтвердить</button><button class="button ghost small" data-assistant-confirm="cancel" type="button">Отмена</button></div><span>Можно также сказать: «Эва, подтверждаю».</span></div>`
@@ -1083,7 +1142,9 @@ async function initAssistantChat() {
   };
 
   const pushLog = (role, text) => {
-    state.log.push({ role, text: String(text || '') });
+    const safeText = role === 'assistant' ? cleanAssistantText(text) : String(text || '').trim();
+    if (!safeText) return;
+    state.log.push({ role, text: safeText });
     state.log = state.log.slice(-maxHistoryMessages);
     saveLog();
     renderLog();
@@ -1097,6 +1158,7 @@ async function initAssistantChat() {
 
   const stopSpeech = () => {
     speechRequestId += 1;
+    setSpeakingState(false);
     if (speechResolve) {
       const resolve = speechResolve;
       speechResolve = null;
@@ -1118,6 +1180,7 @@ async function initAssistantChat() {
     if (!('speechSynthesis' in window) || !window.SpeechSynthesisUtterance) return false;
     try {
       window.speechSynthesis.cancel();
+      const requestId = speechRequestId;
       const utterance = new SpeechSynthesisUtterance(String(text || ''));
       utterance.lang = voiceLangSelect?.value || 'ru-RU';
       utterance.rate = .96;
@@ -1125,7 +1188,12 @@ async function initAssistantChat() {
       const preferredPrefix = utterance.lang.toLocaleLowerCase().split('-')[0];
       const systemVoice = window.speechSynthesis.getVoices().find(voice => voice.lang?.toLocaleLowerCase().startsWith(preferredPrefix));
       if (systemVoice) utterance.voice = systemVoice;
+      const finish = () => { if (requestId === speechRequestId) setSpeakingState(false); };
+      utterance.onstart = () => { if (requestId === speechRequestId) setSpeakingState(true); };
+      utterance.onend = finish;
+      utterance.onerror = finish;
       window.speechSynthesis.resume?.();
+      setSpeakingState(true);
       window.speechSynthesis.speak(utterance);
       return true;
     } catch (_error) {
@@ -1134,7 +1202,12 @@ async function initAssistantChat() {
   };
 
   const speak = async text => {
-    if (!$('#assistantSpeakToggle')?.checked) return false;
+    const speechText = cleanAssistantText(text);
+    if (!speechText) return false;
+    if (!$('#assistantSpeakToggle')?.checked) {
+      stopSpeech();
+      return false;
+    }
     stopSpeech();
     const requestId = speechRequestId;
     if (localTtsReady) {
@@ -1142,7 +1215,7 @@ async function initAssistantChat() {
         const response = await fetch('/api/assistant/tts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text }),
+          body: JSON.stringify({ text: speechText }),
         });
         if (!response.ok) throw new Error('Локальный голос недоступен');
         const blob = await response.blob();
@@ -1156,11 +1229,13 @@ async function initAssistantChat() {
             if (localTtsUrl) URL.revokeObjectURL(localTtsUrl);
             localTtsUrl = null;
             localTtsAudio = null;
+            setSpeakingState(false);
             resolve(success);
           };
           localTtsAudio.onended = () => finish(true);
           localTtsAudio.onerror = () => finish(false);
         });
+        setSpeakingState(true);
         await localTtsAudio.play();
         if (await playback) return true;
         localTtsReady = false;
@@ -1180,17 +1255,25 @@ async function initAssistantChat() {
           URL.revokeObjectURL(localTtsUrl);
           localTtsUrl = null;
         }
+        setSpeakingState(false);
       }
     }
     // Keep answers audible when a portable build is missing its optional
     // local model or the local audio endpoint cannot play in the webview.
-    return speakWithBrowserVoice(text);
+    return speakWithBrowserVoice(speechText);
   };
 
   const answer = text => {
-    pushLog('assistant', text);
-    if (status) status.textContent = text;
-    const playback = speak(text);
+    const reply = cleanAssistantText(text);
+    if (!reply) return false;
+    const replyKey = normalizeCommandKey(reply);
+    const now = Date.now();
+    if (replyKey && replyKey === lastReplyText && now - lastReplyAt < 1500) return false;
+    lastReplyText = replyKey;
+    lastReplyAt = now;
+    pushLog('assistant', reply);
+    if (status) status.textContent = reply;
+    const playback = speak(reply);
     if (conversationActive && interruptResponsesEnabled) startConversationListening(120);
     return playback;
   };
@@ -1198,7 +1281,8 @@ async function initAssistantChat() {
   const updateConversationUi = () => {
     const badge = $('#assistantSupportBadge');
     if (!badge) return;
-    dialogHero?.classList.toggle('assistant-is-listening', Boolean(conversationActive || listening));
+    voiceVisualizer?.classList.toggle('is-listening', Boolean(conversationActive || listening));
+    if (!voiceVisualizer?.classList.contains('is-speaking')) updateVoiceStatus(conversationActive ? (listening ? 'Слушаю тебя…' : 'Готова продолжить разговор') : 'Скажи «Эва» и команду');
     if (conversationActive) {
       badge.textContent = listening ? 'EVE слушает · разговор активен' : 'Разговор активен · EVE отвечает';
       micButton?.classList.add('listening');
@@ -1364,7 +1448,8 @@ async function initAssistantChat() {
       if (messages.length) {
         state.log = messages
           .filter(item => item && ['user', 'assistant'].includes(item.role) && item.text)
-          .map(item => ({ role: item.role, text: item.text }))
+          .map(item => ({ role: item.role, text: item.role === 'assistant' ? cleanAssistantText(item.text) : String(item.text).trim() }))
+          .filter(item => item.text)
           .slice(-maxHistoryMessages);
         saveLog();
         renderLog();
@@ -1394,15 +1479,41 @@ async function initAssistantChat() {
   };
 
   const execute = async (rawCommand, source = 'web', alternatives = []) => {
-    const raw = String(rawCommand || '').trim();
-    if (!raw) return;
+    const input = String(rawCommand || '').trim();
+    if (!input) return;
+    const requiresWakeWord = source === 'local_voice' || source === 'browser_voice';
+    const voiceInput = requiresWakeWord ? extractVoiceCommand(input, alternatives) : { accepted: true, command: input, sourceText: input };
+    if (!voiceInput.accepted) {
+      if (interim) interim.textContent = 'Фраза без имени «Эва» пропущена.';
+      if (status) status.textContent = conversationActive ? 'Жду: «Эва» и команда…' : 'Фраза пропущена. Скажи «Эва» перед командой.';
+      if (conversationActive) {
+        armConversationWindow();
+        startConversationListening(120);
+      }
+      return;
+    }
+    const raw = voiceInput.command.trim();
+    if (!raw) {
+      if (interim) interim.textContent = 'Я услышала имя. Теперь скажи команду.';
+      if (status) status.textContent = 'Скажи «Эва» и затем команду.';
+      if (conversationActive) {
+        armConversationWindow();
+        startConversationListening(120);
+      }
+      return;
+    }
+    const apiText = requiresWakeWord ? voiceInput.sourceText : raw;
+    const apiAlternatives = requiresWakeWord && Array.isArray(alternatives)
+      ? alternatives.filter(item => extractVoiceCommand(item).accepted)
+      : alternatives;
     const now = Date.now();
-    const normalized = raw.toLocaleLowerCase().replace(/[\s.,!?]+/g, ' ').trim();
-    if (normalized === lastSubmittedText && now - lastSubmittedAt < 2200) return;
+    const normalized = normalizeCommandKey(raw);
+    const duplicateWindow = requiresWakeWord ? 8000 : 2200;
+    if (normalized === lastSubmittedText && now - lastSubmittedAt < duplicateWindow) return;
     lastSubmittedText = normalized;
     lastSubmittedAt = now;
     if (source !== 'web') {
-      if (normalized === lastVoiceCommand && now - lastVoiceCommandAt < 5000) return;
+      if (normalized === lastVoiceCommand && now - lastVoiceCommandAt < 8000) return;
       lastVoiceCommand = normalized;
       lastVoiceCommandAt = now;
     }
@@ -1433,7 +1544,11 @@ async function initAssistantChat() {
       }
     }
     try {
-      const result = await api('/api/assistant/command', { method: 'POST', body: JSON.stringify({ text: raw, source, alternatives }) });
+      const result = await api('/api/assistant/command', { method: 'POST', body: JSON.stringify({ text: apiText, source, alternatives: apiAlternatives }) });
+      if (result.action === 'ignored') {
+        resumeConversation();
+        return;
+      }
       if (result.action === 'open_planner') {
         await answer(result.reply || 'Открываю недельный планер.');
         window.setTimeout(() => { window.location.href = result.target || '/week'; }, 420);
@@ -1515,7 +1630,7 @@ async function initAssistantChat() {
       listening = true;
       updateConversationUi();
       if (status) status.textContent = 'Слушаю выбранный микрофон…';
-      if (interim) interim.textContent = 'Говори свободно. После короткой паузы EVE распознает фразу.';
+      if (interim) interim.textContent = 'Скажи «Эва» и команду. Фразы без имени будут пропущены.';
       const finish = async transcribe => {
         if (stopped) return;
         stopped = true;
@@ -1563,7 +1678,7 @@ async function initAssistantChat() {
   if (!localCaptureSupported && recognitionType) {
     recognition = new recognitionType();
     recognition.lang = 'ru-RU'; recognition.interimResults = true; recognition.continuous = false; recognition.maxAlternatives = 5;
-    recognition.onstart = () => { listening = true; pendingTranscript = ''; pendingAlternatives = []; updateConversationUi(); if (status) status.textContent = 'Слушаю…'; if (interim) interim.textContent = 'Говори свободно — я сверю несколько вариантов распознавания.'; };
+    recognition.onstart = () => { listening = true; pendingTranscript = ''; pendingAlternatives = []; updateConversationUi(); if (status) status.textContent = 'Слушаю…'; if (interim) interim.textContent = 'Скажи «Эва» и команду — фразы без имени будут пропущены.'; };
     recognition.onresult = event => {
       let finalText = ''; let interimText = '';
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
@@ -1616,6 +1731,10 @@ async function initAssistantChat() {
     if (status) status.textContent = 'Разговор начался. Скажи, что у тебя на уме.';
     startConversationListening(0);
   });
+  settingsToggle?.addEventListener('click', () => setSettingsOpen(true));
+  settingsClose?.addEventListener('click', () => setSettingsOpen(false));
+  settingsBackdrop?.addEventListener('click', event => { if (event.target === settingsBackdrop) setSettingsOpen(false); });
+  document.addEventListener('keydown', event => { if (event.key === 'Escape' && settingsBackdrop && !settingsBackdrop.hidden) setSettingsOpen(false); });
   $('#assistantSend')?.addEventListener('click', () => execute(commandInput?.value));
   $('#assistantComposerHelp')?.addEventListener('click', () => {
     if (interim) interim.textContent = 'Можно спросить о чём угодно, попросить создать задачу или изменить настройки компьютера.';
@@ -1678,6 +1797,9 @@ async function initAssistantChat() {
       stopSpeech();
       localTtsUrl = URL.createObjectURL(await response.blob());
       localTtsAudio = new Audio(localTtsUrl);
+      localTtsAudio.onended = () => { setSpeakingState(false); if (localTtsUrl) URL.revokeObjectURL(localTtsUrl); localTtsUrl = null; localTtsAudio = null; };
+      localTtsAudio.onerror = () => { setSpeakingState(false); if (localTtsUrl) URL.revokeObjectURL(localTtsUrl); localTtsUrl = null; localTtsAudio = null; };
+      setSpeakingState(true);
       await localTtsAudio.play();
     } catch (error) {
       if (speakWithBrowserVoice(previewText)) return;

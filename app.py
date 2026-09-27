@@ -6,6 +6,8 @@ import re
 import sqlite3
 import subprocess
 import sys
+import threading
+import time
 import uuid
 import urllib.parse
 import urllib.request
@@ -17,7 +19,7 @@ from typing import Any
 from flask import Flask, Response, g, jsonify, redirect, render_template, request, url_for
 
 from eve_agent import configure_autostart, input_devices, native_agent_status, perform_external_action, transcribe_pcm
-from eve_assistant import choose_command_candidate, normalize_text, parse_command
+from eve_assistant import choose_command_candidate, has_wake_word, normalize_text, parse_command, strip_wake_word
 from eve_local import (
     DEFAULT_GEMINI_MODEL,
     LocalProviderError,
@@ -65,6 +67,27 @@ ASSISTANT_WAKE_WORDS = {"эва", "ева", "eve"}
 GEMINI_MODEL_RE = re.compile(r"^[A-Za-z0-9._:/-]{1,120}$")
 RETIRED_GEMINI_MODELS = {"gemini-2.5-flash-lite"}
 assistant_pending_actions: dict[str, dict[str, Any]] = {}
+_recent_voice_commands: dict[str, float] = {}
+_recent_voice_commands_lock = threading.Lock()
+_VOICE_COMMAND_SOURCES = {"local_voice", "browser_voice", "background"}
+_VOICE_DEDUPE_SECONDS = 3.0
+
+
+def is_duplicate_voice_command(text: str, source: str) -> bool:
+    """Collapse the same microphone command arriving from two EVE listeners."""
+    if source not in _VOICE_COMMAND_SOURCES:
+        return False
+    key = normalize_text(strip_wake_word(text))
+    if not key:
+        return False
+    now = time.monotonic()
+    with _recent_voice_commands_lock:
+        expired = [item for item, timestamp in _recent_voice_commands.items() if now - timestamp >= _VOICE_DEDUPE_SECONDS]
+        for item in expired:
+            _recent_voice_commands.pop(item, None)
+        previous = _recent_voice_commands.get(key)
+        _recent_voice_commands[key] = now
+    return previous is not None and now - previous < _VOICE_DEDUPE_SECONDS
 
 app = Flask(__name__)
 app.config["JSON_SORT_KEYS"] = False
@@ -1070,7 +1093,7 @@ def page_tasks():
 
 @app.route("/assistant")
 def page_assistant():
-    return render_template("assistant.html", page_key="assistant", page_title="EVE · AI-чат", page_subtitle="Разговор, идеи и управление задачами в одном окне")
+    return render_template("assistant.html", page_key="assistant", page_title="EVE · AI-чат", page_subtitle="AI-чат, голосовой помощник и управление задачами в одном месте")
 
 
 @app.route("/month")
@@ -1337,7 +1360,20 @@ def api_assistant_command():
     try:
         data = body()
         text = require_text(data.get("text"), "Команда", 500)
-        text = choose_command_candidate(text, data.get("alternatives"))
+        source = str(data.get("source") or "web").strip().lower()
+        alternatives = data.get("alternatives")
+        if source in {"local_voice", "browser_voice"}:
+            voice_candidates = [text]
+            if isinstance(alternatives, list):
+                voice_candidates.extend(str(item or "").strip() for item in alternatives[:4])
+            voice_candidates = [item for item in voice_candidates if item and has_wake_word(item)]
+            if not voice_candidates:
+                return jsonify({"ok": True, "action": "ignored", "reply": ""})
+            text = choose_command_candidate(voice_candidates[0], voice_candidates[1:])
+        else:
+            text = choose_command_candidate(text, alternatives)
+        if is_duplicate_voice_command(text, source):
+            return jsonify({"ok": True, "action": "ignored", "reply": ""})
         g.assistant_command_text = text
         parsed = parse_command(text)
         if parsed.intent == "missing_folder_name":

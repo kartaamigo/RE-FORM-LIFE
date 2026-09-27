@@ -155,8 +155,23 @@ def _extract_browser_suffix(value: str) -> tuple[str, str]:
 
 
 def strip_wake_word(value: str) -> str:
-    pattern = r"^(?:" + "|".join(re.escape(word) for word in WAKE_WORDS) + r")[,:]?\s*"
+    pattern = r"^(?:" + "|".join(re.escape(word) for word in WAKE_WORDS) + r")(?=\s|$|[,.:;!?—-])[,.:;!?—-]?\s*"
     return re.sub(pattern, "", value.strip(), count=1, flags=re.IGNORECASE)
+
+
+def has_wake_word(value: object) -> bool:
+    """Return whether a voice phrase starts with one of EVE's wake words."""
+    text = str(value or "").strip()
+    return bool(text) and strip_wake_word(text) != text
+
+
+def clean_assistant_reply(value: object) -> str:
+    """Remove a repeated leading wake-word greeting before text is spoken."""
+    original = str(value or "").strip()
+    if not original:
+        return ""
+    cleaned = re.sub(r"^(?:(?:эва|ева|eve)\s*[,.:;!?—-]?\s*)+", "", original, count=1, flags=re.IGNORECASE).strip()
+    return cleaned or original
 
 
 def iso_day(value: date) -> str:

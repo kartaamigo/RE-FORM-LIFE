@@ -28,7 +28,7 @@ from pathlib import Path
 from difflib import SequenceMatcher
 from typing import Any
 
-from eve_assistant import normalize_text, strip_wake_word
+from eve_assistant import clean_assistant_reply, normalize_text, strip_wake_word
 
 
 APP_AUTOSTART_NAME = "RE-FORM LIFE EVE"
@@ -782,6 +782,7 @@ def _post_command(server_url: str, text: str) -> dict[str, Any]:
 
 
 def _speak(text: str, server_url: str | None = None) -> None:
+    text = clean_assistant_reply(text)
     if not text:
         return
     try:
