@@ -817,6 +817,7 @@ async function initAssistant() {
   const state = { tasks: [], date: todayIso(), log: [] };
   const status = $('#assistantStatus');
   const interim = $('#assistantInterim');
+  const dialogHero = document.querySelector('.assistant-dialog-hero');
   const commandInput = $('#assistantCommand');
   const micButton = $('#assistantMicButton');
   const enabledToggle = $('#assistantEnabledToggle');
@@ -1197,6 +1198,7 @@ async function initAssistantChat() {
   const updateConversationUi = () => {
     const badge = $('#assistantSupportBadge');
     if (!badge) return;
+    dialogHero?.classList.toggle('assistant-is-listening', Boolean(conversationActive || listening));
     if (conversationActive) {
       badge.textContent = listening ? 'EVE слушает · разговор активен' : 'Разговор активен · EVE отвечает';
       micButton?.classList.add('listening');
