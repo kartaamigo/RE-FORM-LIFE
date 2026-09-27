@@ -1012,7 +1012,6 @@ async function initAssistantChat() {
   const historyKey = 'reform-life.eve-chat.v1';
   const maxHistoryMessages = 2000;
   const state = { log: [], pendingConfirmation: null };
-  const talkState = { log: [] };
   const status = $('#assistantStatus');
   const interim = $('#assistantInterim');
   const commandInput = $('#assistantCommand');
@@ -1053,6 +1052,8 @@ async function initAssistantChat() {
   let localCaptureStop = null;
   let lastVoiceCommand = '';
   let lastVoiceCommandAt = 0;
+  let lastSubmittedText = '';
+  let lastSubmittedAt = 0;
 
   try {
     const stored = JSON.parse(window.localStorage.getItem(historyKey) || '[]');
@@ -1110,46 +1111,6 @@ async function initAssistantChat() {
       URL.revokeObjectURL(localTtsUrl);
       localTtsUrl = null;
     }
-  };
-
-  const renderTalkLog = () => {
-    const root = $('#assistantTalkLog');
-    if (!root) return;
-    root.innerHTML = talkState.log.length
-      ? talkState.log.map(item => `<div class="assistant-log-item ${item.role}"><span class="assistant-log-avatar">${item.role === 'user' ? 'Я' : '✦'}</span><div><small>${item.role === 'user' ? 'Ты' : 'Эва'}</small><p>${escapeHtml(item.text)}</p></div></div>`).join('')
-      : '<div class="assistant-log-empty">Напиши «Привет, как дела?» или спроси, что нового сегодня.</div>';
-    root.scrollTop = root.scrollHeight;
-  };
-
-  const sendTalkMessage = async () => {
-    const input = $('#assistantTalkInput');
-    const talkStatus = $('#assistantTalkStatus');
-    const text = String(input?.value || '').trim();
-    if (!text) return;
-    talkState.log.push({ role: 'user', text });
-    input.value = '';
-    input.style.height = 'auto';
-    renderTalkLog();
-    if (talkStatus) talkStatus.textContent = 'EVE думает…';
-    try {
-      const result = await api('/api/assistant/chat', { method: 'POST', body: JSON.stringify({ text }) });
-      talkState.log.push({ role: 'assistant', text: result.reply });
-      renderTalkLog();
-      if (talkStatus) talkStatus.textContent = 'Это окно только для беседы — команды здесь не выполняются.';
-      await speak(result.reply);
-    } catch (error) {
-      talkState.log.push({ role: 'assistant', text: error.message || 'Не получилось ответить.' });
-      renderTalkLog();
-      if (talkStatus) talkStatus.textContent = 'Проверь GEMINI_API_KEY и доступ к интернету.';
-    }
-  };
-
-  const loadTalkHistory = async () => {
-    try {
-      const result = await api('/api/assistant/chat/history?limit=2000');
-      talkState.log = Array.isArray(result.messages) ? result.messages.map(item => ({ role: item.role, text: item.text })) : [];
-      renderTalkLog();
-    } catch (_error) { renderTalkLog(); }
   };
 
   const speakWithBrowserVoice = text => {
@@ -1433,9 +1394,12 @@ async function initAssistantChat() {
   const execute = async (rawCommand, source = 'web', alternatives = []) => {
     const raw = String(rawCommand || '').trim();
     if (!raw) return;
+    const now = Date.now();
+    const normalized = raw.toLocaleLowerCase().replace(/[\s.,!?]+/g, ' ').trim();
+    if (normalized === lastSubmittedText && now - lastSubmittedAt < 2200) return;
+    lastSubmittedText = normalized;
+    lastSubmittedAt = now;
     if (source !== 'web') {
-      const now = Date.now();
-      const normalized = raw.toLocaleLowerCase().replace(/[\s.,!?]+/g, ' ').trim();
       if (normalized === lastVoiceCommand && now - lastVoiceCommandAt < 5000) return;
       lastVoiceCommand = normalized;
       lastVoiceCommandAt = now;
@@ -1651,15 +1615,9 @@ async function initAssistantChat() {
     startConversationListening(0);
   });
   $('#assistantSend')?.addEventListener('click', () => execute(commandInput?.value));
-  $('#assistantTalkSend')?.addEventListener('click', sendTalkMessage);
-  $('#assistantTalkInput')?.addEventListener('input', event => { event.target.style.height = 'auto'; event.target.style.height = `${Math.min(Math.max(event.target.scrollHeight, 44), 132)}px`; });
-  $('#assistantTalkInput')?.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); sendTalkMessage(); } });
-  $('#assistantTalkClear')?.addEventListener('click', async () => {
-    try {
-      await api('/api/assistant/chat/history', { method: 'DELETE' });
-      talkState.log = []; renderTalkLog();
-      if ($('#assistantTalkStatus')) $('#assistantTalkStatus').textContent = 'Диалог очищен. Можно начать новую беседу.';
-    } catch (error) { showToast(error.message, true); }
+  $('#assistantComposerHelp')?.addEventListener('click', () => {
+    if (interim) interim.textContent = 'Можно спросить о чём угодно, попросить создать задачу или изменить настройки компьютера.';
+    commandInput?.focus();
   });
   commandInput?.addEventListener('input', resizeComposer);
   commandInput?.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); execute(commandInput.value); } });
@@ -1741,10 +1699,8 @@ async function initAssistantChat() {
   pageRefresh = () => {};
   window.refreshCurrentPage = () => {};
   renderLog();
-  renderTalkLog();
   resizeComposer();
   await loadAssistantHistory();
-  await loadTalkHistory();
   await loadAssistantSettings();
   await loadMemoryStatus();
 }

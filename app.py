@@ -1070,7 +1070,7 @@ def page_tasks():
 
 @app.route("/assistant")
 def page_assistant():
-    return render_template("assistant.html", page_key="assistant", page_title="Ассистент", page_subtitle="Диалог с EVE и управление твоими задачами")
+    return render_template("assistant.html", page_key="assistant", page_title="EVE · AI-чат", page_subtitle="Разговор, идеи и управление задачами в одном окне")
 
 
 @app.route("/month")
