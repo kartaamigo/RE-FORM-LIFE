@@ -2405,14 +2405,14 @@ body {
 .brand {
   align-items: center;
   justify-content: center;
-  min-height: 128px;
+  min-height: 158px;
   padding: 0 0 18px !important;
   border-bottom-color: rgba(126, 145, 222, .18) !important;
 }
 
 .brand-logo.eve-logo-image {
-  width: 108px !important;
-  height: 108px;
+  width: 140px !important;
+  height: 140px;
   max-width: none;
   object-fit: contain;
   mix-blend-mode: screen;
@@ -2420,8 +2420,8 @@ body {
 }
 
 .welcome-logo.eve-logo-image {
-  width: 168px !important;
-  height: 168px;
+  width: 220px !important;
+  height: 220px;
   max-height: none;
   object-fit: contain;
   mix-blend-mode: screen;
