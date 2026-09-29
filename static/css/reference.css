@@ -2375,6 +2375,69 @@ body[data-page="week"] .legacy-date-badge {
   }
 }
 
+/* Новый знак EVE: без чёрной плашки на экране и с мягким синим фоном. */
+html,
+body {
+  background: #12182a !important;
+}
+
+body {
+  background:
+    radial-gradient(ellipse 74% 68% at 58% 36%, rgba(61, 77, 183, .22), transparent 72%),
+    #12182a !important;
+}
+
+.app-shell {
+  background:
+    radial-gradient(ellipse 70% 85% at 74% 42%, rgba(49, 65, 160, .18), transparent 67%),
+    #12182a !important;
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #151d31 0%, #11182a 100%) !important;
+  border-right-color: rgba(126, 145, 222, .18) !important;
+}
+
+.main-area {
+  background: transparent !important;
+}
+
+.brand {
+  align-items: center;
+  justify-content: center;
+  min-height: 86px;
+  padding: 0 0 18px !important;
+  border-bottom-color: rgba(126, 145, 222, .18) !important;
+}
+
+.brand-logo.eve-logo-image {
+  width: 68px !important;
+  height: 68px;
+  max-width: none;
+  object-fit: contain;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 18px rgba(77, 103, 255, .42));
+}
+
+.welcome-logo.eve-logo-image {
+  width: 104px !important;
+  height: 104px;
+  max-height: none;
+  object-fit: contain;
+  mix-blend-mode: screen;
+  filter: drop-shadow(0 0 24px rgba(77, 103, 255, .48));
+}
+
+.welcome-backdrop {
+  background: rgba(18, 24, 42, .78) !important;
+}
+
+.welcome-card {
+  border-color: rgba(126, 145, 222, .28);
+  background: linear-gradient(145deg, rgba(31, 41, 74, .96), rgba(20, 27, 49, .98));
+  box-shadow: 0 28px 100px rgba(6, 10, 28, .48), 0 0 0 1px rgba(77, 103, 255, .1);
+}
+
 /* Единый AI-чат EVE: спокойный экран Gemini и живая реакция на голос. */
 .assistant-dialog-hero {
   position: relative;
@@ -3386,4 +3449,28 @@ body[data-page="assistant"] .assistant-voice-visualizer {
     padding-right: 11px;
     padding-left: 11px;
   }
+}
+
+/* Финальная палитра EVE после базовых компонентов: экран остаётся синим, без чёрного поля. */
+body[data-page="assistant"] {
+  background:
+    radial-gradient(ellipse 68% 60% at 55% 43%, rgba(61, 77, 183, .34) 0%, rgba(35, 48, 104, .2) 48%, transparent 75%),
+    #12182a !important;
+}
+
+body[data-page="assistant"] .app-shell,
+body[data-page="assistant"] .main-area {
+  background: transparent !important;
+}
+
+body[data-page="assistant"] .assistant-chat-shell {
+  background: rgba(24, 29, 50, .9) !important;
+}
+
+body[data-page="assistant"] .assistant-chat-compose {
+  background: rgba(29, 34, 57, .94) !important;
+}
+
+body[data-page="assistant"] .assistant-voice-visualizer {
+  background: radial-gradient(circle at 50% 42%, rgba(76, 59, 182, .38), rgba(18, 24, 42, .98) 54%), #12182a !important;
 }

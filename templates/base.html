@@ -4,17 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ app_name }} · {{ page_title }}</title>
+  <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='img/eve-logo.ico') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=3008">
   {% if page_key == 'week' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/week-legacy.css') }}?v=3001">
   {% endif %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/reference.css') }}?v=4013">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reference.css') }}?v=4014">
 </head>
 <body data-page="{{ page_key }}">
   <div class="app-shell">
     <aside class="sidebar">
       <a class="brand" href="{{ url_for('page_week') }}" aria-label="{{ app_name }}">
-        <img class="brand-logo" src="{{ url_for('static', filename='img/logo.svg') }}" alt="{{ app_name }}">
+        <img class="brand-logo eve-logo-image" src="{{ url_for('static', filename='img/eve-logo.ico') }}" alt="{{ app_name }}">
       </a>
 
       <div class="sidebar-caption">ЛИЧНЫЙ РИТМ</div>
@@ -105,7 +106,7 @@
   <div class="welcome-backdrop" id="welcomeModal" aria-hidden="true" hidden>
     <section class="welcome-card" role="dialog" aria-modal="true" aria-labelledby="welcomeTitle">
       <button class="welcome-close" id="welcomeClose" type="button" aria-label="Закрыть приветствие">×</button>
-      <img class="welcome-logo" src="{{ url_for('static', filename='img/logo.svg') }}" alt="{{ app_name }}">
+      <img class="welcome-logo eve-logo-image" src="{{ url_for('static', filename='img/eve-logo.ico') }}" alt="{{ app_name }}">
       <div class="modal-kicker">{{ app_name }}</div>
       <h2 id="welcomeTitle">Приветствую тебя,<br><span>#Картавый</span></h2>
       <p>Твоё пространство для планов, задач и маленьких шагов каждый день.</p>

@@ -73,7 +73,7 @@ if __name__ == "__main__":
         height=900,
         min_size=(1200, 700),
         resizable=True,
-        background_color="#070b12"
+        background_color="#12182a"
     )
 
     # The offline speech model is intentionally loaded after the page appears.

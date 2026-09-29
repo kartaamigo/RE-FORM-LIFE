@@ -259,6 +259,10 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         self.assertIn('id="assistantLog"', html)
         self.assertIn('id="assistantVoiceVisualizer"', html)
         self.assertIn("Flash Lite", html)
+        self.assertIn("img/eve-logo.ico", html)
+        logo = self.client.get("/static/img/eve-logo.ico")
+        self.assertEqual(logo.status_code, 200)
+        self.assertEqual(logo.mimetype, "image/x-icon")
 
     def test_planner_voice_create_and_complete(self):
         tomorrow = date.today() + timedelta(days=1)
