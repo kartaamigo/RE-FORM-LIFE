@@ -263,6 +263,7 @@ class PlannerAndUtilitiesApiTests(unittest.TestCase):
         logo = self.client.get("/static/img/eve-logo.ico")
         self.assertEqual(logo.status_code, 200)
         self.assertEqual(logo.mimetype, "image/x-icon")
+        logo.close()
 
     def test_planner_voice_create_and_complete(self):
         tomorrow = date.today() + timedelta(days=1)
