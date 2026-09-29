@@ -2405,27 +2405,27 @@ body {
 .brand {
   align-items: center;
   justify-content: center;
-  min-height: 86px;
+  min-height: 128px;
   padding: 0 0 18px !important;
   border-bottom-color: rgba(126, 145, 222, .18) !important;
 }
 
 .brand-logo.eve-logo-image {
-  width: 68px !important;
-  height: 68px;
+  width: 108px !important;
+  height: 108px;
   max-width: none;
   object-fit: contain;
   mix-blend-mode: screen;
-  filter: drop-shadow(0 0 18px rgba(77, 103, 255, .42));
+  filter: drop-shadow(0 0 24px rgba(77, 103, 255, .48));
 }
 
 .welcome-logo.eve-logo-image {
-  width: 104px !important;
-  height: 104px;
+  width: 168px !important;
+  height: 168px;
   max-height: none;
   object-fit: contain;
   mix-blend-mode: screen;
-  filter: drop-shadow(0 0 24px rgba(77, 103, 255, .48));
+  filter: drop-shadow(0 0 32px rgba(77, 103, 255, .54));
 }
 
 .welcome-backdrop {
