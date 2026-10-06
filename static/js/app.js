@@ -210,7 +210,7 @@ function bindCommon() {
 
 function taskTime(task) {
   if (!task.start_time && !task.end_time) return '';
-  return `${task.start_time || '—'}${task.end_time ? ` – ${task.end_time}` : ''}`;
+  return `${task.start_time || '—'}${task.end_time ? ` - ${task.end_time}` : ''}`;
 }
 
 function taskSummaryMarkup(task, mode) {
@@ -410,7 +410,7 @@ async function saveSection(event) {
 }
 
 function parseLegacyTime(value) {
-  const matches = String(value || '').match(/(\d{1,2}:\d{2})\s*[–-]\s*(\d{1,2}:\d{2})/);
+  const matches = String(value || '').match(/(\d{1,2}:\d{2})\s*[--]\s*(\d{1,2}:\d{2})/);
   return matches ? { start_time: matches[1], end_time: matches[2] } : { start_time: null, end_time: null };
 }
 
@@ -514,9 +514,9 @@ async function initWeek() {
   const renderWeek = async () => {
     const dates = dateRange(state.monday, addDays(state.monday, 6)); const byDate = Object.groupBy ? Object.groupBy(state.tasks, task => task.task_date) : state.tasks.reduce((map, task) => { (map[task.task_date] ||= []).push(task); return map; }, {});
     activeTaskMap = new Map(state.tasks.map(task => [task.id, task]));
-    $('#weekRange').textContent = `${dates[0].getDate()} – ${dates[6].getDate()} ${MONTHS_GEN[dates[6].getMonth()]}`;
+    $('#weekRange').textContent = `${dates[0].getDate()} - ${dates[6].getDate()} ${MONTHS_GEN[dates[6].getMonth()]}`;
     $('#weekYear').textContent = dates[6].getFullYear();
-    $('#weekTitle').textContent = `${MONTHS[state.monday.getMonth()]} · ${dates[0].getDate()}–${dates[6].getDate()}`;
+    $('#weekTitle').textContent = `${MONTHS[state.monday.getMonth()]} · ${dates[0].getDate()}-${dates[6].getDate()}`;
     $('#weekPicker').value = isoDate(state.monday);
     const root = $('#weekDays'); root.innerHTML = dates.map((date, index) => {
       const dateKey = isoDate(date); const tasks = byDate[dateKey] || []; const done = tasks.filter(task => task.done).length; const percent = tasks.length ? Math.round(done / tasks.length * 100) : 0;
