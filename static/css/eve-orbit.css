@@ -69,27 +69,27 @@ body[data-page="assistant"] .assistant-orbit-panel {
   flex: 1 1 0;
   min-width: 0;
   max-width: 9px;
-  height: calc(var(--bar-height) * .38);
+  height: calc(var(--bar-height) * .38 * var(--equalizer-size, 1));
   border-radius: 3px 3px 0 0;
   background: #bc9876;
   transform-origin: center bottom;
   transition: height 120ms ease-out, opacity 250ms ease;
 }
 .assistant-orbit-panel[data-voice-state="listening"] .assistant-equalizer-bar {
-  height: calc(var(--bar-height) * (.38 + var(--voice-level) * .62));
+  height: calc(var(--bar-height) * (.38 + var(--voice-level) * .62) * var(--equalizer-size, 1));
 }
 .assistant-orbit-panel[data-voice-state="processing"] .assistant-equalizer-bar {
-  height: calc(var(--bar-height) * .65);
+  height: calc(var(--bar-height) * .65 * var(--equalizer-size, 1));
   animation: eve-equalizer-think 1.8s ease-in-out infinite;
   animation-delay: var(--bar-delay);
   background: #8b9a9f;
 }
 .assistant-orbit-panel[data-voice-state="speaking"] .assistant-equalizer-bar {
-  height: var(--bar-height);
+  height: calc(var(--bar-height) * var(--equalizer-size, 1));
   animation: eve-equalizer-speak .75s ease-in-out infinite;
   animation-delay: var(--bar-delay);
 }
-.assistant-orbit-panel[data-voice-state="confirmation"] .assistant-equalizer-bar { height: calc(var(--bar-height) * .6); }
+.assistant-orbit-panel[data-voice-state="confirmation"] .assistant-equalizer-bar { height: calc(var(--bar-height) * .6 * var(--equalizer-size, 1)); }
 .assistant-orbit-panel[data-voice-state="off"] .assistant-equalizer-bar { height: 3px; opacity: .35; }
 .assistant-orbit-panel > p { max-width: 260px; text-align: center; line-height: 1.6; }
 .assistant-orbit-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; z-index: 2; }
@@ -165,8 +165,7 @@ body[data-page="assistant"] :is(button, input, textarea, select, summary, a):foc
   .assistant-orbit-panel h2 { font-size: 18px; margin: 5px 0 0; }
   .assistant-orbit-panel > p { margin-top: 3px; max-width: none; }
   .assistant-orbit-actions { display: none; }
-  .assistant-equalizer { height: 50px; margin-top: 8px; padding: 4px 8px; gap: 3px; border-radius: 6px; }
-  .assistant-equalizer-bar { max-height: 40px; }
+  .assistant-equalizer { --equalizer-size: .28; height: 50px; margin-top: 8px; padding: 4px 8px; gap: 3px; border-radius: 6px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .assistant-equalizer-bar { animation: none !important; transition: none; transform: none !important; }
