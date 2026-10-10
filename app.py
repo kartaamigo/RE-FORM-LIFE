@@ -33,6 +33,7 @@ from eve_local import (
 )
 from eve_speechkit import VOICES as YANDEX_VOICES, speechkit_status, synthesize_speechkit, transcribe_speechkit
 from eve_harness import SCHEMA as HARNESS_SCHEMA, ConfirmationRequired, EveHarness, confirm_proposal, pending_proposal, relevant_memories, tool_declarations
+from eve_commands import SCHEMA as COMMAND_SCHEMA, CATALOG as COMMAND_CATALOG, import_commands, list_commands, resolve_command, save_command
 
 
 APP_NAME = "RE:FORM LIFE"
@@ -415,6 +416,7 @@ def get_db() -> sqlite3.Connection:
         conn.execute("PRAGMA busy_timeout = 5000")
         conn.executescript(SCHEMA)
         conn.executescript(HARNESS_SCHEMA)
+        conn.executescript(COMMAND_SCHEMA)
         ensure_legacy_columns(conn)
         seed_sections(conn)
         ensure_assistant_settings(conn)
@@ -1415,6 +1417,11 @@ def api_assistant_command():
         if is_duplicate_voice_command(text, source):
             return jsonify({"ok": True, "action": "ignored", "reply": ""})
         g.assistant_command_text = text
+        custom_command = resolve_command(get_db(), text)
+        if custom_command is not None:
+            text = custom_command["text"]
+            if custom_command["mode"] == "prompt":
+                return assistant_harness_command(text)
         parsed = parse_command(text)
         if parsed.intent == "missing_folder_name":
             return jsonify({
