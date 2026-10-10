@@ -1131,7 +1131,7 @@ async function initAssistantChat() {
       : waveMode === 'listening' ? .25 + microphoneLevel * .75
       : waveMode === 'speaking' ? .72 + Math.sin(phase * 4) * .18
       : waveMode === 'processing' ? .45 + Math.sin(phase * 1.8) * .08
-      : waveMode === 'confirmation' ? .5 : .38;
+      : waveMode === 'confirmation' ? .65 : .6;
     const points = Array.from({ length: 51 }, (_, index) => {
       const x = index / 50;
       const envelope = Math.sin(Math.PI * x);
