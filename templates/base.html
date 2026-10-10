@@ -11,7 +11,7 @@
   {% endif %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/reference.css') }}?v=4019">
   {% if page_key == 'assistant' %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/eve-orbit.css') }}?v=8">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/eve-orbit.css') }}?v=9">
   {% endif %}
 </head>
 <body data-page="{{ page_key }}">
@@ -198,7 +198,7 @@
   </div>
 
   {% block modals %}{% endblock %}
-  <script src="{{ url_for('static', filename='js/app.js') }}?v=4009" defer></script>
+  <script src="{{ url_for('static', filename='js/app.js') }}?v=4010" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

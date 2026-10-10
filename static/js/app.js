@@ -1118,6 +1118,50 @@ async function initAssistantChat() {
     else settingsToggle?.focus();
   };
 
+  const wavePath = $('#assistantWavePath');
+  const waveReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let waveMode = 'idle';
+  let waveFrame = 0;
+  let waveLastPaint = 0;
+  const paintVoiceWave = time => {
+    if (!wavePath) return;
+    const moving = !waveReducedMotion.matches;
+    const phase = moving ? time / 1000 : 0;
+    const amplitude = waveMode === 'off' ? .025
+      : waveMode === 'listening' ? .25 + microphoneLevel * .75
+      : waveMode === 'speaking' ? .72 + Math.sin(phase * 4) * .18
+      : waveMode === 'processing' ? .45 + Math.sin(phase * 1.8) * .08
+      : waveMode === 'confirmation' ? .5 : .38;
+    const points = Array.from({ length: 51 }, (_, index) => {
+      const x = index / 50;
+      const envelope = Math.sin(Math.PI * x);
+      const peaks = .55 + .27 * Math.sin(x * Math.PI * 6 + (['speaking', 'processing'].includes(waveMode) ? phase * 1.3 : 0));
+      return [x * 1000, 119 - envelope * (26 + peaks * 85) * amplitude];
+    });
+    let path = `M0 ${points[0][1].toFixed(2)}`;
+    for (let index = 1; index < points.length - 1; index += 1) {
+      const [x, y] = points[index];
+      const next = points[index + 1];
+      path += ` Q${x.toFixed(2)} ${y.toFixed(2)} ${((x + next[0]) / 2).toFixed(2)} ${((y + next[1]) / 2).toFixed(2)}`;
+    }
+    path += ' L1000 119 L1000 120 L0 120 Z';
+    wavePath.setAttribute('d', path);
+  };
+  const animateVoiceWave = time => {
+    waveFrame = 0;
+    if (time - waveLastPaint >= 32) { paintVoiceWave(time); waveLastPaint = time; }
+    if (!waveReducedMotion.matches && ['listening', 'speaking', 'processing'].includes(waveMode)) waveFrame = window.requestAnimationFrame(animateVoiceWave);
+  };
+  const updateWaveState = mode => {
+    waveMode = mode;
+    window.cancelAnimationFrame(waveFrame);
+    waveFrame = 0;
+    paintVoiceWave(performance.now());
+    if (!waveReducedMotion.matches && ['listening', 'speaking', 'processing'].includes(mode)) waveFrame = window.requestAnimationFrame(animateVoiceWave);
+  };
+  waveReducedMotion.addEventListener('change', () => updateWaveState(waveMode));
+  window.addEventListener('pagehide', () => window.cancelAnimationFrame(waveFrame), { once: true });
+
   const renderVoiceState = () => {
     const mode = !enabledToggle?.checked ? 'off'
       : voiceVisualizer?.classList.contains('is-speaking') ? 'speaking'
@@ -1133,6 +1177,7 @@ async function initAssistantChat() {
       idle: ['Я рядом', conversationActive ? 'Готова продолжить разговор' : 'Скажи «Эва» и команду'],
     };
     if (voiceVisualizer) voiceVisualizer.dataset.voiceState = mode;
+    updateWaveState(mode);
     if (voiceTitle) voiceTitle.textContent = labels[mode][0];
     if (voiceStatus) voiceStatus.textContent = labels[mode][1];
   };
@@ -1666,7 +1711,6 @@ async function initAssistantChat() {
         processor.disconnect(); source.disconnect(); stream.getTracks().forEach(track => track.stop());
         await context.close();
         microphoneLevel = 0;
-        voiceVisualizer?.querySelector('.assistant-equalizer')?.style.setProperty('--voice-level', '0');
         listening = false; updateConversationUi();
         if (!transcribe || !chunks.length) {
           if (conversationActive) finishConversation('Не услышала команду. Нажми на микрофон, чтобы попробовать ещё раз.');
@@ -1694,7 +1738,7 @@ async function initAssistantChat() {
         for (let index = 0; index < data.length; index += 1) energy += data[index] * data[index];
         const rms = Math.sqrt(energy / data.length);
         microphoneLevel = microphoneLevel * .35 + Math.min(1, rms * 12) * .65;
-        voiceVisualizer?.querySelector('.assistant-equalizer')?.style.setProperty('--voice-level', microphoneLevel.toFixed(3));
+        if (waveReducedMotion.matches) paintVoiceWave(performance.now());
         if (rms > 0.018) { heardSpeech = true; lastVoiceAt = performance.now(); }
         if (heardSpeech && performance.now() - lastVoiceAt > 1300) finish(true);
         else if (!heardSpeech && performance.now() - captureStartedAt > 4500) finish(false);
