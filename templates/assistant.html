@@ -67,18 +67,16 @@
     <aside class="assistant-voice-column" aria-label="Голосовая реакция EVE">
       <section class="panel assistant-voice-visualizer assistant-orbit-panel" id="assistantVoiceVisualizer" data-voice-state="idle">
         <div class="section-kicker">ГОЛОС EVE</div>
-        <div class="assistant-voice-orb" aria-hidden="true">
-          <span class="assistant-voice-orb-ring assistant-voice-orb-ring-one"></span>
-          <span class="assistant-voice-orb-ring assistant-voice-orb-ring-two"></span>
-          <span class="assistant-voice-orb-ring assistant-voice-orb-ring-three"></span>
-          <span class="assistant-voice-orb-ring assistant-voice-orb-ring-four"></span>
-          <span class="assistant-voice-orb-core"></span>
-        </div>
         <h2 id="assistantVoiceTitle">Я рядом</h2>
         <p id="assistantVoiceStatus" role="status">Скажи «Эва» и команду</p>
         <div class="assistant-orbit-actions">
           <button class="button ghost small" id="assistantOrbitCommands" type="button">Мои команды</button>
           <button class="button ghost small" id="assistantOrbitSettings" type="button">Голос и память</button>
+        </div>
+        <div class="assistant-equalizer" id="assistantEqualizer" aria-hidden="true">
+          {% for height in [12, 19, 30, 42, 57, 72, 88, 103, 114, 108, 94, 80, 68, 61, 72, 89, 108, 128, 142, 133, 116, 96, 79, 64, 72, 86, 99, 105, 91, 76, 60, 44, 31, 22, 14] %}
+          <span class="assistant-equalizer-bar" style="--bar-height: {{ height }}px; --bar-delay: -{{ (loop.index0 % 7) * 0.13 }}s"></span>
+          {% endfor %}
         </div>
       </section>
     </aside>

@@ -1,4 +1,4 @@
-/* EVE's existing layout, with a layered avatar inspired by the video reference. */
+/* EVE flat palette and reactive equalizer. */
 /* Swatches sampled from the supplied Twinkle JPG, without lighting effects. */
 body[data-page="assistant"] {
   --bg: #494d56;
@@ -47,61 +47,50 @@ body[data-page="assistant"] .assistant-orbit-panel {
 .assistant-orbit-panel::before,
 .assistant-orbit-panel::after { display: none; }
 .assistant-orbit-panel .section-kicker { color: #bc9876; letter-spacing: 2.5px; }
-.assistant-orbit-panel .assistant-voice-orb {
+.assistant-orbit-panel .section-kicker { margin-top: auto; }
+.assistant-orbit-panel h2 { margin-top: 18px; }
+.assistant-equalizer {
   --voice-level: 0;
-  width: min(300px, 100%);
-  height: auto;
-  aspect-ratio: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 3px;
+  width: 100%;
+  height: 200px;
   flex-shrink: 0;
-  margin: 38px 0 32px;
-  transform: scale(calc(1 + var(--voice-level) * .075));
-  transition: transform 120ms ease-out, opacity 300ms ease;
-  filter: none;
+  margin-top: auto;
+  padding: 26px 12px 18px;
+  background: #434e60;
+  border-radius: 12px;
+  overflow: hidden;
 }
-.assistant-orbit-panel[data-voice-state] .assistant-voice-orb-ring,
-.assistant-orbit-panel[data-voice-state] .assistant-voice-orb-core {
-  border: 0;
-  border-radius: 50%;
-  opacity: 1;
-  transform: none;
-  filter: none;
-  box-shadow: none;
-  animation: none;
-  transition: background 300ms ease, opacity 300ms ease;
-}
-.assistant-orbit-panel .assistant-voice-orb-ring-one { inset: 0; background: #434e60; }
-.assistant-orbit-panel .assistant-voice-orb-ring-two { inset: 9%; background: #8b9a9f; }
-.assistant-orbit-panel .assistant-voice-orb-ring-three { inset: 18%; background: #bc9876; }
-.assistant-orbit-panel .assistant-voice-orb-ring-four { inset: 27%; background: #202332; }
-.assistant-orbit-panel .assistant-voice-orb-core {
-  inset: 36%;
+.assistant-equalizer-bar {
+  display: block;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 9px;
+  height: calc(var(--bar-height) * .38);
+  border-radius: 3px 3px 0 0;
   background: #bc9876;
+  transform-origin: center bottom;
+  transition: height 120ms ease-out, opacity 250ms ease;
 }
-.assistant-orbit-panel[data-voice-state="listening"] .assistant-voice-orb-ring {
-  animation: eve-orbit-listen 2s ease-in-out infinite;
+.assistant-orbit-panel[data-voice-state="listening"] .assistant-equalizer-bar {
+  height: calc(var(--bar-height) * (.38 + var(--voice-level) * .62));
 }
-.assistant-orbit-panel.is-listening:not(.is-speaking) .assistant-voice-orb-ring-one {
-  animation: eve-orbit-listen 2s ease-in-out infinite;
-  opacity: 1;
-  border: 0;
-}
-.assistant-orbit-panel[data-voice-state="processing"] .assistant-voice-orb-ring {
-  animation: eve-orbit-think 1.8s ease-in-out infinite;
-}
-.assistant-orbit-panel[data-voice-state="speaking"] .assistant-voice-orb-ring {
-  animation: eve-orbit-speak 1s ease-in-out infinite;
-}
-.assistant-orbit-panel[data-voice-state="speaking"] .assistant-voice-orb-core {
+.assistant-orbit-panel[data-voice-state="processing"] .assistant-equalizer-bar {
+  height: calc(var(--bar-height) * .65);
+  animation: eve-equalizer-think 1.8s ease-in-out infinite;
+  animation-delay: var(--bar-delay);
   background: #8b9a9f;
-  animation: eve-orbit-speak .8s ease-in-out infinite;
 }
-.assistant-orbit-panel[data-voice-state] .assistant-voice-orb-ring-two { animation-delay: -.15s; }
-.assistant-orbit-panel[data-voice-state] .assistant-voice-orb-ring-three { animation-delay: -.3s; }
-.assistant-orbit-panel[data-voice-state] .assistant-voice-orb-ring-four { animation-delay: -.45s; }
-.assistant-orbit-panel[data-voice-state="confirmation"] .assistant-voice-orb-core {
-  background: #bc9876;
+.assistant-orbit-panel[data-voice-state="speaking"] .assistant-equalizer-bar {
+  height: var(--bar-height);
+  animation: eve-equalizer-speak .75s ease-in-out infinite;
+  animation-delay: var(--bar-delay);
 }
-.assistant-orbit-panel[data-voice-state="off"] .assistant-voice-orb { opacity: .35; }
+.assistant-orbit-panel[data-voice-state="confirmation"] .assistant-equalizer-bar { height: calc(var(--bar-height) * .6); }
+.assistant-orbit-panel[data-voice-state="off"] .assistant-equalizer-bar { height: 3px; opacity: .35; }
 .assistant-orbit-panel > p { max-width: 260px; text-align: center; line-height: 1.6; }
 .assistant-orbit-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; z-index: 2; }
 .assistant-orbit-actions .button { border: 1px solid #434e60; background: #434e60; }
@@ -166,21 +155,19 @@ body[data-page="assistant"] .nav-link.active span { background: #bc9876 !importa
 body[data-page="assistant"] .nav-link:hover span { color: #bc9876; }
 body[data-page="assistant"] .brand { border-bottom-color: #434e60 !important; }
 body[data-page="assistant"] :is(button, input, textarea, select, summary, a):focus-visible { outline-color: #bc9876; }
-@keyframes eve-orbit-listen { 50% { transform: scale(1.025); opacity: .85; } }
-@keyframes eve-orbit-think { 50% { transform: scale(.94); opacity: .65; } }
-@keyframes eve-orbit-speak { 35% { transform: scale(1.055); } 70% { transform: scale(.97); } }
+@keyframes eve-equalizer-think { 50% { transform: scaleY(.5); } }
+@keyframes eve-equalizer-speak { 25% { transform: scaleY(.45); } 55% { transform: scaleY(.85); } 80% { transform: scaleY(.3); } }
 @media (max-width: 900px) {
-  body[data-page="assistant"] .assistant-interface-grid { grid-template-rows: 108px minmax(0, 1fr); gap: 12px; }
+  body[data-page="assistant"] .assistant-interface-grid { grid-template-rows: 144px minmax(0, 1fr); gap: 12px; }
   body[data-page="assistant"] .assistant-voice-column { display: flex; order: -1; }
-  body[data-page="assistant"] .assistant-orbit-panel { display: grid; grid-template-columns: 82px minmax(0, 1fr); column-gap: 18px; padding: 12px 20px; align-content: center; }
-  .assistant-orbit-panel .assistant-voice-orb { width: 82px; margin: 0; grid-row: 1 / 4; }
-  .assistant-orbit-panel .section-kicker { grid-column: 2; font-size: 9px; }
-  .assistant-orbit-panel h2 { grid-column: 2; font-size: 18px; }
-  .assistant-orbit-panel > p { grid-column: 2; text-align: left; margin-top: 3px; max-width: none; }
+  body[data-page="assistant"] .assistant-orbit-panel { display: grid; grid-template-columns: 1fr; padding: 12px 18px; align-content: start; }
+  .assistant-orbit-panel .section-kicker { font-size: 9px; margin: 0; }
+  .assistant-orbit-panel h2 { font-size: 18px; margin: 5px 0 0; }
+  .assistant-orbit-panel > p { margin-top: 3px; max-width: none; }
   .assistant-orbit-actions { display: none; }
+  .assistant-equalizer { height: 50px; margin-top: 8px; padding: 4px 8px; gap: 3px; border-radius: 6px; }
+  .assistant-equalizer-bar { max-height: 40px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .assistant-orbit-panel .assistant-voice-orb,
-  .assistant-orbit-panel .assistant-voice-orb-ring,
-  .assistant-orbit-panel .assistant-voice-orb-core { animation: none !important; transition: none; transform: none !important; }
+  .assistant-equalizer-bar { animation: none !important; transition: none; transform: none !important; }
 }

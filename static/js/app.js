@@ -1666,8 +1666,7 @@ async function initAssistantChat() {
         processor.disconnect(); source.disconnect(); stream.getTracks().forEach(track => track.stop());
         await context.close();
         microphoneLevel = 0;
-        voiceVisualizer?.style.setProperty('--voice-level', '0');
-        voiceVisualizer?.querySelector('.assistant-voice-orb')?.style.setProperty('--voice-level', '0');
+        voiceVisualizer?.querySelector('.assistant-equalizer')?.style.setProperty('--voice-level', '0');
         listening = false; updateConversationUi();
         if (!transcribe || !chunks.length) {
           if (conversationActive) finishConversation('Не услышала команду. Нажми на микрофон, чтобы попробовать ещё раз.');
@@ -1695,7 +1694,7 @@ async function initAssistantChat() {
         for (let index = 0; index < data.length; index += 1) energy += data[index] * data[index];
         const rms = Math.sqrt(energy / data.length);
         microphoneLevel = microphoneLevel * .35 + Math.min(1, rms * 12) * .65;
-        voiceVisualizer?.querySelector('.assistant-voice-orb')?.style.setProperty('--voice-level', microphoneLevel.toFixed(3));
+        voiceVisualizer?.querySelector('.assistant-equalizer')?.style.setProperty('--voice-level', microphoneLevel.toFixed(3));
         if (rms > 0.018) { heardSpeech = true; lastVoiceAt = performance.now(); }
         if (heardSpeech && performance.now() - lastVoiceAt > 1300) finish(true);
         else if (!heardSpeech && performance.now() - captureStartedAt > 4500) finish(false);
