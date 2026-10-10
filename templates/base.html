@@ -9,7 +9,7 @@
   {% if page_key == 'week' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/week-legacy.css') }}?v=3001">
   {% endif %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/reference.css') }}?v=4016">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reference.css') }}?v=4017">
 </head>
 <body data-page="{{ page_key }}">
   <div class="app-shell">
@@ -196,5 +196,6 @@
 
   {% block modals %}{% endblock %}
   <script src="{{ url_for('static', filename='js/app.js') }}?v=4007" defer></script>
+  {% block scripts %}{% endblock %}
 </body>
 </html>

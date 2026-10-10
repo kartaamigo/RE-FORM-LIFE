@@ -3474,3 +3474,13 @@ body[data-page="assistant"] .assistant-chat-compose {
 body[data-page="assistant"] .assistant-voice-visualizer {
   background: radial-gradient(circle at 50% 42%, rgba(76, 59, 182, .38), rgba(18, 24, 42, .98) 54%), #12182a !important;
 }
+
+.assistant-command-library { margin: 12px 18px; border: 1px solid rgba(150, 160, 200, .25); border-radius: 12px; }
+.assistant-command-library summary { padding: 12px; cursor: pointer; }
+.assistant-command-library-content { padding: 0 12px 12px; max-height: 420px; overflow-y: auto; }
+.assistant-command-library-content h3 { margin: 18px 0 8px; }
+.assistant-command-library-content p { font-size: 13px; line-height: 1.5; overflow-wrap: anywhere; }
+.assistant-command-entry { padding: 10px 0; border-bottom: 1px solid rgba(150, 160, 200, .15); }
+.assistant-command-entry .button { margin: 4px 6px 4px 0; white-space: normal; text-align: left; }
+.assistant-command-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.assistant-command-library textarea { width: 100%; resize: vertical; min-height: 64px; padding: 10px; border-radius: 8px; color: inherit; background: rgba(0, 0, 0, .18); border: 1px solid rgba(150, 160, 200, .25); }

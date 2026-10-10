@@ -21,6 +21,29 @@
         <div class="assistant-log-empty">Здесь появится история твоих сообщений и ответов Эвы.</div>
       </div>
 
+      <details class="assistant-command-library" id="assistantCommandLibrary">
+        <summary>Основные и мои команды</summary>
+        <div class="assistant-command-library-content">
+          <h3>Основные команды</h3>
+          <p>Выбери пример — он появится в поле сообщения. При голосовом вводе сначала скажи «Эва».</p>
+          <div id="assistantCommandCatalog"></div>
+          <h3>Мои команды</h3>
+          <p>Придумай короткую фразу и укажи, что она означает. Для текста после фразы используй <code>{text}</code>: «Быстрое дело купить молоко» → «Добавь задачу купить молоко на завтра».</p>
+          <div id="assistantCustomCommands"></div>
+          <form id="assistantCustomCommandForm">
+            <input type="hidden" id="assistantCustomCommandId">
+            <label class="assistant-setting-field">Название<input id="assistantCustomCommandName" maxlength="60" placeholder="Мой утренний план" required></label>
+            <label class="assistant-setting-field">Моя фраза<input id="assistantCustomCommandPhrase" maxlength="80" placeholder="Старт дня" required></label>
+            <label class="assistant-setting-field">Что сделать<select id="assistantCustomCommandMode"><option value="command">Основная команда · без ИИ</option><option value="prompt">Запрос к ИИ · нужна Gemini</option></select></label>
+            <label class="assistant-setting-field">Действие или запрос<textarea id="assistantCustomCommandTemplate" maxlength="500" rows="2" placeholder="Покажи план на сегодня" required></textarea></label>
+            <label class="assistant-speech-toggle"><input type="checkbox" id="assistantCustomCommandEnabled" checked><span>Команда включена</span></label>
+            <div class="assistant-command-actions"><button class="button primary small" type="submit">Сохранить</button><button class="button ghost small" id="assistantCustomCommandReset" type="button">Новая команда</button></div>
+          </form>
+          <div class="assistant-command-actions"><a class="button ghost small" href="/api/assistant/commands/export" download="eve-commands.json">Экспорт моих команд</a><button class="button ghost small" id="assistantImportCommands" type="button">Импорт команд</button><input type="file" id="assistantCommandsFile" accept=".json,application/json" hidden></div>
+          <p id="assistantCommandsStatus" role="status" aria-live="polite">Загружаю команды…</p>
+        </div>
+      </details>
+
       <div class="assistant-chat-compose">
         <div class="assistant-command-row assistant-dialog-composer">
           <button class="assistant-composer-tool" id="assistantComposerHelp" type="button" aria-label="Что умеет EVE" title="Что умеет EVE">＋</button>
@@ -95,4 +118,8 @@
     </section>
   </aside>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/eve-commands.js') }}?v=1" defer></script>
 {% endblock %}

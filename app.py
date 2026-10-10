@@ -1693,6 +1693,57 @@ def api_assistant_command():
         return json_error(str(exc))
 
 
+@app.get("/api/assistant/commands")
+def api_assistant_commands():
+    return jsonify({"ok": True, "catalog": COMMAND_CATALOG, "commands": list_commands(get_db())})
+
+
+@app.post("/api/assistant/commands")
+def api_assistant_command_create():
+    try:
+        return jsonify({"ok": True, "command": save_command(get_db(), body())}), 201
+    except ValueError as exc:
+        return json_error(str(exc))
+
+
+@app.patch("/api/assistant/commands/<int:command_id>")
+def api_assistant_command_update(command_id):
+    existing = next((item for item in list_commands(get_db()) if item["id"] == command_id), None)
+    if existing is None:
+        return json_error("Своя команда не найдена.", 404)
+    try:
+        fields = {key: value for key, value in existing.items() if key != "id"}
+        fields.update(body())
+        return jsonify({"ok": True, "command": save_command(get_db(), fields, command_id)})
+    except ValueError as exc:
+        return json_error(str(exc))
+
+
+@app.delete("/api/assistant/commands/<int:command_id>")
+def api_assistant_command_delete(command_id):
+    db = get_db()
+    cursor = db.execute("DELETE FROM assistant_commands WHERE id=?", (command_id,))
+    db.commit()
+    return jsonify({"ok": True}) if cursor.rowcount else json_error("Своя команда не найдена.", 404)
+
+
+@app.get("/api/assistant/commands/export")
+def api_assistant_command_export():
+    commands = [{key: value for key, value in item.items() if key != "id"} for item in list_commands(get_db())]
+    return Response(json.dumps({"version": 1, "commands": commands}, ensure_ascii=False, indent=2), mimetype="application/json", headers={"Content-Disposition": 'attachment; filename="eve-commands.json"'})
+
+
+@app.post("/api/assistant/commands/import")
+def api_assistant_command_import():
+    if request.content_length and request.content_length > 128000:
+        return json_error("Файл команд слишком большой (максимум 128 КБ).", 413)
+    try:
+        count = import_commands(get_db(), body())
+        return jsonify({"ok": True, "imported": count}), 201
+    except ValueError as exc:
+        return json_error(str(exc))
+
+
 @app.post("/api/assistant/confirm")
 def api_assistant_confirm():
     data = body()
