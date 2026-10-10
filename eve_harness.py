@@ -108,7 +108,9 @@ def tool_declarations(allow_changes: bool) -> list[dict]:
     tools = [{
         "name": "list_tasks", "description": "Получить задачи из приложения, включая ID. Для переноса/выполнения сначала прочитай задачи. Фильтры необязательны, до 50 результатов со смещением offset.",
         "parameters": {"type": "OBJECT", "properties": {
-            "start": string, "end": string, "query": string,
+            "start": {"type": "STRING", "description": "Первая дата включительно, YYYY-MM-DD. Для одного дня start=end."},
+            "end": {"type": "STRING", "description": "Последняя дата включительно, YYYY-MM-DD. Для одного дня start=end."},
+            "query": {"type": "STRING", "description": "Только фрагмент названия конкретной задачи. Не передавай сюда слова 'незавершённые' или 'сегодня': используй done и даты."},
             "scope": {"type": "STRING", "enum": ["planner", "tasks"]},
             "done": {"type": "BOOLEAN"}, "offset": {"type": "INTEGER"},
         }},

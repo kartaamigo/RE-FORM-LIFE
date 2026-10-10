@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import sqlite3
 import tempfile
 import time
 import unittest
@@ -10,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import app as app_module
-from eve_harness import ConfirmationRequired, EveHarness, confirm_proposal, pending_proposal, relevant_memories, tool_declarations
+from eve_harness import ConfirmationRequired, EveHarness, confirm_proposal, relevant_memories, tool_declarations
 from eve_local import LocalProviderError, generate_gemini_reply
 
 
@@ -258,6 +257,41 @@ class HarnessApiTests(unittest.TestCase):
         with patch.object(app_module, "generate_gemini_reply", side_effect=LocalProviderError("сбой")):
             self.client.post("/api/assistant/chat", json={"text": "привет"})
         self.assertFalse(app_module._assistant_harness_lock.locked())
+
+    def test_ambiguous_task_command_does_not_pick_first_match(self):
+        self.task("Купить молоко")
+        self.task("Купить молоко и хлеб")
+        with patch.object(app_module, "generate_gemini_reply", return_value="Какую из двух задач отметить?") as provider:
+            result = self.client.post("/api/assistant/command", json={"text": "отметь задачу купить выполненной"})
+        self.assertEqual(result.get_json()["action"], "gemini_reply")
+        provider.assert_called_once()
+        self.assertTrue(all(not task["done"] for task in self.client.get("/api/tasks").get_json()["tasks"]))
+
+    def test_bulk_command_can_use_harness(self):
+        self.task()
+        with patch.object(app_module, "generate_gemini_reply", return_value="Проверяю задачи.") as provider:
+            self.client.post("/api/assistant/command", json={"text": "перенеси все незавершённые задачи на завтра"})
+        provider.assert_called_once()
+
+    def test_habit_tool_reads_saved_completion(self):
+        with app_module.app.app_context():
+            db = app_module.get_db()
+            habit = db.execute("INSERT INTO habits(name,created_at,updated_at) VALUES(?,?,?)", ("Прогулка", self.today, self.today)).lastrowid
+            db.execute("INSERT INTO habit_entries(habit_id,entry_date,done) VALUES(?,?,1)", (habit, self.today))
+            db.commit()
+            result = EveHarness(db, []).execute("list_habits", {"date": self.today})
+            self.assertEqual(result["habits"][0]["done"], 1)
+
+    def test_database_failure_rolls_back_whole_batch(self):
+        proposal = self.proposal([{"operation": "create", "text": "Первое дело", "task_date": self.today}, {"operation": "create", "text": "Второе дело", "task_date": self.today}])
+        with app_module.app.app_context():
+            db = app_module.get_db()
+            db.execute("CREATE TRIGGER reject_second BEFORE INSERT ON tasks WHEN NEW.text='Второе дело' BEGIN SELECT RAISE(ABORT, 'injected failure'); END")
+            db.commit()
+            with self.assertRaises(Exception):
+                confirm_proposal(db, proposal["confirmation_id"], True)
+            self.assertEqual(db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0], 0)
+            self.assertEqual(db.execute("SELECT status FROM assistant_task_proposals WHERE id=?", (proposal["confirmation_id"],)).fetchone()[0], "pending")
 
 
 if __name__ == "__main__":

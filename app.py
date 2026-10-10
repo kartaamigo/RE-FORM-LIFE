@@ -867,11 +867,11 @@ def find_assistant_task(query: str, scope: str = "planner") -> dict[str, Any] | 
     candidates = [serialize_task(row_dict(row)) for row in rows]
     if not normalized_query:
         return candidates[0] if len(candidates) == 1 else None
-    for task in candidates:
-        normalized_task = normalize_text(task["text"])
-        if normalized_query in normalized_task or normalized_task in normalized_query:
-            return task
-    return None
+    exact = [task for task in candidates if normalize_text(task["text"]) == normalized_query]
+    if exact:
+        return exact[0] if len(exact) == 1 else None
+    matches = [task for task in candidates if normalized_query in normalize_text(task["text"]) or normalize_text(task["text"]) in normalized_query]
+    return matches[0] if len(matches) == 1 else None
 
 
 def find_savings_category_by_text(value: str) -> sqlite3.Row | None:
@@ -1364,6 +1364,19 @@ def assistant_harness_reply(text, settings, history, memories, *, allow_changes=
         _assistant_harness_lock.release()
 
 
+def assistant_harness_command(text):
+    settings = assistant_settings_payload()
+    if not settings["gemini_enabled"]:
+        return jsonify({"ok": True, "action": "gemini_unavailable", "reply": "Разговорная модель Gemini выключена в настройках EVE. Простые команды остаются доступны."})
+    rows = get_db().execute("SELECT role,text FROM assistant_history ORDER BY id DESC LIMIT 16").fetchall()
+    history = [dict(row) for row in reversed(rows)]
+    memories = [item["fact"] for item in assistant_memories()] if settings["personalization_enabled"] else []
+    try:
+        return jsonify(assistant_harness_reply(text, settings, history, memories))
+    except LocalProviderError as exc:
+        return jsonify({"ok": True, "action": "gemini_unavailable", "reply": f"Не смогла обработать запрос через Gemini. {exc} Можно использовать простую команду или повторить запрос."})
+
+
 @app.get("/api/assistant/proposals/pending")
 def api_assistant_pending_proposal():
     return jsonify({"ok": True, "proposal": pending_proposal(get_db())})
@@ -1654,6 +1667,8 @@ def api_assistant_command():
         if parsed.intent in {"complete_task", "reschedule_task"}:
             task = find_assistant_task(parsed.query, parsed.scope)
             if task is None:
+                if assistant_settings_payload()["gemini_enabled"]:
+                    return assistant_harness_command(text)
                 return jsonify({"ok": True, "action": "not_found", "reply": "Не нашла такую активную задачу. Назови её точнее."})
             db = get_db()
             if parsed.intent == "complete_task":
@@ -1665,26 +1680,7 @@ def api_assistant_command():
             db.commit()
             return jsonify({"ok": True, "action": "reschedule_task", "task_id": task["id"], "date": task_date, "reply": f"Перенесла задачу «{task['text']}» на {assistant_date_label(task_date)}."})
         if parsed.intent == "unknown":
-            settings = assistant_settings_payload()
-            history_rows = get_db().execute(
-                "SELECT role,text FROM assistant_history ORDER BY id DESC LIMIT 16"
-            ).fetchall()
-            history = [dict(row) for row in reversed(history_rows)]
-            memories = [item["fact"] for item in assistant_memories()] if settings["personalization_enabled"] else []
-            if not settings["gemini_enabled"]:
-                return jsonify({
-                    "ok": True,
-                    "action": "gemini_unavailable",
-                    "reply": "Разговорная модель Gemini выключена в настройках EVE.",
-                })
-            try:
-                return jsonify(assistant_harness_reply(text, settings, history, memories))
-            except LocalProviderError as exc:
-                return jsonify({
-                    "ok": True,
-                    "action": "gemini_unavailable",
-                    "reply": f"Не смогла обратиться к Gemini. {exc} Попробуй сформулировать команду точнее.",
-                })
+            return assistant_harness_command(text)
         return jsonify({"ok": True, "action": "unsupported", "reply": "Я могу поддержать разговор, управлять задачами, финансами и коммуналкой, открыть папку или приложение из меню Пуск, сайт и поиск. Некоторые действия с компьютером попрошу подтвердить. Произвольные команды терминала и скрипты я не запускаю."})
     except ValueError as exc:
         return json_error(str(exc))
