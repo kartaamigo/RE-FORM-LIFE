@@ -65,7 +65,7 @@
     </section>
 
     <aside class="assistant-voice-column" aria-label="Голосовая реакция EVE">
-      <section class="panel assistant-voice-visualizer" id="assistantVoiceVisualizer">
+      <section class="panel assistant-voice-visualizer assistant-orbit-panel" id="assistantVoiceVisualizer" data-voice-state="idle">
         <div class="section-kicker">ГОЛОС EVE</div>
         <div class="assistant-voice-orb" aria-hidden="true">
           <span class="assistant-voice-orb-ring assistant-voice-orb-ring-one"></span>
@@ -74,8 +74,12 @@
           <span class="assistant-voice-orb-ring assistant-voice-orb-ring-four"></span>
           <span class="assistant-voice-orb-core"></span>
         </div>
-        <h2>Я рядом</h2>
-        <p id="assistantVoiceStatus">Скажи «Эва» и команду</p>
+        <h2 id="assistantVoiceTitle">Я рядом</h2>
+        <p id="assistantVoiceStatus" role="status">Скажи «Эва» и команду</p>
+        <div class="assistant-orbit-actions">
+          <button class="button ghost small" id="assistantOrbitCommands" type="button">Мои команды</button>
+          <button class="button ghost small" id="assistantOrbitSettings" type="button">Голос и память</button>
+        </div>
       </section>
     </aside>
   </div>

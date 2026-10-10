@@ -1017,6 +1017,9 @@ async function initAssistantChat() {
   const interim = $('#assistantInterim');
   const voiceVisualizer = $('#assistantVoiceVisualizer');
   const voiceStatus = $('#assistantVoiceStatus');
+  const voiceTitle = $('#assistantVoiceTitle');
+  let voiceProcessing = 0;
+  let microphoneLevel = 0;
   const settingsBackdrop = $('#assistantSettingsBackdrop');
   const settingsToggle = $('#assistantSettingsToggle');
   const settingsClose = $('#assistantSettingsClose');
@@ -1115,15 +1118,35 @@ async function initAssistantChat() {
     else settingsToggle?.focus();
   };
 
-  const updateVoiceStatus = text => {
-    if (voiceStatus) voiceStatus.textContent = text;
+  const renderVoiceState = () => {
+    const mode = !enabledToggle?.checked ? 'off'
+      : voiceVisualizer?.classList.contains('is-speaking') ? 'speaking'
+      : voiceProcessing ? 'processing'
+      : state.pendingConfirmation ? 'confirmation'
+      : listening ? 'listening' : 'idle';
+    const labels = {
+      off: ['EVE выключена', 'Включи EVE в настройках'],
+      speaking: ['Отвечаю', 'Эва отвечает голосом'],
+      processing: ['Думаю', 'Разбираюсь с твоим запросом…'],
+      confirmation: ['Твоё решение', 'Проверь изменения в чате и подтверди действие'],
+      listening: ['Слушаю тебя', 'Скажи «Эва» и команду'],
+      idle: ['Я рядом', conversationActive ? 'Готова продолжить разговор' : 'Скажи «Эва» и команду'],
+    };
+    if (voiceVisualizer) voiceVisualizer.dataset.voiceState = mode;
+    if (voiceTitle) voiceTitle.textContent = labels[mode][0];
+    if (voiceStatus) voiceStatus.textContent = labels[mode][1];
+  };
+
+  const withVoiceProcessing = async operation => {
+    voiceProcessing += 1;
+    renderVoiceState();
+    try { return await operation(); }
+    finally { voiceProcessing -= 1; renderVoiceState(); }
   };
 
   const setSpeakingState = active => {
     voiceVisualizer?.classList.toggle('is-speaking', active);
-    if (active) updateVoiceStatus('Эва отвечает голосом');
-    else if (conversationActive) updateVoiceStatus(listening ? 'Слушаю тебя…' : 'Готова продолжить разговор');
-    else updateVoiceStatus('Скажи «Эва» и команду');
+    renderVoiceState();
   };
 
   const renderLog = () => {
@@ -1139,6 +1162,7 @@ async function initAssistantChat() {
     root.querySelector('[data-assistant-confirm="approve"]')?.addEventListener('click', () => confirmPending(true));
     root.querySelector('[data-assistant-confirm="cancel"]')?.addEventListener('click', () => confirmPending(false));
     root.scrollTop = root.scrollHeight;
+    renderVoiceState();
   };
 
   const pushLog = (role, text) => {
@@ -1281,8 +1305,8 @@ async function initAssistantChat() {
   const updateConversationUi = () => {
     const badge = $('#assistantSupportBadge');
     if (!badge) return;
-    voiceVisualizer?.classList.toggle('is-listening', Boolean(conversationActive || listening));
-    if (!voiceVisualizer?.classList.contains('is-speaking')) updateVoiceStatus(conversationActive ? (listening ? 'Слушаю тебя…' : 'Готова продолжить разговор') : 'Скажи «Эва» и команду');
+    voiceVisualizer?.classList.toggle('is-listening', listening);
+    renderVoiceState();
     if (conversationActive) {
       badge.textContent = listening ? 'EVE слушает · разговор активен' : 'Разговор активен · EVE отвечает';
       micButton?.classList.add('listening');
@@ -1349,10 +1373,10 @@ async function initAssistantChat() {
     renderLog();
     if (status) status.textContent = approved ? 'Проверяю подтверждение…' : 'Отменяю действие…';
     try {
-      const result = await api('/api/assistant/confirm', {
+      const result = await withVoiceProcessing(() => api('/api/assistant/confirm', {
         method: 'POST',
         body: JSON.stringify({ confirmation_id: pending.id, approved }),
-      });
+      }));
       await answer(result.reply || (approved ? 'Действие выполнено.' : 'Команда отменена.'));
       if (['savings_operation', 'meter_reading', 'meter_submission'].includes(result.action)) announceDataChange('finance');
       if (result.action === 'task_changes') announceDataChange('tasks');
@@ -1365,6 +1389,7 @@ async function initAssistantChat() {
   const renderAssistantSupport = settings => {
     const browserReady = Boolean(recognitionType || localCaptureSupported);
     const enabled = Boolean(enabledToggle?.checked);
+    renderVoiceState();
     if (micButton) micButton.disabled = !enabled || !browserReady;
     if (!enabled) {
       $('#assistantSupportBadge').textContent = 'EVE выключена';
@@ -1547,7 +1572,7 @@ async function initAssistantChat() {
       }
     }
     try {
-      const result = await api('/api/assistant/command', { method: 'POST', body: JSON.stringify({ text: apiText, source, alternatives: apiAlternatives }) });
+      const result = await withVoiceProcessing(() => api('/api/assistant/command', { method: 'POST', body: JSON.stringify({ text: apiText, source, alternatives: apiAlternatives }) }));
       if (result.action === 'ignored') {
         resumeConversation();
         return;
@@ -1640,6 +1665,9 @@ async function initAssistantChat() {
         localCaptureStop = null;
         processor.disconnect(); source.disconnect(); stream.getTracks().forEach(track => track.stop());
         await context.close();
+        microphoneLevel = 0;
+        voiceVisualizer?.style.setProperty('--voice-level', '0');
+        voiceVisualizer?.querySelector('.assistant-voice-orb')?.style.setProperty('--voice-level', '0');
         listening = false; updateConversationUi();
         if (!transcribe || !chunks.length) {
           if (conversationActive) finishConversation('Не услышала команду. Нажми на микрофон, чтобы попробовать ещё раз.');
@@ -1647,7 +1675,7 @@ async function initAssistantChat() {
         }
         if (status) status.textContent = 'Распознаю голос локально…';
         try {
-          const response = await fetch('/api/assistant/transcribe?sample_rate=16000', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: pcmBlob(chunks, context.sampleRate) });
+          const response = await withVoiceProcessing(() => fetch('/api/assistant/transcribe?sample_rate=16000', { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: pcmBlob(chunks, context.sampleRate) }));
           const result = await response.json();
           if (!response.ok) throw new Error(result.error || 'Не удалось распознать голос.');
           if (result.text) await execute(result.text, 'local_voice');
@@ -1666,6 +1694,8 @@ async function initAssistantChat() {
         let energy = 0;
         for (let index = 0; index < data.length; index += 1) energy += data[index] * data[index];
         const rms = Math.sqrt(energy / data.length);
+        microphoneLevel = microphoneLevel * .35 + Math.min(1, rms * 12) * .65;
+        voiceVisualizer?.querySelector('.assistant-voice-orb')?.style.setProperty('--voice-level', microphoneLevel.toFixed(3));
         if (rms > 0.018) { heardSpeech = true; lastVoiceAt = performance.now(); }
         if (heardSpeech && performance.now() - lastVoiceAt > 1300) finish(true);
         else if (!heardSpeech && performance.now() - captureStartedAt > 4500) finish(false);
@@ -1733,6 +1763,13 @@ async function initAssistantChat() {
     updateConversationUi();
     if (status) status.textContent = 'Разговор начался. Скажи, что у тебя на уме.';
     startConversationListening(0);
+  });
+  $('#assistantOrbitSettings')?.addEventListener('click', () => setSettingsOpen(true));
+  $('#assistantOrbitCommands')?.addEventListener('click', () => {
+    const library = $('#assistantCommandLibrary');
+    if (!library) return;
+    library.open = true;
+    library.querySelector('summary')?.focus();
   });
   settingsToggle?.addEventListener('click', () => setSettingsOpen(true));
   settingsClose?.addEventListener('click', () => setSettingsOpen(false));
