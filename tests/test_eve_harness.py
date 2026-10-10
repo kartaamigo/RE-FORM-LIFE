@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import sqlite3
 import tempfile
 import time
 import unittest
@@ -288,7 +289,7 @@ class HarnessApiTests(unittest.TestCase):
             db = app_module.get_db()
             db.execute("CREATE TRIGGER reject_second BEFORE INSERT ON tasks WHEN NEW.text='Второе дело' BEGIN SELECT RAISE(ABORT, 'injected failure'); END")
             db.commit()
-            with self.assertRaises(Exception):
+            with self.assertRaises(sqlite3.IntegrityError):
                 confirm_proposal(db, proposal["confirmation_id"], True)
             self.assertEqual(db.execute("SELECT COUNT(*) FROM tasks").fetchone()[0], 0)
             self.assertEqual(db.execute("SELECT status FROM assistant_task_proposals WHERE id=?", (proposal["confirmation_id"],)).fetchone()[0], "pending")

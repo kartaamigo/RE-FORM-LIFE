@@ -1,12 +1,47 @@
-# EVE: Gemini conversation, voice profiles, and PC actions
+# EVE: Gemini, application harness, voice profiles, and PC actions
 
 ## Conversation and privacy
 
-EVE uses one simple conversation provider: the Gemini Developer API. Unknown
-chat messages and recent chat history are sent to Gemini, while known planner,
-finance, utility, and allow-listed PC commands are handled by the deterministic
-command parser. Gemini never receives executable instructions and cannot run
-commands by itself.
+EVE uses the Gemini Developer API for conversation and flexible requests. A
+small Python harness gives the model validated application tools: reading
+tasks and habits, financial summaries, utility payments, searching explicitly
+saved memories, and proposing task changes. Known planner, finance, utility,
+and allow-listed PC commands still use the deterministic parser and can work
+without Gemini. Ambiguous task matches go through the harness when Gemini is
+enabled instead of selecting the first matching task.
+
+When Gemini is enabled, messages, bounded recent history, and selected personal
+memories are sent to Google. Turning personalization off removes personal
+memory from both the prompt and the memory-search tool. Application data
+requested through tools is also sent to Gemini. Financial summaries use
+integer kopecks; utility-payment results omit addresses and account numbers.
+The model receives no arbitrary shell, file, SQL, or network-execution tool.
+
+The harness allows at most four model requests, eight tool calls, and a
+60-second run budget. Task reads return up to 50 items with pagination. A
+task-change proposal contains at most 20 creates/updates, displays the exact
+changes, and waits for confirmation for up to ten minutes. Proposals persist
+in SQLite and the assistant page restores a pending proposal after restart.
+A new proposal supersedes the previous one. Clearing command history cancels
+pending proposals. Confirmation rechecks task snapshots and applies the entire
+batch in one transaction; repeated confirmations cannot apply it again.
+
+`/api/assistant/command` supports this complete workflow. The separate
+`/api/assistant/chat` endpoint provides conversation and read tools only. The
+model does not change financial records or PC settings through the harness;
+existing checked commands remain responsible for those actions.
+
+Try these in the EVE chat after restarting the application from updated source:
+
+- «Помоги спланировать завтра по моим задачам и привычкам».
+- «Предложи перенос незавершённых дел на завтра».
+- «На какие категории ушло больше всего денег в этом месяце?».
+- «Какие начисленные коммунальные платежи ещё не оплачены?».
+
+Free conversation and interpretation of flexible requests require a language
+model. Speech recognition and speech synthesis are separate components. The
+harness orchestrates model calls and application actions; it is not a model.
+OpenClaw is not required or installed for this implementation.
 
 Create a key in [Google AI Studio](https://aistudio.google.com/app/apikey),
 set `GEMINI_API_KEY` in the Windows user environment, and restart RE:FORM LIFE.

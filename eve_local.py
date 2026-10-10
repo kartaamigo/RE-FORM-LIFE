@@ -333,11 +333,11 @@ def generate_gemini_reply(
         if remaining <= 0:
             raise LocalProviderError("EVE не успела закончить запрос. Попробуй сузить задачу.")
         payload = _json_request(
-        request_url,
-        method="POST",
-        payload=request_payload,
-        service_name="Gemini API",
-        timeout=min(GEMINI_TIMEOUT_SECONDS, remaining),
+            request_url,
+            method="POST",
+            payload=request_payload,
+            service_name="Gemini API",
+            timeout=min(GEMINI_TIMEOUT_SECONDS, remaining),
         )
         candidates = payload.get("candidates") if isinstance(payload.get("candidates"), list) else []
         candidate = candidates[0] if candidates and isinstance(candidates[0], dict) else {}
