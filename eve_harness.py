@@ -61,6 +61,20 @@ def _properties(args: dict, allowed: set[str]) -> None:
 TASK_FIELDS = {"text", "task_date", "start_time", "scope", "section", "done"}
 
 
+def describe_fields(fields: dict) -> str:
+    labels = {"text": "название", "task_date": "дата", "start_time": "время", "scope": "раздел", "section": "колонка", "done": "выполнение"}
+    parts = []
+    for key, value in fields.items():
+        if key == "done":
+            value = "выполнена" if value else "не выполнена"
+        elif key == "scope":
+            value = "планер" if value == "planner" else "доска задач"
+        elif key == "start_time" and value is None:
+            value = "без времени"
+        parts.append(f"{labels[key]}: {value}")
+    return "; ".join(parts)
+
+
 def _fields(db, args: dict) -> dict:
     _properties(args, TASK_FIELDS)
     result = {}
@@ -197,7 +211,7 @@ class EveHarness:
                 fields = {"scope": "planner", "section": "Личное", "start_time": None, "done": 0, **fields}
                 fields = _fields(self.db, {**fields, "done": bool(fields["done"])})
                 plan.append({"operation": operation, "fields": fields})
-                labels.append(f"Создать «{fields['text']}»: " + json.dumps(fields, ensure_ascii=False))
+                labels.append(f"Создать «{fields['text']}»: " + describe_fields(fields))
             elif operation == "update":
                 task_id = change.get("task_id")
                 if type(task_id) is not int or task_id not in self.observed or task_id in seen or not fields:
@@ -205,7 +219,7 @@ class EveHarness:
                 seen.add(task_id)
                 snapshot = self.observed[task_id]
                 plan.append({"operation": operation, "task_id": task_id, "before": snapshot, "fields": fields})
-                labels.append(f"Изменить «{snapshot['text']}» (#{task_id}): " + json.dumps(fields, ensure_ascii=False))
+                labels.append(f"Изменить «{snapshot['text']}» (#{task_id}): " + describe_fields(fields))
             else:
                 raise ValueError("Поддерживаются только create и update.")
         proposal_id = uuid.uuid4().hex

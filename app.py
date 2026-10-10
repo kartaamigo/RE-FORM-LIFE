@@ -32,6 +32,7 @@ from eve_local import (
     tts_status,
 )
 from eve_speechkit import VOICES as YANDEX_VOICES, speechkit_status, synthesize_speechkit, transcribe_speechkit
+from eve_harness import SCHEMA as HARNESS_SCHEMA, ConfirmationRequired, EveHarness, confirm_proposal, relevant_memories, tool_declarations
 
 
 APP_NAME = "RE:FORM LIFE"
@@ -412,6 +413,7 @@ def get_db() -> sqlite3.Connection:
         conn.execute("PRAGMA synchronous = FULL")
         conn.execute("PRAGMA busy_timeout = 5000")
         conn.executescript(SCHEMA)
+        conn.executescript(HARNESS_SCHEMA)
         ensure_legacy_columns(conn)
         seed_sections(conn)
         ensure_assistant_settings(conn)
@@ -1320,7 +1322,7 @@ def api_assistant_chat_history_delete():
 
 @app.post("/api/assistant/chat")
 def api_assistant_chat():
-    """Pure conversation endpoint: it never parses or executes commands."""
+    """Conversation with read-only application tools; never changes data."""
     try:
         data = body()
         text = require_text(data.get("text"), "Сообщение", 1000)
@@ -1332,7 +1334,8 @@ def api_assistant_chat():
         memories = [item["fact"] for item in assistant_memories()] if settings["personalization_enabled"] else []
         if not settings["gemini_enabled"]:
             return json_error("Разговорная модель Gemini выключена в настройках EVE.", 503)
-        reply = generate_gemini_reply(text, settings["gemini_model"], history, memories)
+        result = assistant_harness_reply(text, settings, history, memories, allow_changes=False)
+        reply = result["reply"]
         provider = "gemini"
         record_assistant_chat_message("user", text)
         record_assistant_chat_message("assistant", reply)
@@ -1341,6 +1344,18 @@ def api_assistant_chat():
         return json_error(str(exc), 503)
     except ValueError as exc:
         return json_error(str(exc))
+
+
+def assistant_harness_reply(text, settings, history, memories, *, allow_changes=True):
+    harness = EveHarness(get_db(), memories, allow_changes=allow_changes)
+    try:
+        reply = generate_gemini_reply(
+            text, settings["gemini_model"], history, relevant_memories(text, memories),
+            context=harness.context(), tools=tool_declarations(allow_changes), execute_tool=harness.execute,
+        )
+        return {"ok": True, "action": "gemini_reply", "provider": "gemini", "model": settings["gemini_model"], "reply": reply}
+    except ConfirmationRequired as exc:
+        return exc.payload
 
 
 @app.get("/api/assistant/memories")
@@ -1390,6 +1405,10 @@ def api_assistant_command():
                 "reply": "Я не запускаю произвольные команды терминала и скрипты. Попроси открыть приложение, папку или сайт либо используй одну из поддерживаемых команд.",
             })
         confirmation_phrase = normalize_text(text)
+        if not assistant_pending_actions and confirmation_phrase in {"да", "подтверждаю", "подтвердить", "подтверждаю действие", "нет", "отмена", "отменяю", "не надо"}:
+            proposal = get_db().execute("SELECT id FROM assistant_task_proposals WHERE status='pending' AND created_at>? ORDER BY created_at DESC LIMIT 1", (time.time() - 600,)).fetchone()
+            if proposal is not None:
+                return jsonify(confirm_proposal(get_db(), proposal["id"], confirmation_phrase in {"да", "подтверждаю", "подтвердить", "подтверждаю действие"}))
         if confirmation_phrase in {"да", "подтверждаю", "подтвердить", "подтверждаю действие"} and assistant_pending_actions:
             confirmation_id, pending = max(
                 assistant_pending_actions.items(),
@@ -1648,14 +1667,7 @@ def api_assistant_command():
                     "reply": "Разговорная модель Gemini выключена в настройках EVE.",
                 })
             try:
-                reply = generate_gemini_reply(text, settings["gemini_model"], history, memories)
-                return jsonify({
-                    "ok": True,
-                    "action": "gemini_reply",
-                    "provider": "gemini",
-                    "model": settings["gemini_model"],
-                    "reply": reply,
-                })
+                return jsonify(assistant_harness_reply(text, settings, history, memories))
             except LocalProviderError as exc:
                 return jsonify({
                     "ok": True,
@@ -1673,7 +1685,16 @@ def api_assistant_confirm():
     confirmation_id = optional_text(data.get("confirmation_id"), 80)
     pending = assistant_pending_actions.pop(confirmation_id, None)
     if pending is None:
-        return json_error("Подтверждение не найдено или уже истекло.", 404)
+        proposal = get_db().execute("SELECT id FROM assistant_task_proposals WHERE id=?", (confirmation_id,)).fetchone()
+        if proposal is None:
+            return json_error("Подтверждение не найдено или уже истекло.", 404)
+        try:
+            result = confirm_proposal(get_db(), confirmation_id, bool(parse_bool(data.get("approved"))))
+            record_assistant_message("user", "Подтверждаю изменения задач." if parse_bool(data.get("approved")) else "Отменяю изменения задач.")
+            record_assistant_message("assistant", result["reply"])
+            return jsonify(result)
+        except ValueError as exc:
+            return json_error(str(exc), 409)
     if datetime.now().timestamp() - float(pending.get("created_at", 0)) > 600:
         return json_error("Подтверждение истекло. Повтори команду.", 410)
     if not parse_bool(data.get("approved")):

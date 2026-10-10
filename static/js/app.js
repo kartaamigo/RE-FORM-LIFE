@@ -1355,6 +1355,7 @@ async function initAssistantChat() {
       });
       await answer(result.reply || (approved ? 'Действие выполнено.' : 'Команда отменена.'));
       if (['savings_operation', 'meter_reading', 'meter_submission'].includes(result.action)) announceDataChange('finance');
+      if (result.action === 'task_changes') announceDataChange('tasks');
       if (result.action === 'create_folder') announceDataChange('assistant');
     } catch (error) {
       await answer(error.message || 'Не удалось обработать подтверждение.');
@@ -1554,7 +1555,7 @@ async function initAssistantChat() {
         window.setTimeout(() => { window.location.href = result.target || '/week'; }, 420);
         return;
       }
-      if (['create_task', 'complete_task', 'reschedule_task'].includes(result.action)) announceDataChange('tasks');
+      if (['create_task', 'complete_task', 'reschedule_task', 'task_changes'].includes(result.action)) announceDataChange('tasks');
       if (result.action === 'needs_confirmation') {
         state.pendingConfirmation = { id: result.confirmation_id, label: result.confirmation_label || result.reply };
         await answer(result.reply || 'Подтверди действие.');
