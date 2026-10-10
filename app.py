@@ -1674,7 +1674,7 @@ def api_assistant_command():
         if parsed.intent in {"complete_task", "reschedule_task"}:
             task = find_assistant_task(parsed.query, parsed.scope)
             if task is None:
-                if assistant_settings_payload()["gemini_enabled"]:
+                if custom_command is None and assistant_settings_payload()["gemini_enabled"]:
                     return assistant_harness_command(text)
                 return jsonify({"ok": True, "action": "not_found", "reply": "Не нашла такую активную задачу. Назови её точнее."})
             db = get_db()

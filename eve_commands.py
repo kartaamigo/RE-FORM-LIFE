@@ -88,9 +88,10 @@ def list_commands(db) -> list[dict]:
 
 def save_command(db, data, command_id=None) -> dict:
     item = validate_definition(data)
-    if command_id is None and db.execute("SELECT COUNT(*) FROM assistant_commands").fetchone()[0] >= 100:
-        raise ValueError("Можно сохранить до 100 своих команд.")
     try:
+        db.execute("BEGIN IMMEDIATE")
+        if command_id is None and db.execute("SELECT COUNT(*) FROM assistant_commands").fetchone()[0] >= 100:
+            raise ValueError("Можно сохранить до 100 своих команд.")
         if command_id is None:
             cursor = db.execute("INSERT INTO assistant_commands(name,phrase,normalized_phrase,template,mode,enabled) VALUES(:name,:phrase,:normalized_phrase,:template,:mode,:enabled)", item)
             command_id = cursor.lastrowid
@@ -102,6 +103,9 @@ def save_command(db, data, command_id=None) -> dict:
     except sqlite3.IntegrityError as exc:
         db.rollback()
         raise ValueError("Команда с такой фразой уже существует.") from exc
+    except Exception:
+        db.rollback()
+        raise
     return next(item for item in list_commands(db) if item["id"] == command_id)
 
 
@@ -109,8 +113,8 @@ def import_commands(db, data) -> int:
     if not isinstance(data, dict) or set(data) != {"version", "commands"} or type(data.get("version")) is not int or data["version"] != 1 or not isinstance(data.get("commands"), list):
         raise ValueError("Нужен файл команд EVE версии 1.")
     definitions = data["commands"]
-    if not 1 <= len(definitions) <= 100:
-        raise ValueError("В файле должно быть от 1 до 100 команд.")
+    if len(definitions) > 100:
+        raise ValueError("В файле должно быть не больше 100 команд.")
     items = [validate_definition(item) for item in definitions]
     phrases = [item["normalized_phrase"] for item in items]
     if len(set(phrases)) != len(phrases):

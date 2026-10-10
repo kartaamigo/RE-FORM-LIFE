@@ -3484,7 +3484,7 @@ body[data-page="assistant"] .assistant-voice-visualizer {
 .assistant-command-entry .button { margin: 4px 6px 4px 0; white-space: normal; text-align: left; }
 .assistant-command-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
 .assistant-command-library textarea { width: 100%; resize: vertical; min-height: 64px; padding: 10px; border-radius: 8px; color: inherit; background: rgba(0, 0, 0, .18); border: 1px solid rgba(150, 160, 200, .25); }
-.assistant-command-library .assistant-setting-field { display: grid; gap: 6px; margin: 12px 0; font-size: 13px; }
+.assistant-command-library .assistant-setting-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin: 12px 0; font-size: 13px; }
 .assistant-command-library .assistant-setting-field input,
 .assistant-command-library .assistant-setting-field select { width: 100%; min-width: 0; padding: 10px; border-radius: 8px; color: inherit; background: #20253a; border: 1px solid rgba(150, 160, 200, .25); font: inherit; }
 .assistant-command-library input::placeholder,

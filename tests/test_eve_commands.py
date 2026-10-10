@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -137,6 +138,22 @@ class UserCommandTests(unittest.TestCase):
         with patch.object(app_module, "generate_gemini_reply", return_value="Расскажи подробнее."):
             result = self.client.post("/api/assistant/command", json={"text": "быстроеходное судно"})
         self.assertEqual(result.get_json()["action"], "gemini_reply")
+
+    def test_local_alias_does_not_send_missing_task_to_model(self):
+        self.create(template="отметь задачу купить молоко выполненной")
+        with patch.object(app_module, "generate_gemini_reply") as model:
+            result = self.client.post("/api/assistant/command", json={"text": "старт дня"})
+        self.assertEqual(result.get_json()["action"], "not_found")
+        model.assert_not_called()
+
+    def test_starter_pack_import_and_empty_export(self):
+        empty = self.client.get("/api/assistant/commands/export").get_json()
+        self.assertEqual(self.client.post("/api/assistant/commands/import", json=empty).get_json()["imported"], 0)
+        path = Path(__file__).resolve().parents[1] / "docs" / "examples" / "eve-commands.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        result = self.client.post("/api/assistant/commands/import", json=data)
+        self.assertEqual(result.status_code, 201)
+        self.assertEqual(result.get_json()["imported"], 3)
 
 
 if __name__ == "__main__":

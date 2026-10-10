@@ -54,6 +54,18 @@ endpoint.
 
 ## Optional Yandex SpeechKit voice
 
+## Command library and user phrases
+
+The EVE page includes **Основные и мои команды**: 15 built-in examples and a
+user-command editor. Custom phrases expand once into a checked basic command
+or an AI request, optionally substituting one `{text}` argument. Users can
+edit, disable, export and atomically import command packs without changing code.
+Basic custom commands stay local even when a task cannot be uniquely resolved;
+AI templates use the existing Gemini harness. See [the user guide](docs/EVE_COMMANDS.md)
+and [the starter pack](docs/examples/eve-commands.json).
+
+## Optional Yandex SpeechKit voice
+
 EVE can use the official Yandex Cloud SpeechKit API for microphone recognition
 and spoken answers. This is a speech service; Gemini still writes replies.
 The default speech mode remains local. In SpeechKit mode, microphone clips from
