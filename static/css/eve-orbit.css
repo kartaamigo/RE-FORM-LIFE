@@ -17,8 +17,8 @@ body[data-page="assistant"] .assistant-orbit-panel {
   transition: transform 120ms ease-out, opacity 300ms ease;
   filter: drop-shadow(0 16px 32px rgba(5, 10, 32, .3));
 }
-.assistant-orbit-panel .assistant-voice-orb-ring,
-.assistant-orbit-panel .assistant-voice-orb-core {
+.assistant-orbit-panel[data-voice-state] .assistant-voice-orb-ring,
+.assistant-orbit-panel[data-voice-state] .assistant-voice-orb-core {
   border: 0;
   border-radius: 50%;
   opacity: 1;
@@ -39,6 +39,11 @@ body[data-page="assistant"] .assistant-orbit-panel {
 }
 .assistant-orbit-panel[data-voice-state="listening"] .assistant-voice-orb-ring {
   animation: eve-orbit-listen 2s ease-in-out infinite;
+}
+.assistant-orbit-panel.is-listening:not(.is-speaking) .assistant-voice-orb-ring-one {
+  animation: eve-orbit-listen 2s ease-in-out infinite;
+  opacity: 1;
+  border: 0;
 }
 .assistant-orbit-panel[data-voice-state="processing"] .assistant-voice-orb-ring {
   animation: eve-orbit-think 1.8s ease-in-out infinite;
@@ -62,6 +67,14 @@ body[data-page="assistant"] .assistant-orbit-panel {
 .assistant-orbit-actions .button { border: 1px solid rgba(140, 157, 222, .22); background: rgba(40, 53, 90, .5); }
 .assistant-orbit-actions .button:hover { background: rgba(77, 103, 255, .2); border-color: #6079d6; }
 .assistant-orbit-actions .button:focus-visible { outline: 2px solid #a6b5ff; outline-offset: 3px; }
+body[data-page="assistant"] .assistant-chat-actions {
+  position: static;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
 @keyframes eve-orbit-listen { 50% { transform: scale(1.025); opacity: .85; } }
 @keyframes eve-orbit-think { 50% { transform: scale(.94); opacity: .65; } }
 @keyframes eve-orbit-speak { 35% { transform: scale(1.055); } 70% { transform: scale(.97); } }
