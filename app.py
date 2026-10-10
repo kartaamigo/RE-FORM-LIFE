@@ -32,7 +32,7 @@ from eve_local import (
     tts_status,
 )
 from eve_speechkit import VOICES as YANDEX_VOICES, speechkit_status, synthesize_speechkit, transcribe_speechkit
-from eve_harness import SCHEMA as HARNESS_SCHEMA, ConfirmationRequired, EveHarness, confirm_proposal, relevant_memories, tool_declarations
+from eve_harness import SCHEMA as HARNESS_SCHEMA, ConfirmationRequired, EveHarness, confirm_proposal, pending_proposal, relevant_memories, tool_declarations
 
 
 APP_NAME = "RE:FORM LIFE"
@@ -71,6 +71,7 @@ RETIRED_GEMINI_MODELS = {"gemini-2.5-flash-lite"}
 assistant_pending_actions: dict[str, dict[str, Any]] = {}
 _recent_voice_commands: dict[str, float] = {}
 _recent_voice_commands_lock = threading.Lock()
+_assistant_harness_lock = threading.Lock()
 _VOICE_COMMAND_SOURCES = {"local_voice", "browser_voice", "background"}
 _VOICE_DEDUPE_SECONDS = 3.0
 
@@ -1295,6 +1296,7 @@ def api_assistant_history_get():
 def api_assistant_history_delete():
     db = get_db()
     db.execute("DELETE FROM assistant_history")
+    db.execute("UPDATE assistant_task_proposals SET status='cancelled' WHERE status='pending'")
     db.commit()
     return jsonify({"ok": True})
 
@@ -1347,8 +1349,10 @@ def api_assistant_chat():
 
 
 def assistant_harness_reply(text, settings, history, memories, *, allow_changes=True):
-    harness = EveHarness(get_db(), memories, allow_changes=allow_changes)
+    if not _assistant_harness_lock.acquire(blocking=False):
+        raise LocalProviderError("EVE ещё обрабатывает предыдущий запрос. Дождись ответа.")
     try:
+        harness = EveHarness(get_db(), memories, allow_changes=allow_changes)
         reply = generate_gemini_reply(
             text, settings["gemini_model"], history, relevant_memories(text, memories),
             context=harness.context(), tools=tool_declarations(allow_changes), execute_tool=harness.execute,
@@ -1356,6 +1360,13 @@ def assistant_harness_reply(text, settings, history, memories, *, allow_changes=
         return {"ok": True, "action": "gemini_reply", "provider": "gemini", "model": settings["gemini_model"], "reply": reply}
     except ConfirmationRequired as exc:
         return exc.payload
+    finally:
+        _assistant_harness_lock.release()
+
+
+@app.get("/api/assistant/proposals/pending")
+def api_assistant_pending_proposal():
+    return jsonify({"ok": True, "proposal": pending_proposal(get_db())})
 
 
 @app.get("/api/assistant/memories")

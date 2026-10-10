@@ -88,7 +88,7 @@ def _fields(db, args: dict) -> dict:
                 raise ValueError("Время должно иметь формат HH:MM или null.")
             result[key] = value
         elif key == "scope":
-            if value not in {"planner", "tasks"}:
+            if not isinstance(value, str) or value not in {"planner", "tasks"}:
                 raise ValueError("Раздел должен быть planner или tasks.")
             result[key] = value
         elif key == "section":
@@ -116,6 +116,12 @@ def tool_declarations(allow_changes: bool) -> list[dict]:
         "name": "list_habits", "description": "Получить активные привычки и отметки на указанную дату.",
         "parameters": {"type": "OBJECT", "properties": {"date": string}},
     }, {
+        "name": "finance_summary", "description": "Получить суммы доходов/расходов и категории за месяц YYYY-MM. Суммы в копейках; без изменения финансов.",
+        "parameters": {"type": "OBJECT", "properties": {"month": string}},
+    }, {
+        "name": "utility_payments", "description": "Получить до 50 начисленных коммунальных платежей за месяц YYYY-MM, сроки и отметки оплаты. Не включает номера счетов и адреса.",
+        "parameters": {"type": "OBJECT", "properties": {"month": string}},
+    }, {
         "name": "search_memories", "description": "Найти явно сохранённые пользователем факты. Учитывает выключение персональной памяти.",
         "parameters": {"type": "OBJECT", "properties": {"query": string}, "required": ["query"]},
     }]
@@ -142,6 +148,7 @@ class EveHarness:
         self.memories = memories
         self.allow_changes = allow_changes
         self.observed: dict[int, dict] = {}
+        self.db.create_function("eve_casefold", 1, lambda value: str(value or "").casefold())
 
     def context(self) -> str:
         sections = [row["name"] for row in self.db.execute("SELECT name FROM sections WHERE archived=0 ORDER BY id LIMIT 50")]
@@ -150,7 +157,7 @@ class EveHarness:
             f"завтра: {(date.today() + timedelta(days=1)).isoformat()}. "
             f"Доступные колонки задач (данные): {json.dumps(sections, ensure_ascii=False)}. "
             "planner — недельный планер; tasks — доска задач. "
-            "Доступны чтение задач, привычек и сохранённой памяти. "
+            "Доступны чтение задач, привычек, сводки финансов, коммунальных платежей и сохранённой памяти. "
             + ("Изменения задач требуют подтверждения. " if self.allow_changes else "В этом режиме изменение данных недоступно. ")
             + "Не обещай напоминания и фоновые действия: таких инструментов нет. "
             "При недоступном действии объясни ограничение и предложи доступный шаг."
@@ -172,7 +179,7 @@ class EveHarness:
                     clauses.append(f"{key}=?")
                     params.append(value)
             if "query" in args:
-                clauses.append("instr(lower(text), lower(?)) > 0")
+                clauses.append("instr(eve_casefold(text), eve_casefold(?)) > 0")
                 params.append(_text(args["query"]))
             offset = args.get("offset", 0)
             if type(offset) is not int or not 0 <= offset <= 10000:
@@ -192,6 +199,20 @@ class EveHarness:
             _properties(args, {"query"})
             query = _text(args.get("query"))
             return {"ok": True, "facts": relevant_memories(query, [fact for fact in self.memories if set(re.findall(r"\w{3,}", query.casefold())) & set(re.findall(r"\w{3,}", fact.casefold()))])}
+        if name in {"finance_summary", "utility_payments"}:
+            _properties(args, {"month"})
+            month = args.get("month", date.today().strftime("%Y-%m"))
+            if not isinstance(month, str) or not re.fullmatch(r"\d{4}-\d{2}", month):
+                raise ValueError("Месяц должен иметь формат YYYY-MM.")
+            _date(month + "-01")
+            if name == "finance_summary":
+                rows = self.db.execute("SELECT kind,category,SUM(amount_minor) AS amount_minor FROM transactions WHERE transaction_date LIKE ? GROUP BY kind,category ORDER BY kind,amount_minor DESC", (month + "-%",)).fetchall()
+                income = sum(row["amount_minor"] for row in rows if row["kind"] == "income")
+                expense = sum(row["amount_minor"] for row in rows if row["kind"] == "expense")
+                return {"ok": True, "month": month, "currency": "RUB", "income_minor": income, "expense_minor": expense, "balance_minor": income - expense, "categories": [dict(row) for row in rows[:50]], "categories_truncated": len(rows) > 50}
+            total = self.db.execute("SELECT COUNT(*) FROM utility_payments p JOIN utility_accounts a ON a.id=p.account_id WHERE a.archived=0 AND p.billing_month=?", (month,)).fetchone()[0]
+            rows = self.db.execute("SELECT p.id,a.name,p.billing_month,p.due_date,p.amount_minor,p.status FROM utility_payments p JOIN utility_accounts a ON a.id=p.account_id WHERE a.archived=0 AND p.billing_month=? ORDER BY p.due_date,p.id LIMIT 50", (month,)).fetchall()
+            return {"ok": True, "month": month, "currency": "RUB", "payments": [dict(row) for row in rows], "total": total, "truncated": total > 50}
         if name != "propose_task_changes" or not self.allow_changes:
             raise ValueError("Этот инструмент недоступен.")
         _properties(args, {"changes"})
@@ -223,12 +244,25 @@ class EveHarness:
             else:
                 raise ValueError("Поддерживаются только create и update.")
         proposal_id = uuid.uuid4().hex
+        self.db.execute("UPDATE assistant_task_proposals SET status='superseded' WHERE status='pending'")
         self.db.execute("INSERT INTO assistant_task_proposals(id,payload,created_at) VALUES(?,?,?)", (proposal_id, json.dumps(plan, ensure_ascii=False), time.time()))
         self.db.commit()
         # Stop before another model/tool step; no model-generated success claim.
         preview = "\n".join(labels)
         raise ConfirmationRequired({"ok": True, "action": "needs_confirmation", "confirmation_id": proposal_id,
                                     "confirmation_label": preview, "reply": "Предлагаю изменения:\n" + preview + "\nПодтверди или отмени этот список. Пока ничего не изменено."})
+
+
+def pending_proposal(db) -> dict | None:
+    row = db.execute("SELECT * FROM assistant_task_proposals WHERE status='pending' AND created_at>? ORDER BY created_at DESC LIMIT 1", (time.time() - 600,)).fetchone()
+    if row is None:
+        return None
+    labels = []
+    for change in json.loads(row["payload"]):
+        text = change["fields"]["text"] if change["operation"] == "create" else change["before"]["text"]
+        verb = "Создать" if change["operation"] == "create" else "Изменить"
+        labels.append(f"{verb} «{text}»: " + describe_fields(change["fields"]))
+    return {"id": row["id"], "label": "\n".join(labels)}
 
 
 def confirm_proposal(db, proposal_id: str, approved: bool) -> dict:

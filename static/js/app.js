@@ -1133,7 +1133,7 @@ async function initAssistantChat() {
       ? state.log.map(item => `<div class="assistant-log-item ${item.role}"><span class="assistant-log-avatar">${item.role === 'user' ? 'Я' : '✦'}</span><div><small>${item.role === 'user' ? 'Ты' : 'Эва'}</small><p>${escapeHtml(item.role === 'assistant' ? cleanAssistantText(item.text) : item.text)}</p></div></div>`).join('')
       : '<div class="assistant-log-empty">Здесь появится история ваших сообщений и ответов Эвы.</div>';
     const confirmationMarkup = state.pendingConfirmation
-      ? `<div class="assistant-confirm-card" role="alert"><div><small>ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ</small><p>${escapeHtml(state.pendingConfirmation.label || 'Опасное действие')}</p></div><div class="assistant-confirm-actions"><button class="button primary small" data-assistant-confirm="approve" type="button">Подтвердить</button><button class="button ghost small" data-assistant-confirm="cancel" type="button">Отмена</button></div><span>Можно также сказать: «Эва, подтверждаю».</span></div>`
+      ? `<div class="assistant-confirm-card" role="alert"><div><small>ТРЕБУЕТСЯ ПОДТВЕРЖДЕНИЕ</small><p>${escapeHtml(state.pendingConfirmation.label || 'Действие').replace(/\n/g, '<br>')}</p></div><div class="assistant-confirm-actions"><button class="button primary small" data-assistant-confirm="approve" type="button">Подтвердить</button><button class="button ghost small" data-assistant-confirm="cancel" type="button">Отмена</button></div><span>Можно также сказать: «Эва, подтверждаю».</span></div>`
       : '';
     root.innerHTML = historyMarkup + confirmationMarkup;
     root.querySelector('[data-assistant-confirm="approve"]')?.addEventListener('click', () => confirmPending(true));
@@ -1445,6 +1445,8 @@ async function initAssistantChat() {
   const loadAssistantHistory = async () => {
     try {
       const result = await api(`/api/assistant/history?limit=${maxHistoryMessages}`);
+      const pending = await api('/api/assistant/proposals/pending');
+      state.pendingConfirmation = pending.proposal || null;
       const messages = Array.isArray(result.messages) ? result.messages : [];
       if (messages.length) {
         state.log = messages
@@ -1738,7 +1740,7 @@ async function initAssistantChat() {
   document.addEventListener('keydown', event => { if (event.key === 'Escape' && settingsBackdrop && !settingsBackdrop.hidden) setSettingsOpen(false); });
   $('#assistantSend')?.addEventListener('click', () => execute(commandInput?.value));
   $('#assistantComposerHelp')?.addEventListener('click', () => {
-    if (interim) interim.textContent = 'Можно спросить о чём угодно, попросить создать задачу или изменить настройки компьютера.';
+    if (interim) interim.textContent = 'Попробуй: «Помоги спланировать завтра по моим задачам», «Какие привычки я отметила сегодня?» или «Предложи перенос незавершённых дел». Изменения от ИИ появятся для подтверждения.';
     commandInput?.focus();
   });
   commandInput?.addEventListener('input', resizeComposer);
@@ -1753,6 +1755,7 @@ async function initAssistantChat() {
     try {
       await api('/api/assistant/history', { method: 'DELETE' });
       state.log = [];
+      state.pendingConfirmation = null;
       saveLog();
       renderLog();
       if (status) status.textContent = 'История очищена. Я готова к новой команде.';

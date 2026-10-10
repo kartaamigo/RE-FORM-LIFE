@@ -360,7 +360,7 @@ def generate_gemini_reply(
                     raise LocalProviderError("Модель вернула некорректный вызов инструмента.")
                 name = call.get("name")
                 args = call.get("args", {})
-                if name not in allowed_tools or not isinstance(args, dict):
+                if not isinstance(name, str) or name not in allowed_tools or not isinstance(args, dict):
                     raise LocalProviderError("Модель запросила неизвестный инструмент или неверные аргументы.")
                 try:
                     result = execute_tool(name, args)
