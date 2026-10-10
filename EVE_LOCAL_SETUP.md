@@ -52,8 +52,6 @@ availability can change. The key is read only from the environment, never
 stored in the application database, and sent only to the official Gemini HTTPS
 endpoint.
 
-## Optional Yandex SpeechKit voice
-
 ## Command library and user phrases
 
 The EVE page includes **Основные и мои команды**: 15 built-in examples and a
