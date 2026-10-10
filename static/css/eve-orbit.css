@@ -1,16 +1,34 @@
 /* EVE's existing layout, with a layered avatar inspired by the video reference. */
-body[data-page="assistant"] { background: #12182a !important; }
-body[data-page="assistant"] .sidebar { background: #111827 !important; }
+/* Swatches sampled from the supplied Twinkle JPG, without lighting effects. */
+body[data-page="assistant"] {
+  --bg: #494d56;
+  --sidebar: #202332;
+  --panel: #202332;
+  --panel-deep: #202332;
+  --panel-soft: #434e60;
+  --line: #434e60;
+  --line-bright: #8b9a9f;
+  --text: #f4f1eb;
+  --muted: #8b9a9f;
+  --dim: #8b9a9f;
+  --pink: #bc9876;
+  --pink-soft: #434e60;
+  --purple: #bc9876;
+  color: var(--text);
+}
+body[data-page="assistant"] { background: #494d56 !important; }
+body[data-page="assistant"] .sidebar { background: #202332 !important; }
 body[data-page="assistant"] .assistant-chat-shell {
-  background: #192035 !important;
+  background: #202332 !important;
   border-radius: 16px;
   box-shadow: none;
 }
 body[data-page="assistant"] .assistant-chat-log { background: transparent; }
-body[data-page="assistant"] .assistant-chat-compose { background: #1d263d !important; }
-body[data-page="assistant"] .assistant-chat-log .assistant-log-item.user { background: #26324b; }
+body[data-page="assistant"] .assistant-chat-compose { background: #434e60 !important; }
+body[data-page="assistant"] .assistant-chat-log .assistant-log-item.user { background: #bc9876; }
+body[data-page="assistant"] .assistant-chat-log .assistant-log-item.user p { color: #202332; }
 body[data-page="assistant"] .assistant-chat-log .assistant-log-item.assistant .assistant-log-avatar {
-  background: #4d67ff;
+  background: #bc9876;
   box-shadow: none;
 }
 body[data-page="assistant"] .button { background-image: none; }
@@ -21,14 +39,14 @@ body[data-page="assistant"] .assistant-chat-actions .assistant-clear-log {
   flex-shrink: 0;
 }
 body[data-page="assistant"] .assistant-orbit-panel {
-  background: #192035 !important;
-  border-color: rgba(111, 134, 255, .28);
+  background: #202332 !important;
+  border-color: #434e60;
   border-radius: 16px;
   box-shadow: none;
 }
 .assistant-orbit-panel::before,
 .assistant-orbit-panel::after { display: none; }
-.assistant-orbit-panel .section-kicker { color: #a6b5ff; letter-spacing: 2.5px; }
+.assistant-orbit-panel .section-kicker { color: #bc9876; letter-spacing: 2.5px; }
 .assistant-orbit-panel .assistant-voice-orb {
   --voice-level: 0;
   width: min(300px, 100%);
@@ -51,13 +69,13 @@ body[data-page="assistant"] .assistant-orbit-panel {
   animation: none;
   transition: background 300ms ease, opacity 300ms ease;
 }
-.assistant-orbit-panel .assistant-voice-orb-ring-one { inset: 0; background: #263666; }
-.assistant-orbit-panel .assistant-voice-orb-ring-two { inset: 9%; background: #354b99; }
-.assistant-orbit-panel .assistant-voice-orb-ring-three { inset: 18%; background: #4560cc; }
-.assistant-orbit-panel .assistant-voice-orb-ring-four { inset: 27%; background: #4d67ff; }
+.assistant-orbit-panel .assistant-voice-orb-ring-one { inset: 0; background: #434e60; }
+.assistant-orbit-panel .assistant-voice-orb-ring-two { inset: 9%; background: #8b9a9f; }
+.assistant-orbit-panel .assistant-voice-orb-ring-three { inset: 18%; background: #bc9876; }
+.assistant-orbit-panel .assistant-voice-orb-ring-four { inset: 27%; background: #202332; }
 .assistant-orbit-panel .assistant-voice-orb-core {
   inset: 36%;
-  background: #7387ff;
+  background: #bc9876;
 }
 .assistant-orbit-panel[data-voice-state="listening"] .assistant-voice-orb-ring {
   animation: eve-orbit-listen 2s ease-in-out infinite;
@@ -74,21 +92,21 @@ body[data-page="assistant"] .assistant-orbit-panel {
   animation: eve-orbit-speak 1s ease-in-out infinite;
 }
 .assistant-orbit-panel[data-voice-state="speaking"] .assistant-voice-orb-core {
-  background: #8d4fe8;
+  background: #8b9a9f;
   animation: eve-orbit-speak .8s ease-in-out infinite;
 }
 .assistant-orbit-panel[data-voice-state] .assistant-voice-orb-ring-two { animation-delay: -.15s; }
 .assistant-orbit-panel[data-voice-state] .assistant-voice-orb-ring-three { animation-delay: -.3s; }
 .assistant-orbit-panel[data-voice-state] .assistant-voice-orb-ring-four { animation-delay: -.45s; }
 .assistant-orbit-panel[data-voice-state="confirmation"] .assistant-voice-orb-core {
-  background: #e9b95e;
+  background: #bc9876;
 }
 .assistant-orbit-panel[data-voice-state="off"] .assistant-voice-orb { opacity: .35; }
 .assistant-orbit-panel > p { max-width: 260px; text-align: center; line-height: 1.6; }
 .assistant-orbit-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 24px; z-index: 2; }
-.assistant-orbit-actions .button { border: 1px solid rgba(140, 157, 222, .22); background: rgba(40, 53, 90, .5); }
-.assistant-orbit-actions .button:hover { background: rgba(77, 103, 255, .2); border-color: #6079d6; }
-.assistant-orbit-actions .button:focus-visible { outline: 2px solid #a6b5ff; outline-offset: 3px; }
+.assistant-orbit-actions .button { border: 1px solid #434e60; background: #434e60; }
+.assistant-orbit-actions .button:hover { background: #bc9876; border-color: #bc9876; }
+.assistant-orbit-actions .button:focus-visible { outline: 2px solid #bc9876; outline-offset: 3px; }
 body[data-page="assistant"] .assistant-chat-actions {
   position: static;
   display: flex;
@@ -97,6 +115,56 @@ body[data-page="assistant"] .assistant-chat-actions {
   gap: 10px;
   margin-top: 14px;
 }
+body[data-page="assistant"] .assistant-chat-shell { border-color: #434e60 !important; }
+body[data-page="assistant"] .section-kicker { color: #bc9876; }
+body[data-page="assistant"] .assistant-chat-header p,
+body[data-page="assistant"] .assistant-chat-log small,
+body[data-page="assistant"] .assistant-chat-log .assistant-log-empty,
+body[data-page="assistant"] .assistant-dialog-status,
+body[data-page="assistant"] .assistant-interim,
+body[data-page="assistant"] .assistant-native-status,
+body[data-page="assistant"] .assistant-orbit-panel > p { color: #8b9a9f; }
+body[data-page="assistant"] .assistant-chat-log { scrollbar-color: #8b9a9f #202332; }
+body[data-page="assistant"] .assistant-chat-compose .assistant-dialog-composer {
+  background: #202332;
+  border: 1px solid #8b9a9f;
+  box-shadow: none;
+}
+body[data-page="assistant"] .assistant-dialog-composer:focus-within { outline: 2px solid #bc9876; outline-offset: 2px; }
+body[data-page="assistant"] .assistant-chat-actions .assistant-hero-badge { background: #434e60; border-color: #434e60; color: #bc9876; }
+body[data-page="assistant"] .assistant-chat-actions .assistant-clear-log,
+body[data-page="assistant"] .assistant-settings-toggle,
+body[data-page="assistant"] .assistant-settings-close,
+body[data-page="assistant"] .assistant-composer-tool,
+body[data-page="assistant"] .assistant-composer-send,
+body[data-page="assistant"] .assistant-model-label { color: #bc9876; }
+body[data-page="assistant"] .assistant-composer-mic { color: #8b9a9f; }
+body[data-page="assistant"] .assistant-composer-mic.listening,
+body[data-page="assistant"] .assistant-settings-toggle:hover,
+body[data-page="assistant"] .assistant-settings-toggle[aria-expanded="true"] { color: #202332; background: #bc9876; box-shadow: none; }
+body[data-page="assistant"] .assistant-command-library,
+body[data-page="assistant"] .assistant-command-entry { border-color: #434e60; }
+body[data-page="assistant"] .assistant-command-library input,
+body[data-page="assistant"] .assistant-command-library select,
+body[data-page="assistant"] .assistant-command-library textarea,
+body[data-page="assistant"] .assistant-settings-panel input:not([type="checkbox"]),
+body[data-page="assistant"] .assistant-settings-panel select { background: #434e60; color: #f4f1eb; border-color: #8b9a9f; }
+body[data-page="assistant"] input::placeholder,
+body[data-page="assistant"] textarea::placeholder { color: #8b9a9f; }
+body[data-page="assistant"] input[type="checkbox"] { accent-color: #bc9876; }
+body[data-page="assistant"] .button.primary { background: #bc9876 !important; color: #202332; border-color: #bc9876; }
+body[data-page="assistant"] .button.ghost { color: #f4f1eb; border-color: #8b9a9f; }
+body[data-page="assistant"] .assistant-orbit-actions .button:hover { color: #202332; }
+body[data-page="assistant"] .assistant-settings-drawer { background: #202332; border-color: #434e60; box-shadow: none; }
+body[data-page="assistant"] .assistant-settings-panel { background: #202332; border-color: #434e60; box-shadow: none; }
+body[data-page="assistant"] .assistant-confirm-card { background: #434e60; border-color: #bc9876; }
+body[data-page="assistant"] .assistant-confirm-card small { color: #bc9876; }
+body[data-page="assistant"] .nav-link { color: #8b9a9f; }
+body[data-page="assistant"] .nav-link img { filter: grayscale(1) brightness(1.7); }
+body[data-page="assistant"] .nav-link.active span { background: #bc9876 !important; color: #202332 !important; }
+body[data-page="assistant"] .nav-link:hover span { color: #bc9876; }
+body[data-page="assistant"] .brand { border-bottom-color: #434e60 !important; }
+body[data-page="assistant"] :is(button, input, textarea, select, summary, a):focus-visible { outline-color: #bc9876; }
 @keyframes eve-orbit-listen { 50% { transform: scale(1.025); opacity: .85; } }
 @keyframes eve-orbit-think { 50% { transform: scale(.94); opacity: .65; } }
 @keyframes eve-orbit-speak { 35% { transform: scale(1.055); } 70% { transform: scale(.97); } }
