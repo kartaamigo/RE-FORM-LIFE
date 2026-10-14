@@ -1,6 +1,6 @@
-# ������ ����� SQLite
+# Полная схема SQLite
 
-������ `299d311`. ���� �������� SCHEMA �� `app.py`, `eve_harness.py`, `eve_commands.py`, ��� ����������� � ���������������� ����. ��������� legacy-����� ����� ��������� �� ����.
+Снимок `299d311`. Точные исходные SCHEMA трёх модулей и legacy-совместимость. Пользовательская база не открывалась.
 
 ## app.py
 
@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_date TEXT NOT NULL,
     text TEXT NOT NULL,
-    section TEXT NOT NULL DEFAULT '������',
+    section TEXT NOT NULL DEFAULT 'Личное',
     scope TEXT NOT NULL DEFAULT 'planner',
     start_time TEXT,
     end_time TEXT,
@@ -237,13 +237,13 @@ CREATE TABLE IF NOT EXISTS assistant_memories (
 );
 ```
 
-### ������������� ������ ����
+### Совместимость старой базы
 
 ```python
 def ensure_legacy_columns(conn: sqlite3.Connection) -> None:
     """Bring databases created by the first version up to the current schema."""
     migrations = (
-        ("tasks", "section", "TEXT NOT NULL DEFAULT '������'"),
+        ("tasks", "section", "TEXT NOT NULL DEFAULT 'Личное'"),
         ("tasks", "scope", "TEXT NOT NULL DEFAULT 'planner'"),
         ("notes", "pinned", "INTEGER NOT NULL DEFAULT 0"),
         ("utility_accounts", "address", "TEXT NOT NULL DEFAULT ''"),
@@ -282,6 +282,4 @@ CREATE TABLE IF NOT EXISTS assistant_commands (
 );
 ```
 
-## ������� �������������
-
-����� ��������� ���������, �� �������� ���������������� ������. ������ � `amount_minor` �������� ������ ������������ ���������. ������� �� ���������� ��������� ���������� REAL. ���������� �� ��������� ��������� �� ������������� �������� � ������ ��������; ��� �� ������ � ��� SQL-�������. ��������� ����� ���� ������� ������ ��� �������� ����������.
+Деньги хранятся в целых amount_minor, показания используют REAL. Ожидающие действия ОС дополнительно хранятся в памяти процесса. Модельные пакеты — в assistant_task_proposals.
