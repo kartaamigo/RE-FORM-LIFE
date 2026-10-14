@@ -1,0 +1,65 @@
+# ��������� ���������: ������ ����������
+
+�������� ���������� �� ��������� ��������� � Python � spec-������ ������ `299d311`. ��� ����� ��������, �� �������� ���������. ��������� ���������� ����� ��������. ��������� SQLite � �������� JSON-�������� ����������� � ������ ������������.
+
+| ���������� | ����:������ |
+| --- | --- |
+| `EVE_SILERO_MODEL_DIR` | `ReFormLife.mac.spec:11` |
+| `EVE_BUILD_PROFILE` | `ReFormLife.spec:12` |
+| `EVE_BUILD_ONEFILE` | `ReFormLife.spec:15` |
+| `EVE_SILERO_MODEL_DIR` | `ReFormLife.spec:23` |
+| `EVE_QWEN_MODEL_DIR` | `ReFormLife.spec:27` |
+| `EVE_QWEN_BASE_MODEL_DIR` | `ReFormLife.spec:54` |
+| `REFORM_LIFE_DATA_DIR` | `app.py:102` |
+| `LOCALAPPDATA` | `app.py:106` |
+| `APPDATA` | `app.py:106` |
+| `REFORM_LIFE_DB` | `app.py:112` |
+| `GEMINI_MODEL` | `app.py:797` |
+| `APPDATA` | `eve_agent.py:174` |
+| `PROGRAMDATA` | `eve_agent.py:175` |
+| `SystemRoot` | `eve_agent.py:241` |
+| `LOCALAPPDATA` | `eve_agent.py:253` |
+| `PROGRAMFILES` | `eve_agent.py:254` |
+| `PROGRAMFILES(X86)` | `eve_agent.py:255` |
+| `SystemRoot` | `eve_agent.py:567` |
+| `REFORM_LIFE_DATA_DIR` | `eve_agent.py:623` |
+| `LOCALAPPDATA` | `eve_agent.py:627` |
+| `XDG_DATA_HOME` | `eve_agent.py:630` |
+| `EVE_VOSK_MODEL` | `eve_agent.py:634` |
+| `REFORM_LIFE_AUTOSTART_COMMAND` | `eve_agent.py:728` |
+| `EVE_AGENT_URL` | `eve_agent.py:941` |
+| `GEMINI_MODEL` | `eve_local.py:84` |
+| `EVE_QWEN_SAMPLE_VOICE_FILE` | `eve_local.py:95` |
+| `EVE_QWEN_SAMPLE_FINAL_VOICE_FILE` | `eve_local.py:96` |
+| `GEMINI_API_KEY` | `eve_local.py:224` |
+| `GOOGLE_API_KEY` | `eve_local.py:225` |
+| `GEMINI_API_KEY` | `eve_local.py:226` |
+| `GOOGLE_API_KEY` | `eve_local.py:227` |
+| `EVE_BUILD_PROFILE` | `eve_local.py:386` |
+| `EVE_SILERO_MODEL_DIR` | `eve_local.py:441` |
+| `EVE_QWEN_MODEL_DIR` | `eve_local.py:445` |
+| `LOCALAPPDATA` | `eve_local.py:449` |
+| `EVE_QWEN_BASE_MODEL_DIR` | `eve_local.py:474` |
+| `LOCALAPPDATA` | `eve_local.py:476` |
+| `REFORM_LIFE_DATA_DIR` | `eve_local.py:500` |
+| `LOCALAPPDATA` | `eve_local.py:503` |
+| `APPDATA` | `eve_local.py:503` |
+| `YANDEX_SPEECHKIT_API_KEY` | `eve_speechkit.py:26` |
+| `YANDEX_SPEECHKIT_FOLDER_ID` | `eve_speechkit.py:27` |
+| `YANDEX_SPEECHKIT_API_KEY` | `eve_speechkit.py:39` |
+| `YANDEX_SPEECHKIT_FOLDER_ID` | `eve_speechkit.py:40` |
+| `REFORM_LIFE_PORT` | `launcher.py:11` |
+| `YANDEX_SPEECHKIT_API_KEY` | `tests/test_eve_and_utilities.py:27` |
+| `YANDEX_SPEECHKIT_FOLDER_ID` | `tests/test_eve_and_utilities.py:27` |
+| `YANDEX_SPEECHKIT_API_KEY` | `tests/test_eve_and_utilities.py:41` |
+| `YANDEX_SPEECHKIT_FOLDER_ID` | `tests/test_eve_and_utilities.py:41` |
+| `GEMINI_API_KEY` | `tests/test_eve_and_utilities.py:52` |
+| `GEMINI_API_KEY` | `tests/test_eve_and_utilities.py:74` |
+| `GOOGLE_API_KEY` | `tests/test_eve_and_utilities.py:74` |
+| `GEMINI_API_KEY` | `tests/test_eve_and_utilities.py:80` |
+| `GOOGLE_API_KEY` | `tests/test_eve_and_utilities.py:80` |
+| `EVE_BUILD_PROFILE` | `tests/test_eve_and_utilities.py:91` |
+| `EVE_BUILD_PROFILE` | `tests/test_eve_and_utilities.py:112` |
+| `GEMINI_API_KEY` | `tests/test_eve_and_utilities.py:736` |
+
+��������� ����� (�������� ���������� ����� ���������� �������) ���������� �����������. ������ ��������� ��������� �� ����������� ������� ������������� ���������. �������� �������� � ���������� ������� � [��](AI.md) � [������������](OPERATIONS.md).
