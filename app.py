@@ -1122,6 +1122,11 @@ def page_habits():
     return render_template("habits.html", page_key="habits", page_title="Привычки", page_subtitle="Ритм, серии и ежедневные отметки")
 
 
+@app.route("/concept")
+def page_concept():
+    return render_template("concept.html")
+
+
 @app.get("/api/health")
 def api_health():
     get_db().execute("SELECT 1")

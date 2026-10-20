@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RE:FORM LIFE · Glass & Glow concept</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/concept.css') }}?v=1">
+</head>
+<body class="concept-page">
+  <div class="concept-shell">
+    <aside class="concept-sidebar">
+      <a class="concept-brand" href="{{ url_for('page_concept') }}" aria-label="RE:FORM LIFE">
+        <span class="brand-spark" aria-hidden="true">✦</span>
+        <span><strong>RE:FORM</strong><small>LIFE</small></span>
+      </a>
+
+      <div class="sidebar-label">МОЁ ПРОСТРАНСТВО</div>
+      <nav class="concept-nav" aria-label="Навигация концепта">
+        <a class="concept-nav-link active" href="#overview"><span class="nav-glyph">◈</span><span>Обзор</span><b>01</b></a>
+        <a class="concept-nav-link" href="#plan"><span class="nav-glyph">◷</span><span>Мой план</span><b>06</b></a>
+        <a class="concept-nav-link" href="#habits"><span class="nav-glyph">⌁</span><span>Привычки</span><b>03</b></a>
+        <a class="concept-nav-link" href="#notes"><span class="nav-glyph">□</span><span>Заметки</span><b>12</b></a>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="mini-profile"><span class="profile-dot"></span><span><strong>Мой ритм</strong><small>День 24 · спокойно</small></span><span class="more-dot">···</span></div>
+        <button class="sidebar-settings" type="button"><span>◌</span> Настройки</button>
+      </div>
+    </aside>
+
+    <main class="concept-main" id="overview">
+      <header class="concept-topbar">
+        <div>
+          <p class="date-line">ВТОРНИК, 20 ОКТЯБРЯ <span class="live-dot"></span></p>
+          <h1>Доброе утро, Амиго</h1>
+          <p class="topbar-copy">Соберём сегодняшний ритм без спешки.</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="round-icon" type="button" aria-label="Уведомления">♢<i></i></button>
+          <button class="profile-button" type="button" aria-label="Профиль"><span>А</span><small>Ам</small></button>
+        </div>
+      </header>
+
+      <section class="hero-card glass-card" aria-label="Фокус дня">
+        <div class="hero-copy">
+          <p class="eyebrow warm">ФОКУС ДНЯ</p>
+          <h2>Не нужно успеть всё.<br><em>Нужно начать с важного.</em></h2>
+          <p>Один ясный шаг сегодня — уже движение вперёд.</p>
+          <a class="glow-button" href="#plan">Открыть план <span>↗</span></a>
+        </div>
+        <div class="hero-orbit" aria-hidden="true">
+          <div class="orbit-ring ring-one"></div>
+          <div class="orbit-ring ring-two"></div>
+          <div class="hero-glow"></div>
+          <div class="hero-spark">✦</div>
+          <div class="hero-orbit-caption">маленькие<br><strong>шаги</strong></div>
+        </div>
+      </section>
+
+      <section class="metric-grid" aria-label="Сводка дня">
+        <article class="glass-card metric-card progress-metric">
+          <div class="card-heading"><span>ПРОГРЕСС ДНЯ</span><button type="button">···</button></div>
+          <div class="metric-main">
+            <div class="progress-ring" id="progressRing"><div><strong id="progressValue">67%</strong><small>готово</small></div></div>
+            <div><strong class="metric-title">4 из 6 задач</strong><p>Темп хороший, оставь место для воздуха.</p><a href="#plan">Посмотреть задачи <span>→</span></a></div>
+          </div>
+        </article>
+        <article class="glass-card metric-card energy-metric">
+          <div class="card-heading"><span>ЭНЕРГИЯ</span><span class="status-pill">хорошо</span></div>
+          <div class="energy-value"><strong>78</strong><small>/ 100</small></div>
+          <div class="energy-track"><i></i></div>
+          <p class="metric-note">Пик концентрации — до 14:00</p>
+        </article>
+        <article class="glass-card metric-card streak-metric">
+          <div class="card-heading"><span>СЕРИЯ</span><span class="spark-symbol">✦</span></div>
+          <div class="streak-value"><strong>12</strong><span>дней</span></div>
+          <div class="streak-days"><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="done"></i><i class="today"></i></div>
+          <p class="metric-note">Ты держишь свой ритм</p>
+        </article>
+      </section>
+
+      <section class="content-grid" id="plan">
+        <article class="glass-card plan-card">
+          <div class="section-heading"><div><p class="eyebrow">СЕГОДНЯ</p><h2>Твой план</h2></div><button class="add-button" type="button">＋ Добавить</button></div>
+          <div class="day-tabs" role="tablist" aria-label="Дни">
+            <button type="button">ПН <b>19</b></button><button class="selected" type="button">ВТ <b>20</b></button><button type="button">СР <b>21</b></button><button type="button">ЧТ <b>22</b></button><button type="button">ПТ <b>23</b></button>
+          </div>
+          <div class="task-list">
+            <button class="task-row complete" type="button" data-task-done="true"><span class="checkmark">✓</span><span class="task-time">09:00</span><span class="task-text"><strong>Разобрать входящие</strong><small>Работа · 25 минут</small></span><span class="task-tag">готово</span></button>
+            <button class="task-row complete" type="button" data-task-done="true"><span class="checkmark">✓</span><span class="task-time">10:30</span><span class="task-text"><strong>Созвон по проекту</strong><small>Работа · 45 минут</small></span><span class="task-tag">готово</span></button>
+            <button class="task-row" type="button" data-task-done="false"><span class="checkmark"></span><span class="task-time">13:00</span><span class="task-text"><strong>Собрать первый экран</strong><small>RE:FORM LIFE · 1 час</small></span><span class="task-tag active">фокус</span></button>
+            <button class="task-row" type="button" data-task-done="false"><span class="checkmark"></span><span class="task-time">18:30</span><span class="task-text"><strong>Прогулка без телефона</strong><small>Личное · 30 минут</small></span><span class="task-tag">личное</span></button>
+          </div>
+          <div class="plan-footer"><span><i></i> 2 задачи завершены недавно</span><a href="#">Весь список <span>→</span></a></div>
+        </article>
+
+        <div class="side-stack">
+          <article class="glass-card habit-card" id="habits">
+            <div class="section-heading compact"><div><p class="eyebrow">РИТМ</p><h2>Привычки</h2></div><button class="dots-button" type="button">···</button></div>
+            <div class="habit-row"><span class="habit-icon orange">☼</span><span><strong>Стакан воды</strong><small>5 из 7 дней</small></span><button class="habit-check checked" type="button">✓</button></div>
+            <div class="habit-row"><span class="habit-icon pink">⌁</span><span><strong>Без экрана утром</strong><small>3 из 7 дней</small></span><button class="habit-check" type="button"></button></div>
+            <div class="habit-row"><span class="habit-icon amber">✦</span><span><strong>Вечерняя запись</strong><small>6 из 7 дней</small></span><button class="habit-check checked" type="button">✓</button></div>
+          </article>
+
+          <article class="glass-card note-card" id="notes">
+            <div class="section-heading compact"><div><p class="eyebrow">МЫСЛЬ ДНЯ</p><h2>Оставь заметку</h2></div><span class="note-star">✦</span></div>
+            <p>«Я не обязан двигаться быстро, чтобы двигаться вперёд.»</p>
+            <button class="text-button" type="button">Добавить свою мысль <span>＋</span></button>
+          </article>
+        </div>
+      </section>
+
+      <section class="bottom-grid">
+        <article class="glass-card mood-card">
+          <div><p class="eyebrow">НАСТРОЕНИЕ</p><h2>Как ты сегодня?</h2><p>Отметь состояние — это займёт секунду.</p></div>
+          <div class="mood-options"><button type="button">●<small>тяжело</small></button><button type="button">◒<small>спокойно</small></button><button class="selected" type="button">◓<small>хорошо</small></button><button type="button">✦<small>отлично</small></button></div>
+        </article>
+        <article class="glass-card palette-card">
+          <div><p class="eyebrow">ПАЛИТРА КОНЦЕПТА</p><h2>Glow / Glass</h2></div>
+          <div class="swatches"><i class="swatch graphite"><span>#0D0D10</span></i><i class="swatch amber"><span>#FFB52E</span></i><i class="swatch orange"><span>#FF7137</span></i><i class="swatch coral"><span>#FF3F5B</span></i><i class="swatch pearl"><span>#FFF7E9</span></i></div>
+        </article>
+      </section>
+    </main>
+  </div>
+  <script src="{{ url_for('static', filename='js/concept.js') }}?v=1" defer></script>
+</body>
+</html>
