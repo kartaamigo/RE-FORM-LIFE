@@ -41,7 +41,10 @@ a { color: inherit; text-decoration: none; }
 }
 
 .concept-shell { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 18px; min-height: 100vh; padding: 18px; }
-.glass-card, .concept-sidebar { border: 1px solid var(--concept-border-soft); background: linear-gradient(135deg, rgba(255,255,255,.105), rgba(255,255,255,.035) 55%, rgba(255,255,255,.02)); box-shadow: var(--concept-shadow); backdrop-filter: blur(26px); -webkit-backdrop-filter: blur(26px); }
+.glass-card, .concept-sidebar { position: relative; isolation: isolate; overflow: hidden; border: 1px solid var(--concept-border); background: linear-gradient(135deg, rgba(255,255,255,.15), rgba(255,255,255,.06) 42%, rgba(255,255,255,.025)), rgba(22,20,24,.46); box-shadow: var(--concept-shadow), inset 0 1px 0 rgba(255,255,255,.16), inset 0 -1px 0 rgba(0,0,0,.24); backdrop-filter: blur(30px) saturate(135%); -webkit-backdrop-filter: blur(30px) saturate(135%); }
+.glass-card::before { content: ''; position: absolute; z-index: 0; inset: 1px; border-radius: inherit; pointer-events: none; background: linear-gradient(122deg, rgba(255,255,255,.19), transparent 23%, transparent 69%, rgba(255,255,255,.045)); mix-blend-mode: screen; }
+.glass-card::after { content: ''; position: absolute; z-index: 0; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(circle at 13% 0%, rgba(255,255,255,.16), transparent 24%), radial-gradient(circle at 100% 100%, rgba(255,76,94,.11), transparent 29%); opacity: .72; }
+.glass-card > * { position: relative; z-index: 1; }
 .concept-sidebar { display: flex; flex-direction: column; min-height: calc(100vh - 36px); padding: 19px 15px; border-radius: 28px; background: linear-gradient(180deg, rgba(31, 29, 32, .83), rgba(17, 16, 19, .8)); }
 .concept-brand { display: flex; align-items: center; gap: 11px; padding: 5px 9px 25px; border-bottom: 1px solid var(--concept-border-soft); }
 .concept-brand strong { display: block; font-size: 14px; letter-spacing: 1.2px; }
