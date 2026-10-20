@@ -82,6 +82,11 @@ a { color: inherit; text-decoration: none; }
 .profile-button { display: flex; align-items: center; gap: 7px; height: 39px; padding: 0 9px 0 5px; border-radius: 20px; }
 .profile-button span { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 50%; color: #2b1712; background: var(--concept-glow); font-size: 12px; font-weight: 700; }
 .profile-button small { color: var(--concept-text); font-size: 10px; }
+.variant-switcher { display: flex; align-items: center; gap: 3px; padding: 3px; border: 1px solid var(--concept-border-soft); border-radius: 12px; background: rgba(0,0,0,.18); }
+.variant-switcher > span { margin: 0 5px 0 7px; color: var(--concept-dim); font-size: 7px; font-weight: 700; letter-spacing: 1px; }
+.variant-switcher a { padding: 6px 7px; border-radius: 8px; color: var(--concept-dim); font-size: 8px; letter-spacing: .4px; }
+.variant-switcher a:hover { color: var(--concept-text); }
+.variant-switcher a.active { color: #2b170e; background: linear-gradient(110deg, #ffd36a, #ff8a3d); box-shadow: 0 0 13px rgba(255, 127, 48, .22); }
 
 .hero-card { display: grid; grid-template-columns: minmax(0, 1.18fr) minmax(250px, .82fr); min-height: 237px; overflow: hidden; position: relative; padding: 29px 35px; border-radius: 28px; background: radial-gradient(circle at 87% 44%, rgba(255, 115, 55, .27), transparent 34%), linear-gradient(118deg, rgba(255,255,255,.105), rgba(255,255,255,.035) 58%, rgba(255, 65, 94, .1)); }
 .hero-card::before { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(120deg, transparent 38%, rgba(255,255,255,.08) 49%, transparent 59%); opacity: .45; }
@@ -198,6 +203,23 @@ a { color: inherit; text-decoration: none; }
 .swatch.orange { background: #ff7137; }
 .swatch.coral { background: #ff3f5b; }
 .swatch.pearl { background: #fff7e9; }
+
+/* Второй макет для сравнения: та же палитра, но спокойные матовые панели без blur. */
+.flat-variant {
+  background:
+    radial-gradient(circle at 84% 3%, rgba(255, 122, 46, .11), transparent 29%),
+    radial-gradient(circle at 10% 93%, rgba(255, 45, 118, .06), transparent 25%),
+    #111115;
+}
+.flat-variant .concept-sidebar,
+.flat-variant .glass-card { border-color: rgba(255,255,255,.105); background: linear-gradient(145deg, rgba(31,30,35,.98), rgba(20,20,24,.98)); box-shadow: 0 17px 40px rgba(0,0,0,.26), inset 0 1px 0 rgba(255,255,255,.055); backdrop-filter: none; -webkit-backdrop-filter: none; }
+.flat-variant .concept-sidebar { background: #17171b; }
+.flat-variant .glass-card::after { display: none; }
+.flat-variant .glass-card:not(.hero-card)::before { display: none; }
+.flat-variant .hero-card { background: linear-gradient(118deg, rgba(255,171,58,.14), rgba(28,27,31,.98) 56%, rgba(255,65,94,.1)); }
+.flat-variant .note-card { background: linear-gradient(135deg, rgba(31,30,35,.98), rgba(28,24,29,.98)); }
+.flat-variant .concept-nav-link.active { background: linear-gradient(110deg, rgba(255,157,54,.25), rgba(255,61,92,.1)); }
+.flat-variant .variant-switcher a.active { color: #fff2d0; background: rgba(255,166,57,.18); box-shadow: none; }
 
 @media (max-width: 1180px) {
   .concept-shell { grid-template-columns: 210px minmax(0,1fr); }

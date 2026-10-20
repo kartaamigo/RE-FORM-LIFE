@@ -1124,7 +1124,12 @@ def page_habits():
 
 @app.route("/concept")
 def page_concept():
-    return render_template("concept.html")
+    return render_template("concept.html", concept_variant="glass")
+
+
+@app.route("/concept-flat")
+def page_concept_flat():
+    return render_template("concept.html", concept_variant="flat")
 
 
 @app.get("/api/health")

@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RE:FORM LIFE · Glass & Glow concept</title>
+  <title>RE:FORM LIFE · {{ 'Glass / Glow' if concept_variant == 'glass' else 'Soft Panels' }}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/concept.css') }}?v=1">
 </head>
-<body class="concept-page">
+<body class="concept-page {{ concept_variant }}-variant">
   <div class="concept-shell">
     <aside class="concept-sidebar">
       <a class="concept-brand" href="{{ url_for('page_concept') }}" aria-label="RE:FORM LIFE">
@@ -36,6 +36,11 @@
           <p class="topbar-copy">Соберём сегодняшний ритм без спешки.</p>
         </div>
         <div class="topbar-actions">
+          <div class="variant-switcher" role="tablist" aria-label="Варианты макета">
+            <span>МАКЕТЫ</span>
+            <a class="{% if concept_variant == 'glass' %}active{% endif %}" href="{{ url_for('page_concept') }}">GLASS</a>
+            <a class="{% if concept_variant == 'flat' %}active{% endif %}" href="{{ url_for('page_concept_flat') }}">SOFT</a>
+          </div>
           <button class="round-icon" type="button" aria-label="Уведомления">♢<i></i></button>
           <button class="profile-button" type="button" aria-label="Профиль"><span>А</span><small>Ам</small></button>
         </div>
