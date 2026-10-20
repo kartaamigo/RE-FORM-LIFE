@@ -10,7 +10,11 @@
     const total = taskRows.length;
     const percent = total ? Math.round((completed / total) * 100) : 0;
     progressValue.textContent = `${percent}%`;
-    progressRing.style.background = `conic-gradient(var(--concept-orange) 0 ${percent}%, rgba(255,255,255,.08) ${percent}% 100%)`;
+    const inactive = 'rgba(255,255,255,.08)';
+    progressRing.style.borderTopColor = percent >= 25 ? 'var(--concept-orange)' : inactive;
+    progressRing.style.borderRightColor = percent >= 50 ? 'var(--concept-orange)' : inactive;
+    progressRing.style.borderBottomColor = percent >= 75 ? 'var(--concept-orange)' : inactive;
+    progressRing.style.borderLeftColor = percent >= 100 ? 'var(--concept-orange)' : inactive;
   }
 
   taskRows.forEach((row) => {
