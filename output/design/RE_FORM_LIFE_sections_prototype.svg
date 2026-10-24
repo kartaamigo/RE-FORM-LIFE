@@ -1,0 +1,654 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="3000" height="2740" viewBox="0 0 3000 2740" role="img" aria-labelledby="title desc">
+  <title id="title">RE:FORM LIFE — прототип всех разделов приложения</title>
+  <desc id="desc">Редактируемый SVG-борд с семью экранами RE:FORM LIFE: недельный планер, задачи, ассистент, месячный планер, финансы, коммуналка и привычки.</desc>
+
+  <style>
+    text { font-family: Arial, "Segoe UI", sans-serif; }
+    .board-title { fill: #FFF7EA; font-size: 30px; font-weight: 700; letter-spacing: -0.7px; }
+    .board-subtitle { fill: #A79A96; font-size: 13px; }
+    .board-kicker { fill: #FFB52E; font-size: 10px; font-weight: 700; letter-spacing: 2px; }
+    .frame-label { fill: #8D807C; font-size: 11px; font-weight: 700; letter-spacing: 1.8px; }
+    .screen-kicker { fill: #A68F87; font-size: 9px; font-weight: 700; letter-spacing: 1.4px; }
+    .screen-title { fill: #FFF7EA; font-size: 22px; font-weight: 700; letter-spacing: -0.4px; }
+    .screen-subtitle { fill: #A99C98; font-size: 11px; }
+    .card-title { fill: #FFF7EA; font-size: 13px; font-weight: 700; }
+    .card-title-sm { fill: #FFF7EA; font-size: 11px; font-weight: 700; }
+    .card-copy { fill: #C9BCB7; font-size: 10px; }
+    .muted { fill: #8F817D; font-size: 9px; }
+    .dim { fill: #756966; font-size: 8px; }
+    .value { fill: #FFF7EA; font-size: 19px; font-weight: 700; }
+    .value-sm { fill: #FFF7EA; font-size: 14px; font-weight: 700; }
+    .accent { fill: #FFB52E; }
+    .orange { fill: #FF7137; }
+    .coral { fill: #FF3F5B; }
+    .pink { fill: #FF2E76; }
+    .green { fill: #9AD8A6; }
+    .line { stroke: #3A3035; stroke-width: 1; }
+    .soft-line { stroke: #2A242A; stroke-width: 1; }
+    .panel { fill: #18171D; stroke: #382F35; stroke-width: 1; }
+    .panel-deep { fill: #131218; stroke: #2E282D; stroke-width: 1; }
+    .chip { fill: #242026; stroke: #43363A; stroke-width: 1; }
+    .chip-text { fill: #C5B5AE; font-size: 9px; font-weight: 700; letter-spacing: .5px; }
+    .button { fill: #FF7137; }
+    .button-text { fill: #24150F; font-size: 10px; font-weight: 700; }
+    .small-button { fill: #252026; stroke: #4A3738; stroke-width: 1; }
+    .small-button-text { fill: #D4C3BC; font-size: 9px; font-weight: 700; }
+    .nav-label { fill: #938681; font-size: 10px; }
+    .nav-label-active { fill: #FFF7EA; font-size: 10px; font-weight: 700; }
+    .nav-icon { fill: #8D7F7C; font-size: 13px; }
+    .nav-icon-active { fill: #FFB52E; font-size: 13px; }
+    .table-head { fill: #887A76; font-size: 8px; font-weight: 700; letter-spacing: 1px; }
+    .table-copy { fill: #C9BCB7; font-size: 9px; }
+    .bar-bg { fill: #282329; }
+    .hairline { stroke: #30292E; stroke-width: 1; }
+    .focus-dot { fill: #FF7137; }
+  </style>
+
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity=".28"/>
+    </filter>
+    <filter id="soft-shadow" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#000000" flood-opacity=".25"/>
+    </filter>
+    <clipPath id="screen-clip">
+      <rect x="0" y="0" width="1400" height="570" rx="26"/>
+    </clipPath>
+    <g id="sidebar-base">
+      <rect x="0" y="0" width="202" height="570" fill="#141318"/>
+      <path d="M0 93H202" stroke="#2C252B"/>
+      <path d="M32 32L37 44L49 49L37 54L32 66L27 54L15 49L27 44Z" fill="#FFB52E"/>
+      <circle cx="32" cy="49" r="7" fill="#FF7137" fill-opacity=".85"/>
+      <text x="60" y="46" fill="#FFF7EA" font-size="15" font-weight="700" letter-spacing=".4px">RE:FORM</text>
+      <text x="60" y="62" fill="#A79A96" font-size="8" font-weight="700" letter-spacing="3px">LIFE</text>
+
+      <text x="24" y="116" class="nav-icon">◌</text>
+      <text x="52" y="116" class="nav-label">Недельный планер</text>
+      <text x="24" y="164" class="nav-icon">□</text>
+      <text x="52" y="164" class="nav-label">Задачи</text>
+      <text x="24" y="212" class="nav-icon">✦</text>
+      <text x="52" y="212" class="nav-label">Ассистент</text>
+      <text x="24" y="260" class="nav-icon">▦</text>
+      <text x="52" y="260" class="nav-label">Месячный планер</text>
+      <text x="24" y="308" class="nav-icon">◈</text>
+      <text x="52" y="308" class="nav-label">Финансы</text>
+      <text x="24" y="356" class="nav-icon">◷</text>
+      <text x="52" y="356" class="nav-label">Коммуналка</text>
+      <text x="24" y="404" class="nav-icon">⌁</text>
+      <text x="52" y="404" class="nav-label">Привычки</text>
+
+      <path d="M24 466H178" stroke="#2C252B"/>
+      <circle cx="31" cy="500" r="5" fill="#FF7137"/>
+      <text x="47" y="499" fill="#D9CAC2" font-size="9" font-weight="700">Мой ритм</text>
+      <text x="47" y="514" fill="#756966" font-size="8">День 24 · спокойно</text>
+      <text x="24" y="546" fill="#716360" font-size="8">Настройки  ·  Приватность</text>
+    </g>
+    <g id="top-actions">
+      <rect x="1116" y="28" width="130" height="29" rx="14.5" class="chip"/>
+      <circle cx="1134" cy="42.5" r="4" fill="#FF7137"/>
+      <text x="1146" y="46" class="chip-text">24 ОКТ 2026</text>
+      <circle cx="1332" cy="42" r="16" fill="#FFB52E"/>
+      <text x="1332" y="46" text-anchor="middle" fill="#24150F" font-size="10" font-weight="700">А</text>
+    </g>
+    <g id="bottom-arrow">
+      <text x="0" y="0" fill="#FFB52E" font-size="12" font-weight="700">→</text>
+    </g>
+  </defs>
+
+  <rect width="3000" height="2740" fill="#0D0D10"/>
+  <path d="M80 145H2920" stroke="#2D272C"/>
+  <text x="80" y="68" class="board-kicker">RE:FORM LIFE  /  DESIGN BOARD</text>
+  <text x="80" y="108" class="board-title">Все разделы приложения в одном ритме</text>
+  <text x="80" y="133" class="board-subtitle">Sunset Neon · Soft Panels · локальные данные · редактируемый SVG-прототип для дальнейшей детализации</text>
+  <g transform="translate(2124 55)">
+    <rect x="0" y="0" width="116" height="30" rx="15" class="chip"/>
+    <circle cx="17" cy="15" r="5" fill="#FFB52E"/>
+    <text x="30" y="19" class="chip-text">8 PT GRID</text>
+    <rect x="128" y="0" width="145" height="30" rx="15" class="chip"/>
+    <circle cx="145" cy="15" r="5" fill="#FF7137"/>
+    <text x="158" y="19" class="chip-text">SOFT PANELS</text>
+    <rect x="285" y="0" width="150" height="30" rx="15" class="chip"/>
+    <circle cx="302" cy="15" r="5" fill="#FF3F5B"/>
+    <text x="315" y="19" class="chip-text">LOCAL FIRST</text>
+  </g>
+  <g transform="translate(2450 102)">
+    <rect x="0" y="0" width="18" height="8" rx="4" fill="#FFB52E"/>
+    <rect x="25" y="0" width="18" height="8" rx="4" fill="#FF7137"/>
+    <rect x="50" y="0" width="18" height="8" rx="4" fill="#FF3F5B"/>
+    <rect x="75" y="0" width="18" height="8" rx="4" fill="#FF2E76"/>
+    <text x="105" y="8" class="muted">палитра концепта</text>
+  </g>
+
+  <!-- 01 Week -->
+  <g id="screen-week" transform="translate(80 220)">
+    <text x="0" y="-20" class="frame-label">01  ·  НЕДЕЛЬНЫЙ ПЛАНЕР</text>
+    <rect width="1400" height="570" rx="26" fill="#17161C" filter="url(#shadow)"/>
+    <g clip-path="url(#screen-clip)">
+      <use xlink:href="#sidebar-base"/>
+      <rect x="202" y="0" width="1198" height="570" fill="#0F0E13"/>
+      <rect x="14" y="98" width="174" height="36" rx="12" fill="#FF7137" fill-opacity=".16" stroke="#FF7137" stroke-opacity=".28"/>
+      <text x="24" y="116" class="nav-icon-active">◌</text>
+      <text x="52" y="116" class="nav-label-active">Недельный планер</text>
+      <text x="230" y="31" class="screen-kicker">RE:FORM LIFE  ·  ЛИЧНЫЙ РИТМ</text>
+      <text x="230" y="61" class="screen-title">Недельный планер</text>
+      <text x="230" y="82" class="screen-subtitle">Собери неделю вокруг одного важного шага.</text>
+      <use xlink:href="#top-actions"/>
+
+      <g transform="translate(230 108)">
+        <rect width="245" height="70" rx="16" class="panel"/>
+        <text x="16" y="21" class="screen-kicker">ТЕКУЩАЯ НЕДЕЛЯ</text>
+        <text x="16" y="45" class="value-sm">21 — 27 октября</text>
+        <text x="16" y="61" class="muted">среда · неделя 43</text>
+      </g>
+      <g transform="translate(487 108)">
+        <rect width="330" height="70" rx="16" class="panel"/>
+        <circle cx="27" cy="34" r="14" fill="#FFB52E" fill-opacity=".14" stroke="#FFB52E" stroke-opacity=".6"/>
+        <text x="27" y="38" text-anchor="middle" class="accent" font-size="14">◎</text>
+        <text x="52" y="21" class="screen-kicker">ЦЕЛЬ НЕДЕЛИ</text>
+        <text x="52" y="45" class="card-title">Собрать первый экран</text>
+        <text x="52" y="61" class="muted">фокус можно изменить в любой момент</text>
+      </g>
+      <g transform="translate(829 108)">
+        <rect width="245" height="70" rx="16" class="panel"/>
+        <circle cx="36" cy="35" r="22" fill="none" stroke="#30262E" stroke-width="6"/>
+        <circle cx="36" cy="35" r="22" fill="none" stroke="#FF7137" stroke-width="6" stroke-linecap="round" stroke-dasharray="92 138" transform="rotate(-90 36 35)"/>
+        <text x="36" y="39" text-anchor="middle" fill="#FFF7EA" font-size="10" font-weight="700">67%</text>
+        <text x="72" y="25" class="screen-kicker">ЗАДАЧИ</text>
+        <text x="72" y="46" class="card-title">4 из 6 готово</text>
+        <text x="72" y="61" class="muted">ещё два шага</text>
+      </g>
+      <g transform="translate(1086 108)">
+        <rect width="284" height="70" rx="16" class="panel"/>
+        <text x="16" y="21" class="screen-kicker">НАСТРОЕНИЕ</text>
+        <text x="16" y="48" class="card-title">Спокойно <tspan class="accent">⌣</tspan></text>
+        <path d="M142 51C180 36 210 36 254 50" fill="none" stroke="#FFB52E" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="204" cy="42" r="4" fill="#FFB52E"/>
+      </g>
+
+      <g transform="translate(230 196)">
+        <rect width="840" height="280" rx="18" class="panel"/>
+        <text x="18" y="27" class="screen-kicker">РАСПИСАНИЕ</text>
+        <text x="18" y="52" class="card-title">План недели</text>
+        <text x="720" y="43" class="muted">＋ задача</text>
+        <path d="M18 69H822" class="hairline"/>
+        <g transform="translate(18 84)">
+          <text x="0" y="0" class="muted">ПН 21</text><text x="116" y="0" class="muted">ВТ 22</text><text x="232" y="0" class="accent" font-weight="700" font-size="9">СР 23</text><text x="348" y="0" class="muted">ЧТ 24</text><text x="464" y="0" class="muted">ПТ 25</text><text x="580" y="0" class="muted">СБ 26</text><text x="696" y="0" class="muted">ВС 27</text>
+          <path d="M0 16H804" class="soft-line"/>
+          <rect x="226" y="27" width="96" height="26" rx="8" fill="#FF7137" fill-opacity=".17" stroke="#FF7137" stroke-opacity=".4"/>
+          <text x="234" y="43" class="card-copy">09:00 · фокус</text>
+          <rect x="342" y="27" width="112" height="26" rx="8" fill="#FFB52E" fill-opacity=".13" stroke="#FFB52E" stroke-opacity=".32"/>
+          <text x="350" y="43" class="card-copy">созвон · 45 м</text>
+          <rect x="458" y="27" width="100" height="26" rx="8" fill="#FF3F5B" fill-opacity=".13" stroke="#FF3F5B" stroke-opacity=".34"/>
+          <text x="466" y="43" class="card-copy">прогулка</text>
+          <path d="M0 70H804M0 124H804M0 178H804" class="soft-line"/>
+          <text x="0" y="93" class="dim">утро</text><text x="0" y="147" class="dim">день</text><text x="0" y="201" class="dim">вечер</text>
+          <circle cx="245" cy="91" r="4" fill="#9AD8A6"/><text x="256" y="95" class="muted">разобрать входящие</text>
+          <circle cx="357" cy="145" r="4" fill="#FF7137"/><text x="368" y="149" class="muted">собрать первый экран</text>
+          <circle cx="474" cy="199" r="4" fill="#FFB52E"/><text x="485" y="203" class="muted">запись дня</text>
+        </g>
+      </g>
+      <g transform="translate(1088 196)">
+        <rect width="282" height="280" rx="18" class="panel-deep"/>
+        <text x="18" y="28" class="screen-kicker">ПРОГРЕСС НЕДЕЛИ</text>
+        <circle cx="141" cy="115" r="60" fill="none" stroke="#2D252C" stroke-width="13"/>
+        <circle cx="141" cy="115" r="60" fill="none" stroke="#FF7137" stroke-width="13" stroke-linecap="round" stroke-dasharray="226 377" transform="rotate(-90 141 115)"/>
+        <text x="141" y="111" text-anchor="middle" fill="#FFF7EA" font-size="25" font-weight="700">60%</text>
+        <text x="141" y="130" text-anchor="middle" class="muted">в ритме</text>
+        <path d="M20 197H262" class="hairline"/>
+        <text x="20" y="221" class="muted">Маленькие шаги</text>
+        <text x="20" y="241" class="card-title">приводят к большим</text>
+        <text x="20" y="261" class="card-title"><tspan class="accent">результатам.</tspan></text>
+      </g>
+      <g transform="translate(230 492)">
+        <rect width="1140" height="54" rx="14" class="panel-deep"/>
+        <text x="18" y="22" class="screen-kicker">ЗАМЕТКИ</text>
+        <text x="92" y="22" class="card-copy">Не перегружать первый экран · выбрать один следующий шаг</text>
+        <text x="18" y="42" class="muted">План на сегодня  ·  4 задачи  ·  добавить заметку ＋</text>
+      </g>
+    </g>
+    <rect width="1400" height="570" rx="26" fill="none" stroke="#3A3035"/>
+  </g>
+
+  <!-- 02 Tasks -->
+  <g id="screen-tasks" transform="translate(1520 220)">
+    <text x="0" y="-20" class="frame-label">02  ·  ЗАДАЧИ</text>
+    <rect width="1400" height="570" rx="26" fill="#17161C" filter="url(#shadow)"/>
+    <g clip-path="url(#screen-clip)">
+      <use xlink:href="#sidebar-base"/>
+      <rect x="202" y="0" width="1198" height="570" fill="#0F0E13"/>
+      <rect x="14" y="146" width="174" height="36" rx="12" fill="#FF7137" fill-opacity=".16" stroke="#FF7137" stroke-opacity=".28"/>
+      <text x="24" y="164" class="nav-icon-active">□</text>
+      <text x="52" y="164" class="nav-label-active">Задачи</text>
+      <text x="230" y="31" class="screen-kicker">RE:FORM LIFE  ·  ПОРЯДОК БЕЗ ДАВЛЕНИЯ</text>
+      <text x="230" y="61" class="screen-title">Задачи</text>
+      <text x="230" y="82" class="screen-subtitle">Все дела в одном месте — от идеи до готово.</text>
+      <use xlink:href="#top-actions"/>
+
+      <g transform="translate(230 108)">
+        <rect width="270" height="68" rx="16" class="panel"/>
+        <text x="16" y="20" class="screen-kicker">ВСЕГО</text><text x="16" y="48" class="value">24</text><text x="62" y="48" class="muted">задачи во всех месяцах</text>
+      </g>
+      <g transform="translate(515 108)">
+        <rect width="270" height="68" rx="16" class="panel"/>
+        <text x="16" y="20" class="screen-kicker">В ПРОЦЕССЕ</text><text x="16" y="48" class="value">08</text><text x="62" y="48" class="muted">активных задач</text>
+      </g>
+      <g transform="translate(800 108)">
+        <rect width="270" height="68" rx="16" class="panel"/>
+        <text x="16" y="20" class="screen-kicker">ВЫПОЛНЕНО</text><text x="16" y="48" class="value green">16</text><text x="62" y="48" class="muted">задач закрыто</text>
+      </g>
+      <g transform="translate(1085 108)">
+        <rect width="285" height="68" rx="16" class="panel"/>
+        <text x="16" y="20" class="screen-kicker">ПРОСРОЧЕНО</text><text x="16" y="48" class="value coral">02</text><text x="62" y="48" class="muted">нужен мягкий разбор</text>
+      </g>
+
+      <g transform="translate(230 194)">
+        <rect width="1140" height="54" rx="14" class="panel-deep"/>
+        <text x="18" y="22" class="screen-kicker">СПИСОК ЗАДАЧ</text>
+        <text x="18" y="42" class="card-title">Все задачи</text>
+        <rect x="360" y="12" width="240" height="30" rx="15" fill="#0F0E13" stroke="#3B3035"/>
+        <text x="376" y="31" class="muted">⌕  Найти задачу…</text>
+        <rect x="614" y="12" width="106" height="30" rx="15" class="small-button"/><text x="643" y="31" class="small-button-text">Все  ⌄</text>
+        <rect x="730" y="12" width="105" height="30" rx="15" class="small-button"/><text x="752" y="31" class="small-button-text">＋ Раздел</text>
+        <rect x="845" y="12" width="150" height="30" rx="15" class="button"/><text x="876" y="31" class="button-text">＋ Добавить задачу</text>
+      </g>
+
+      <g transform="translate(230 264)">
+        <rect width="1140" height="282" rx="18" class="panel"/>
+        <text x="18" y="28" class="screen-kicker">KANBAN-ДОСКА</text>
+        <text x="18" y="51" class="card-title">Задачи по разделам</text>
+        <text x="942" y="45" class="muted">перетащите карточку между разделами</text>
+        <g transform="translate(18 71)">
+          <rect width="350" height="190" rx="14" class="panel-deep"/>
+          <circle cx="20" cy="22" r="5" fill="#FF7137"/><text x="35" y="26" class="card-title-sm">В работе</text><text x="308" y="26" class="muted">03</text>
+          <rect x="14" y="45" width="322" height="42" rx="10" class="panel"/>
+          <circle cx="32" cy="66" r="7" fill="none" stroke="#FF7137" stroke-width="2"/>
+          <text x="48" y="64" class="card-title-sm">Собрать первый экран</text><text x="48" y="78" class="dim">RE:FORM LIFE · сегодня</text>
+          <rect x="14" y="96" width="322" height="42" rx="10" class="panel"/>
+          <circle cx="32" cy="117" r="7" fill="none" stroke="#FFB52E" stroke-width="2"/>
+          <text x="48" y="115" class="card-title-sm">Обновить структуру</text><text x="48" y="129" class="dim">работа · завтра</text>
+          <rect x="14" y="148" width="322" height="28" rx="9" fill="#FF7137" fill-opacity=".08" stroke="#5A3836" stroke-dasharray="4 4"/>
+          <text x="116" y="166" class="muted">＋ добавить задачу</text>
+        </g>
+        <g transform="translate(395 71)">
+          <rect width="350" height="190" rx="14" class="panel-deep"/>
+          <circle cx="20" cy="22" r="5" fill="#FFB52E"/><text x="35" y="26" class="card-title-sm">Сегодня</text><text x="308" y="26" class="muted">02</text>
+          <rect x="14" y="45" width="322" height="42" rx="10" class="panel"/>
+          <circle cx="32" cy="66" r="7" fill="#9AD8A6"/><text x="48" y="64" class="card-title-sm">Разобрать входящие</text><text x="48" y="78" class="dim">готово · 09:00</text>
+          <rect x="14" y="96" width="322" height="42" rx="10" class="panel"/>
+          <circle cx="32" cy="117" r="7" fill="#9AD8A6"/><text x="48" y="115" class="card-title-sm">Созвон по проекту</text><text x="48" y="129" class="dim">готово · 10:30</text>
+          <rect x="14" y="148" width="322" height="28" rx="9" fill="#FFB52E" fill-opacity=".07" stroke="#5A4636" stroke-dasharray="4 4"/>
+          <text x="116" y="166" class="muted">＋ добавить задачу</text>
+        </g>
+        <g transform="translate(772 71)">
+          <rect width="350" height="190" rx="14" class="panel-deep"/>
+          <circle cx="20" cy="22" r="5" fill="#FF3F5B"/><text x="35" y="26" class="card-title-sm">Нужно решить</text><text x="308" y="26" class="muted">02</text>
+          <rect x="14" y="45" width="322" height="42" rx="10" class="panel"/>
+          <circle cx="32" cy="66" r="7" fill="none" stroke="#FF3F5B" stroke-width="2"/>
+          <text x="48" y="64" class="card-title-sm">Оплатить коммуналку</text><text x="48" y="78" class="dim">просрочено · 2 дня</text>
+          <rect x="14" y="96" width="322" height="42" rx="10" class="panel"/>
+          <circle cx="32" cy="117" r="7" fill="none" stroke="#FF3F5B" stroke-width="2"/>
+          <text x="48" y="115" class="card-title-sm">Выбрать обложку</text><text x="48" y="129" class="dim">личное · в этом месяце</text>
+          <rect x="14" y="148" width="322" height="28" rx="9" fill="#FF3F5B" fill-opacity=".06" stroke="#5A3439" stroke-dasharray="4 4"/>
+          <text x="116" y="166" class="muted">＋ добавить задачу</text>
+        </g>
+      </g>
+    </g>
+    <rect width="1400" height="570" rx="26" fill="none" stroke="#3A3035"/>
+  </g>
+
+  <!-- 03 Assistant -->
+  <g id="screen-assistant" transform="translate(80 850)">
+    <text x="0" y="-20" class="frame-label">03  ·  АССИСТЕНТ</text>
+    <rect width="1400" height="570" rx="26" fill="#17161C" filter="url(#shadow)"/>
+    <g clip-path="url(#screen-clip)">
+      <use xlink:href="#sidebar-base"/>
+      <rect x="202" y="0" width="1198" height="570" fill="#0F0E13"/>
+      <rect x="14" y="194" width="174" height="36" rx="12" fill="#FF7137" fill-opacity=".16" stroke="#FF7137" stroke-opacity=".28"/>
+      <text x="24" y="212" class="nav-icon-active">✦</text>
+      <text x="52" y="212" class="nav-label-active">Ассистент</text>
+      <text x="230" y="31" class="screen-kicker">RE:FORM LIFE  ·  СПОКОЙНЫЙ ПАРТНЁР</text>
+      <text x="230" y="61" class="screen-title">Ассистент</text>
+      <text x="230" y="82" class="screen-subtitle">EVE помогает увидеть следующий шаг, а не сделать всё за тебя.</text>
+      <use xlink:href="#top-actions"/>
+
+      <g transform="translate(230 108)">
+        <rect width="1140" height="438" rx="20" class="panel" filter="url(#soft-shadow)"/>
+        <circle cx="32" cy="34" r="14" fill="#FF7137" fill-opacity=".18" stroke="#FF7137" stroke-opacity=".55"/>
+        <path d="M32 25L35 32L42 35L35 38L32 45L29 38L22 35L29 32Z" fill="#FFB52E"/>
+        <text x="58" y="28" class="screen-kicker">EVE  ·  AI-ЧАТ И УПРАВЛЕНИЕ</text>
+        <text x="58" y="50" class="card-title">Чем я могу помочь?</text>
+        <text x="58" y="69" class="muted">Изменения покажу для подтверждения. Простые команды работают локально.</text>
+        <rect x="894" y="22" width="152" height="25" rx="12.5" fill="#9AD8A6" fill-opacity=".12" stroke="#9AD8A6" stroke-opacity=".35"/>
+        <circle cx="910" cy="34.5" r="4" fill="#9AD8A6"/><text x="922" y="38" class="muted">микрофон готов</text>
+        <text x="1068" y="39" class="muted">⚙</text>
+        <path d="M18 91H1122" class="hairline"/>
+
+        <g transform="translate(28 113)">
+          <circle cx="16" cy="16" r="12" fill="#FFB52E" fill-opacity=".18"/><text x="16" y="20" text-anchor="middle" class="accent" font-size="11">А</text>
+          <rect x="38" y="0" width="420" height="49" rx="14" fill="#242026"/>
+          <text x="56" y="20" class="card-copy">Доброе утро. Что сегодня важно не потерять?</text>
+          <text x="56" y="37" class="dim">EVE · только что</text>
+        </g>
+        <g transform="translate(510 182)">
+          <rect x="0" y="0" width="466" height="49" rx="14" fill="#FF7137" fill-opacity=".13" stroke="#FF7137" stroke-opacity=".26"/>
+          <text x="18" y="21" class="card-copy">Покажи план на сегодня и оставь место для прогулки.</text>
+          <text x="18" y="38" class="dim">ты · только что</text>
+        </g>
+        <g transform="translate(28 251)">
+          <circle cx="16" cy="16" r="12" fill="#FFB52E" fill-opacity=".18"/><text x="16" y="20" text-anchor="middle" class="accent" font-size="11">А</text>
+          <rect x="38" y="0" width="510" height="64" rx="14" fill="#242026"/>
+          <text x="56" y="20" class="card-copy">В плане 4 задачи. Главный фокус — первый экран.</text>
+          <text x="56" y="38" class="card-copy">Прогулку поставила на 18:30. Добавить напоминание?</text>
+          <text x="56" y="55" class="dim">EVE · план собран локально</text>
+        </g>
+
+        <g transform="translate(28 345)">
+          <rect width="1084" height="48" rx="16" fill="#0F0E13" stroke="#4B3739"/>
+          <text x="18" y="29" class="muted">Спросить EVE</text>
+          <text x="846" y="29" class="dim">Flash Lite  ⌄</text>
+          <circle cx="1027" cy="24" r="16" fill="#FF7137"/>
+          <path d="M1021 24L1032 24M1027 18L1033 24L1027 30" fill="none" stroke="#24150F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="1068" cy="24" r="16" fill="#FFB52E"/>
+          <path d="M1068 15C1064 15 1062 18 1062 22V26C1062 30 1064 33 1068 33C1072 33 1074 30 1074 26V22C1074 18 1072 15 1068 15ZM1058 24C1058 30 1062 35 1068 35C1074 35 1078 30 1078 24M1068 35V40M1064 40H1072" fill="none" stroke="#24150F" stroke-width="1.4" stroke-linecap="round"/>
+        </g>
+        <g transform="translate(28 406)">
+          <text x="0" y="0" class="screen-kicker">ГОЛОСОВАЯ РЕАКЦИЯ EVE</text>
+          <text x="0" y="20" class="card-title-sm">Я рядом</text>
+          <text x="96" y="20" class="muted">Скажи «Эва» и команду</text>
+          <path d="M305 18C332 18 341 5 359 18C377 31 388 6 410 18C432 30 444 10 467 18C490 26 502 7 527 18C551 29 562 9 589 18C616 27 626 5 650 18C674 31 688 8 714 18C740 28 752 10 779 18" fill="none" stroke="#FFB52E" stroke-width="2" stroke-linecap="round"/>
+          <path d="M305 18C332 18 341 5 359 18C377 31 388 6 410 18C432 30 444 10 467 18C490 26 502 7 527 18C551 29 562 9 589 18C616 27 626 5 650 18C674 31 688 8 714 18C740 28 752 10 779 18L779 30L305 30Z" fill="#FF7137" fill-opacity=".12"/>
+        </g>
+      </g>
+    </g>
+    <rect width="1400" height="570" rx="26" fill="none" stroke="#3A3035"/>
+  </g>
+
+  <!-- 04 Month -->
+  <g id="screen-month" transform="translate(1520 850)">
+    <text x="0" y="-20" class="frame-label">04  ·  МЕСЯЧНЫЙ ПЛАНЕР</text>
+    <rect width="1400" height="570" rx="26" fill="#17161C" filter="url(#shadow)"/>
+    <g clip-path="url(#screen-clip)">
+      <use xlink:href="#sidebar-base"/>
+      <rect x="202" y="0" width="1198" height="570" fill="#0F0E13"/>
+      <rect x="14" y="242" width="174" height="36" rx="12" fill="#FF7137" fill-opacity=".16" stroke="#FF7137" stroke-opacity=".28"/>
+      <text x="24" y="260" class="nav-icon-active">▦</text>
+      <text x="52" y="260" class="nav-label-active">Месячный планер</text>
+      <text x="230" y="31" class="screen-kicker">RE:FORM LIFE  ·  ДАЛЬНИЙ ВЗГЛЯД</text>
+      <text x="230" y="61" class="screen-title">Месячный планер</text>
+      <text x="230" y="82" class="screen-subtitle">Поймай ритм месяца: приоритеты, задачи и свободное пространство.</text>
+      <rect x="920" y="26" width="220" height="30" rx="15" fill="#0F0E13" stroke="#3B3035"/>
+      <text x="940" y="45" class="muted">⌕  Поиск задач, заметок…</text>
+      <rect x="1150" y="26" width="96" height="30" rx="15" class="small-button"/><text x="1170" y="45" class="small-button-text">◔  сегодня</text>
+      <circle cx="1292" cy="42" r="16" fill="#242026" stroke="#4A3738"/><text x="1292" y="47" text-anchor="middle" class="accent" font-size="13">♢</text>
+      <rect x="1314" y="26" width="56" height="30" rx="15" class="button"/><text x="1327" y="45" class="button-text">＋</text>
+
+      <g transform="translate(230 108)">
+        <rect width="270" height="56" rx="14" class="panel"/>
+        <text x="16" y="19" class="screen-kicker">ЗАДАЧИ</text><text x="16" y="42" class="value-sm">18</text><text x="57" y="42" class="muted">на октябрь</text><rect x="144" y="28" width="102" height="6" rx="3" class="bar-bg"/><rect x="144" y="28" width="68" height="6" rx="3" fill="#FF7137"/>
+      </g>
+      <g transform="translate(515 108)">
+        <rect width="270" height="56" rx="14" class="panel"/>
+        <text x="16" y="19" class="screen-kicker">ВЫПОЛНЕНО</text><text x="16" y="42" class="value-sm green">11</text><text x="59" y="42" class="muted">61%</text><rect x="112" y="28" width="134" height="6" rx="3" class="bar-bg"/><rect x="112" y="28" width="82" height="6" rx="3" fill="#9AD8A6"/>
+      </g>
+      <g transform="translate(800 108)">
+        <rect width="270" height="56" rx="14" class="panel"/>
+        <text x="16" y="19" class="screen-kicker">В ПРОЦЕССЕ</text><text x="16" y="42" class="value-sm">05</text><text x="59" y="42" class="muted">28%</text><rect x="112" y="28" width="134" height="6" rx="3" class="bar-bg"/><rect x="112" y="28" width="38" height="6" rx="3" fill="#FFB52E"/>
+      </g>
+      <g transform="translate(1085 108)">
+        <rect width="285" height="56" rx="14" class="panel"/>
+        <text x="16" y="19" class="screen-kicker">ПРОСРОЧЕНО</text><text x="16" y="42" class="value-sm coral">02</text><text x="59" y="42" class="muted">нужен разбор</text><circle cx="246" cy="30" r="12" fill="#FF3F5B" fill-opacity=".14"/><text x="246" y="35" text-anchor="middle" class="coral" font-size="12">!</text>
+      </g>
+
+      <g transform="translate(230 182)">
+        <rect width="774" height="364" rx="18" class="panel"/>
+        <rect x="18" y="18" width="123" height="27" rx="13.5" class="button"/><text x="39" y="36" class="button-text">＋ Добавить пункт</text>
+        <text x="164" y="36" class="muted"><tspan class="accent">●</tspan> Личное  <tspan class="orange">●</tspan> Работа  <tspan class="coral">●</tspan> Дом</text>
+        <text x="18" y="80" class="screen-kicker">МЕСЯЦ</text><text x="18" y="105" class="card-title">Октябрь 2026</text>
+        <text x="560" y="90" class="muted">выбранный день</text><text x="560" y="107" class="card-copy">23 октября</text>
+        <path d="M18 122H756" class="hairline"/>
+        <g transform="translate(18 145)">
+          <text x="0" y="0" class="muted">Пн</text><text x="105" y="0" class="muted">Вт</text><text x="210" y="0" class="muted">Ср</text><text x="315" y="0" class="muted">Чт</text><text x="420" y="0" class="muted">Пт</text><text x="525" y="0" class="muted">Сб</text><text x="630" y="0" class="muted">Вс</text>
+          <path d="M0 16H730" class="soft-line"/>
+          <g fill="#C9BCB7" font-size="10"><text x="0" y="38">28</text><text x="105" y="38">29</text><text x="210" y="38">30</text><text x="315" y="38">1</text><text x="420" y="38">2</text><text x="525" y="38">3</text><text x="630" y="38">4</text><text x="0" y="87">5</text><text x="105" y="87">6</text><text x="210" y="87">7</text><text x="315" y="87">8</text><text x="420" y="87">9</text><text x="525" y="87">10</text><text x="630" y="87">11</text><text x="0" y="136">12</text><text x="105" y="136">13</text><text x="210" y="136">14</text><text x="315" y="136">15</text><text x="420" y="136">16</text><text x="525" y="136">17</text><text x="630" y="136">18</text><text x="0" y="185">19</text><text x="105" y="185">20</text><text x="210" y="185">21</text><text x="315" y="185">22</text></g>
+          <rect x="403" y="151" width="40" height="31" rx="10" fill="#FF7137" fill-opacity=".2" stroke="#FF7137" stroke-opacity=".65"/><text x="420" y="170" text-anchor="middle" fill="#FFF7EA" font-size="10" font-weight="700">23</text>
+          <text x="525" y="185" fill="#756966" font-size="10">24</text><text x="630" y="185" fill="#756966" font-size="10">25</text>
+          <g fill="#FF7137"><circle cx="7" cy="51" r="3"/><circle cx="217" cy="100" r="3"/><circle cx="322" cy="149" r="3"/><circle cx="427" cy="198" r="3"/></g>
+          <g fill="#FFB52E"><circle cx="112" cy="100" r="3"/><circle cx="532" cy="149" r="3"/></g>
+        </g>
+        <path d="M18 273H756" class="hairline"/>
+        <text x="18" y="297" class="screen-kicker">ВЫБРАННЫЙ ДЕНЬ  ·  23 ОКТЯБРЯ</text><text x="670" y="297" class="muted">2 задачи  ＋</text>
+        <circle cx="25" cy="322" r="4" fill="#FF7137"/><text x="39" y="326" class="card-copy">Собрать первый экран</text><text x="635" y="326" class="muted">13:00</text>
+        <circle cx="25" cy="346" r="4" fill="#9AD8A6"/><text x="39" y="350" class="card-copy">Разобрать входящие</text><text x="635" y="350" class="muted">готово</text>
+      </g>
+      <g transform="translate(1022 182)">
+        <rect width="348" height="178" rx="18" class="panel"/>
+        <text x="18" y="28" class="screen-kicker">ФОКУС МЕСЯЦА</text><text x="18" y="52" class="card-title">Приоритеты месяца</text><text x="302" y="52" class="accent" font-size="13">＋</text>
+        <text x="18" y="82" class="card-copy">Закончить первый экран</text><text x="283" y="82" class="muted">70%</text><rect x="18" y="92" width="312" height="6" rx="3" class="bar-bg"/><rect x="18" y="92" width="218" height="6" rx="3" fill="#FF7137"/>
+        <text x="18" y="123" class="card-copy">Собрать материалы для портфолио</text><text x="283" y="123" class="muted">35%</text><rect x="18" y="133" width="312" height="6" rx="3" class="bar-bg"/><rect x="18" y="133" width="109" height="6" rx="3" fill="#FFB52E"/>
+        <text x="18" y="165" class="muted">Добавьте приоритет — прогресс остаётся видимым.</text>
+      </g>
+      <g transform="translate(1022 378)">
+        <rect width="348" height="168" rx="18" class="panel-deep"/>
+        <text x="18" y="28" class="screen-kicker">ЗАМЕТКИ</text><text x="18" y="52" class="card-title">Не забыть</text><text x="302" y="52" class="accent" font-size="13">＋</text>
+        <rect x="18" y="72" width="312" height="32" rx="10" fill="#242026"/><text x="31" y="92" class="card-copy">Согласовать цвета с EVE</text><text x="283" y="92" class="dim">⌁</text>
+        <rect x="18" y="112" width="312" height="32" rx="10" fill="#242026"/><text x="31" y="132" class="card-copy">Сохранить свободный вечер</text><text x="283" y="132" class="dim">○</text>
+      </g>
+    </g>
+    <rect width="1400" height="570" rx="26" fill="none" stroke="#3A3035"/>
+  </g>
+
+  <!-- 05 Finance -->
+  <g id="screen-finance" transform="translate(80 1480)">
+    <text x="0" y="-20" class="frame-label">05  ·  ФИНАНСЫ</text>
+    <rect width="1400" height="570" rx="26" fill="#17161C" filter="url(#shadow)"/>
+    <g clip-path="url(#screen-clip)">
+      <use xlink:href="#sidebar-base"/>
+      <rect x="202" y="0" width="1198" height="570" fill="#0F0E13"/>
+      <rect x="14" y="290" width="174" height="36" rx="12" fill="#FF7137" fill-opacity=".16" stroke="#FF7137" stroke-opacity=".28"/>
+      <text x="24" y="308" class="nav-icon-active">◈</text>
+      <text x="52" y="308" class="nav-label-active">Финансы</text>
+      <text x="230" y="31" class="screen-kicker">RE:FORM LIFE  ·  ДЕНЬГИ БЕЗ ШУМА</text>
+      <text x="230" y="61" class="screen-title">Финансы</text>
+      <text x="230" y="82" class="screen-subtitle">Видеть баланс, не превращая жизнь в таблицу.</text>
+      <g transform="translate(925 26)"><rect width="158" height="30" rx="15" class="small-button"/><text x="21" y="45" class="small-button-text" transform="translate(0 -13)">‹  Октябрь 2026  ›</text></g>
+      <rect x="1095" y="26" width="108" height="30" rx="15" class="small-button"/><text x="1118" y="45" class="small-button-text">Текущий месяц</text>
+      <rect x="1213" y="26" width="157" height="30" rx="15" class="button"/><text x="1250" y="45" class="button-text">＋ Операция</text>
+
+      <g transform="translate(230 108)">
+        <rect width="360" height="62" rx="16" class="panel"/><circle cx="30" cy="31" r="16" fill="#9AD8A6" fill-opacity=".12"/><text x="30" y="36" text-anchor="middle" class="green" font-size="16">↗</text><text x="58" y="22" class="screen-kicker">ДОХОДЫ</text><text x="58" y="47" class="value-sm green">185 000 ₽</text><text x="230" y="47" class="muted">за октябрь</text>
+      </g>
+      <g transform="translate(610 108)">
+        <rect width="360" height="62" rx="16" class="panel"/><circle cx="30" cy="31" r="16" fill="#FF3F5B" fill-opacity=".12"/><text x="30" y="36" text-anchor="middle" class="coral" font-size="16">↘</text><text x="58" y="22" class="screen-kicker">РАСХОДЫ</text><text x="58" y="47" class="value-sm coral">96 420 ₽</text><text x="230" y="47" class="muted">за октябрь</text>
+      </g>
+      <g transform="translate(990 108)">
+        <rect width="380" height="62" rx="16" fill="#FF7137" fill-opacity=".13" stroke="#FF7137" stroke-opacity=".38"/><circle cx="30" cy="31" r="16" fill="#FFB52E"/><text x="30" y="36" text-anchor="middle" fill="#24150F" font-size="15">◈</text><text x="58" y="22" class="screen-kicker">БАЛАНС</text><text x="58" y="47" class="value-sm">88 580 ₽</text><text x="230" y="47" class="muted">доходы − расходы</text>
+      </g>
+
+      <g transform="translate(230 188)">
+        <rect width="1140" height="34" rx="17" fill="#151319" stroke="#342B31"/>
+        <rect x="8" y="5" width="120" height="24" rx="12" fill="#FF7137" fill-opacity=".19"/><text x="37" y="21" class="small-button-text">Операции</text>
+        <text x="164" y="21" class="muted">◈  Сбережения</text>
+        <text x="946" y="21" class="muted">последнее обновление · сегодня</text>
+      </g>
+      <g transform="translate(230 240)">
+        <rect width="670" height="188" rx="18" class="panel"/>
+        <text x="18" y="27" class="screen-kicker">АНАЛИТИКА</text><text x="18" y="51" class="card-title">Расходы по категориям</text><text x="560" y="45" class="muted">12 операций</text>
+        <text x="18" y="83" class="card-copy">Дом</text><rect x="110" y="74" width="392" height="10" rx="5" class="bar-bg"/><rect x="110" y="74" width="312" height="10" rx="5" fill="#FF7137"/><text x="526" y="83" class="muted">38 400 ₽</text>
+        <text x="18" y="116" class="card-copy">Продукты</text><rect x="110" y="107" width="392" height="10" rx="5" class="bar-bg"/><rect x="110" y="107" width="237" height="10" rx="5" fill="#FFB52E"/><text x="526" y="116" class="muted">25 100 ₽</text>
+        <text x="18" y="149" class="card-copy">Транспорт</text><rect x="110" y="140" width="392" height="10" rx="5" class="bar-bg"/><rect x="110" y="140" width="144" height="10" rx="5" fill="#FF3F5B"/><text x="526" y="149" class="muted">15 200 ₽</text>
+        <text x="18" y="177" class="muted">Добавьте расход, и аналитика обновится сама.</text>
+      </g>
+      <g transform="translate(820 240)">
+        <rect width="550" height="188" rx="18" class="panel"/>
+        <text x="18" y="27" class="screen-kicker">КАТЕГОРИИ</text><text x="18" y="51" class="card-title">Распределение</text>
+        <circle cx="430" cy="93" r="48" fill="none" stroke="#2C252B" stroke-width="13"/><circle cx="430" cy="93" r="48" fill="none" stroke="#FF7137" stroke-width="13" stroke-dasharray="156 302" transform="rotate(-90 430 93)"/><circle cx="430" cy="93" r="48" fill="none" stroke="#FFB52E" stroke-width="13" stroke-dasharray="88 302" stroke-dashoffset="-160" transform="rotate(-90 430 93)"/><text x="430" y="90" text-anchor="middle" class="value-sm">96k</text><text x="430" y="106" text-anchor="middle" class="dim">расходы</text>
+        <circle cx="24" cy="84" r="4" fill="#FF7137"/><text x="38" y="88" class="card-copy">Дом 40%</text><circle cx="24" cy="112" r="4" fill="#FFB52E"/><text x="38" y="116" class="card-copy">Продукты 26%</text><circle cx="24" cy="140" r="4" fill="#FF3F5B"/><text x="38" y="144" class="card-copy">Транспорт 16%</text><circle cx="24" cy="168" r="4" fill="#9AD8A6"/><text x="38" y="172" class="card-copy">Другое 18%</text>
+      </g>
+      <g transform="translate(230 446)">
+        <rect width="1140" height="100" rx="18" class="panel-deep"/>
+        <text x="18" y="27" class="screen-kicker">ЖУРНАЛ</text><text x="18" y="51" class="card-title">Последние операции</text><text x="1034" y="45" class="muted">все операции  ⌄</text>
+        <path d="M18 64H1122" class="hairline"/>
+        <text x="18" y="82" class="table-head">ДАТА</text><text x="110" y="82" class="table-head">КАТЕГОРИЯ</text><text x="300" y="82" class="table-head">КОММЕНТАРИЙ</text><text x="854" y="82" class="table-head">ТИП</text><text x="1030" y="82" class="table-head">СУММА</text>
+        <text x="18" y="98" class="table-copy">23.10</text><text x="110" y="98" class="table-copy">Дом</text><text x="300" y="98" class="muted">коммунальные услуги</text><text x="854" y="98" class="coral" font-size="9">Расход</text><text x="1030" y="98" class="coral" font-size="9">− 8 240 ₽</text>
+      </g>
+    </g>
+    <rect width="1400" height="570" rx="26" fill="none" stroke="#3A3035"/>
+  </g>
+
+  <!-- 06 Utilities -->
+  <g id="screen-utilities" transform="translate(1520 1480)">
+    <text x="0" y="-20" class="frame-label">06  ·  КОММУНАЛКА</text>
+    <rect width="1400" height="570" rx="26" fill="#17161C" filter="url(#shadow)"/>
+    <g clip-path="url(#screen-clip)">
+      <use xlink:href="#sidebar-base"/>
+      <rect x="202" y="0" width="1198" height="570" fill="#0F0E13"/>
+      <rect x="14" y="338" width="174" height="36" rx="12" fill="#FF7137" fill-opacity=".16" stroke="#FF7137" stroke-opacity=".28"/>
+      <text x="24" y="356" class="nav-icon-active">◷</text>
+      <text x="52" y="356" class="nav-label-active">Коммуналка</text>
+      <text x="230" y="31" class="screen-kicker">RE:FORM LIFE  ·  ДОМ И ЗАБОТА</text>
+      <text x="230" y="61" class="screen-title">Коммуналка</text>
+      <text x="230" y="82" class="screen-subtitle">Счета, показания и сроки оплаты в одном спокойном месте.</text>
+      <rect x="1062" y="26" width="142" height="30" rx="15" class="small-button"/><text x="1083" y="45" class="small-button-text">‹  Октябрь  ›</text>
+      <rect x="1213" y="26" width="157" height="30" rx="15" class="button"/><text x="1247" y="45" class="button-text">＋ Платёж</text>
+
+      <g transform="translate(230 108)">
+        <rect width="1140" height="43" rx="14" fill="#FFB52E" fill-opacity=".1" stroke="#FFB52E" stroke-opacity=".4"/>
+        <circle cx="25" cy="21.5" r="11" fill="#FFB52E"/><text x="25" y="26" text-anchor="middle" fill="#24150F" font-size="12">◷</text><text x="50" y="19" class="card-title-sm">Пора передать показания</text><text x="50" y="34" class="muted">До 25 октября · вода, электричество и отопление</text><text x="1022" y="27" class="small-button-text">настроить время</text>
+      </g>
+      <g transform="translate(230 166)">
+        <rect width="270" height="66" rx="16" class="panel"/><text x="16" y="20" class="screen-kicker">НАЧИСЛЕНО</text><text x="16" y="47" class="value-sm">9 240 ₽</text><text x="128" y="47" class="muted">все счета</text>
+      </g>
+      <g transform="translate(515 166)">
+        <rect width="270" height="66" rx="16" class="panel"/><text x="16" y="20" class="screen-kicker">ОСТАЛОСЬ</text><text x="16" y="47" class="value-sm accent">5 640 ₽</text><text x="128" y="47" class="muted">к оплате</text>
+      </g>
+      <g transform="translate(800 166)">
+        <rect width="270" height="66" rx="16" class="panel"/><text x="16" y="20" class="screen-kicker">ОПЛАЧЕНО</text><text x="16" y="47" class="value-sm green">3 600 ₽</text><text x="128" y="47" class="muted">за октябрь</text>
+      </g>
+      <g transform="translate(1085 166)">
+        <rect width="285" height="66" rx="16" class="panel"/><text x="16" y="20" class="screen-kicker">ПРОСРОЧЕНО</text><text x="16" y="47" class="value-sm coral">0 ₽</text><text x="92" y="47" class="muted">всё под контролем</text>
+      </g>
+
+      <g transform="translate(230 250)">
+        <rect width="520" height="296" rx="18" class="panel"/>
+        <text x="18" y="28" class="screen-kicker">МОИ КВАРТИРЫ</text><text x="18" y="52" class="card-title">Объекты и расчёт</text><text x="442" y="45" class="muted">＋ квартира</text>
+        <rect x="18" y="73" width="484" height="92" rx="14" class="panel-deep"/>
+        <circle cx="48" cy="112" r="20" fill="#FF7137" fill-opacity=".15"/><text x="48" y="118" text-anchor="middle" class="orange" font-size="18">⌂</text><text x="82" y="103" class="card-title-sm">Моя квартира</text><text x="82" y="121" class="muted">Москва · ул. Тихая, 12</text><text x="82" y="140" class="dim">лицевой счёт · 0088 1242</text><text x="440" y="104" class="accent" font-size="11">⋯</text>
+        <text x="18" y="199" class="screen-kicker">ПОКАЗАНИЯ</text>
+        <text x="18" y="224" class="card-copy">Вода</text><text x="390" y="224" class="card-copy">124,30 м³</text><text x="452" y="224" class="muted">10.10</text>
+        <path d="M18 235H502" class="soft-line"/>
+        <text x="18" y="260" class="card-copy">Электричество</text><text x="344" y="260" class="card-copy">3 420 кВт·ч</text><text x="452" y="260" class="muted">10.10</text>
+        <path d="M18 271H502" class="soft-line"/>
+        <text x="18" y="288" class="muted">＋ добавить показание</text>
+      </g>
+      <g transform="translate(770 250)">
+        <rect width="600" height="296" rx="18" class="panel"/>
+        <text x="18" y="28" class="screen-kicker">ПЛАТЕЖИ ПО КВАРТИРАМ</text><text x="18" y="52" class="card-title">Счета за октябрь</text><text x="500" y="45" class="muted">все квартиры  ⌄</text>
+        <g transform="translate(18 73)">
+          <rect width="564" height="51" rx="12" class="panel-deep"/><circle cx="23" cy="25" r="6" fill="#9AD8A6"/><text x="40" y="22" class="card-title-sm">Вода</text><text x="40" y="38" class="dim">срок · 25 октября</text><text x="450" y="30" class="value-sm">1 240 ₽</text>
+          <rect y="62" width="564" height="51" rx="12" class="panel-deep"/><circle cx="23" cy="87" r="6" fill="#FFB52E"/><text x="40" y="84" class="card-title-sm">Электричество</text><text x="40" y="100" class="dim">ожидает показаний</text><text x="450" y="92" class="value-sm">2 080 ₽</text>
+          <rect y="124" width="564" height="51" rx="12" class="panel-deep"/><circle cx="23" cy="149" r="6" fill="#9AD8A6"/><text x="40" y="146" class="card-title-sm">Отопление</text><text x="40" y="162" class="dim">оплачено · 11 октября</text><text x="450" y="154" class="value-sm green">3 600 ₽</text>
+          <rect y="186" width="564" height="32" rx="10" fill="#FF7137" fill-opacity=".08" stroke="#5A3836" stroke-dasharray="4 4"/><text x="228" y="207" class="muted">＋ добавить платёж</text>
+        </g>
+      </g>
+    </g>
+    <rect width="1400" height="570" rx="26" fill="none" stroke="#3A3035"/>
+  </g>
+
+  <!-- 07 Habits -->
+  <g id="screen-habits" transform="translate(80 2110)">
+    <text x="0" y="-20" class="frame-label">07  ·  ПРИВЫЧКИ</text>
+    <rect width="1400" height="570" rx="26" fill="#17161C" filter="url(#shadow)"/>
+    <g clip-path="url(#screen-clip)">
+      <use xlink:href="#sidebar-base"/>
+      <rect x="202" y="0" width="1198" height="570" fill="#0F0E13"/>
+      <rect x="14" y="386" width="174" height="36" rx="12" fill="#FF7137" fill-opacity=".16" stroke="#FF7137" stroke-opacity=".28"/>
+      <text x="24" y="404" class="nav-icon-active">⌁</text>
+      <text x="52" y="404" class="nav-label-active">Привычки</text>
+      <text x="230" y="31" class="screen-kicker">RE:FORM LIFE  ·  ПОВСЕДНЕВНЫЙ РИТМ</text>
+      <text x="230" y="61" class="screen-title">Привычки</text>
+      <text x="230" y="82" class="screen-subtitle">Маленькие шаги складываются в результат, если оставить им место.</text>
+      <rect x="1194" y="26" width="74" height="30" rx="15" class="small-button"/><text x="1211" y="45" class="small-button-text">Сегодня</text>
+      <rect x="1278" y="26" width="92" height="30" rx="15" class="button"/><text x="1297" y="45" class="button-text">＋ Привычка</text>
+
+      <g transform="translate(230 108)">
+        <rect width="350" height="62" rx="16" class="panel"/><circle cx="30" cy="31" r="16" fill="#9AD8A6" fill-opacity=".13"/><text x="30" y="36" text-anchor="middle" class="green" font-size="16">✓</text><text x="58" y="22" class="screen-kicker">СЕГОДНЯ ВЫПОЛНЕНО</text><text x="58" y="47" class="value-sm">3 из 5</text><text x="132" y="47" class="muted">60% привычек</text>
+      </g>
+      <g transform="translate(610 108)">
+        <rect width="350" height="62" rx="16" class="panel"/><circle cx="30" cy="31" r="16" fill="#FFB52E" fill-opacity=".13"/><text x="30" y="36" text-anchor="middle" class="accent" font-size="16">↗</text><text x="58" y="22" class="screen-kicker">ЛУЧШАЯ СЕРИЯ</text><text x="58" y="47" class="value-sm">12 дней</text><text x="160" y="47" class="muted">по всем привычкам</text>
+      </g>
+      <g transform="translate(990 108)">
+        <rect width="380" height="62" rx="16" fill="#FF7137" fill-opacity=".13" stroke="#FF7137" stroke-opacity=".38"/><circle cx="30" cy="31" r="16" fill="#FFB52E"/><text x="30" y="36" text-anchor="middle" fill="#24150F" font-size="16">◎</text><text x="58" y="22" class="screen-kicker">АКТИВНЫЕ ПРИВЫЧКИ</text><text x="58" y="47" class="value-sm">05</text><text x="100" y="47" class="muted">в моём ритме</text>
+      </g>
+
+      <g transform="translate(230 190)">
+        <rect width="1140" height="356" rx="18" class="panel"/>
+        <text x="18" y="28" class="screen-kicker">ТРЕКЕР</text><text x="18" y="52" class="card-title">Последние 14 дней</text><text x="895" y="45" class="muted">нажмите на клетку, чтобы отметить</text>
+        <path d="M18 71H1122" class="hairline"/>
+        <g transform="translate(245 89)">
+          <text x="0" y="0" class="muted">11</text><text x="58" y="0" class="muted">12</text><text x="116" y="0" class="muted">13</text><text x="174" y="0" class="muted">14</text><text x="232" y="0" class="muted">15</text><text x="290" y="0" class="muted">16</text><text x="348" y="0" class="muted">17</text><text x="406" y="0" class="muted">18</text><text x="464" y="0" class="muted">19</text><text x="522" y="0" class="muted">20</text><text x="580" y="0" class="muted">21</text><text x="638" y="0" class="muted">22</text><text x="696" y="0" class="accent">23</text><text x="754" y="0" class="muted">24</text>
+          <path d="M0 14H790" class="soft-line"/>
+          <g transform="translate(0 35)">
+            <text x="-227" y="16" class="card-title-sm">Стакан воды</text><text x="-227" y="32" class="dim">5 из 7 дней · серия 12</text>
+            <g fill="#FF7137"><rect x="0" y="0" width="30" height="30" rx="8"/><rect x="58" y="0" width="30" height="30" rx="8"/><rect x="116" y="0" width="30" height="30" rx="8"/><rect x="174" y="0" width="30" height="30" rx="8"/><rect x="232" y="0" width="30" height="30" rx="8"/><rect x="290" y="0" width="30" height="30" rx="8"/><rect x="348" y="0" width="30" height="30" rx="8"/><rect x="406" y="0" width="30" height="30" rx="8"/><rect x="522" y="0" width="30" height="30" rx="8"/><rect x="580" y="0" width="30" height="30" rx="8"/><rect x="696" y="0" width="30" height="30" rx="8"/></g>
+            <g fill="#24150F" font-size="12" font-weight="700"><text x="15" y="20" text-anchor="middle">✓</text><text x="73" y="20" text-anchor="middle">✓</text><text x="131" y="20" text-anchor="middle">✓</text><text x="189" y="20" text-anchor="middle">✓</text><text x="247" y="20" text-anchor="middle">✓</text><text x="305" y="20" text-anchor="middle">✓</text><text x="363" y="20" text-anchor="middle">✓</text><text x="421" y="20" text-anchor="middle">✓</text><text x="537" y="20" text-anchor="middle">✓</text><text x="595" y="20" text-anchor="middle">✓</text><text x="711" y="20" text-anchor="middle">✓</text></g>
+            <rect x="464" y="0" width="30" height="30" rx="8" fill="#2D252C" stroke="#FFB52E" stroke-width="2"/><rect x="638" y="0" width="30" height="30" rx="8" fill="#2D252C"/>
+          </g>
+          <g transform="translate(0 104)">
+            <text x="-227" y="16" class="card-title-sm">Без экрана утром</text><text x="-227" y="32" class="dim">3 из 7 дней · серия 4</text>
+            <g fill="#FFB52E"><rect x="0" y="0" width="30" height="30" rx="8"/><rect x="116" y="0" width="30" height="30" rx="8"/><rect x="232" y="0" width="30" height="30" rx="8"/><rect x="406" y="0" width="30" height="30" rx="8"/><rect x="580" y="0" width="30" height="30" rx="8"/></g><g fill="#24150F" font-size="12" font-weight="700"><text x="15" y="20" text-anchor="middle">✓</text><text x="131" y="20" text-anchor="middle">✓</text><text x="247" y="20" text-anchor="middle">✓</text><text x="421" y="20" text-anchor="middle">✓</text><text x="595" y="20" text-anchor="middle">✓</text></g>
+            <rect x="58" y="0" width="30" height="30" rx="8" fill="#2D252C"/><rect x="174" y="0" width="30" height="30" rx="8" fill="#2D252C"/><rect x="290" y="0" width="30" height="30" rx="8" fill="#2D252C"/><rect x="348" y="0" width="30" height="30" rx="8" fill="#2D252C"/><rect x="464" y="0" width="30" height="30" rx="8" fill="#2D252C"/><rect x="522" y="0" width="30" height="30" rx="8" fill="#2D252C"/><rect x="638" y="0" width="30" height="30" rx="8" fill="#2D252C"/><rect x="696" y="0" width="30" height="30" rx="8" fill="#2D252C"/><rect x="754" y="0" width="30" height="30" rx="8" fill="#2D252C"/></g>
+          <g transform="translate(0 173)">
+            <text x="-227" y="16" class="card-title-sm">Вечерняя запись</text><text x="-227" y="32" class="dim">6 из 7 дней · серия 9</text>
+            <g fill="#FF3F5B"><rect x="0" y="0" width="30" height="30" rx="8"/><rect x="58" y="0" width="30" height="30" rx="8"/><rect x="116" y="0" width="30" height="30" rx="8"/><rect x="174" y="0" width="30" height="30" rx="8"/><rect x="232" y="0" width="30" height="30" rx="8"/><rect x="290" y="0" width="30" height="30" rx="8"/><rect x="348" y="0" width="30" height="30" rx="8"/><rect x="406" y="0" width="30" height="30" rx="8"/><rect x="464" y="0" width="30" height="30" rx="8"/><rect x="522" y="0" width="30" height="30" rx="8"/><rect x="580" y="0" width="30" height="30" rx="8"/><rect x="696" y="0" width="30" height="30" rx="8"/></g><g fill="#24150F" font-size="12" font-weight="700"><text x="15" y="20" text-anchor="middle">✓</text><text x="73" y="20" text-anchor="middle">✓</text><text x="131" y="20" text-anchor="middle">✓</text><text x="189" y="20" text-anchor="middle">✓</text><text x="247" y="20" text-anchor="middle">✓</text><text x="305" y="20" text-anchor="middle">✓</text><text x="363" y="20" text-anchor="middle">✓</text><text x="421" y="20" text-anchor="middle">✓</text><text x="479" y="20" text-anchor="middle">✓</text><text x="537" y="20" text-anchor="middle">✓</text><text x="595" y="20" text-anchor="middle">✓</text><text x="711" y="20" text-anchor="middle">✓</text></g><rect x="638" y="0" width="30" height="30" rx="8" fill="#2D252C" stroke="#FFB52E" stroke-width="2"/><rect x="754" y="0" width="30" height="30" rx="8" fill="#2D252C"/></g>
+          <path d="M0 244H790" class="soft-line"/>
+          <text x="-227" y="274" class="muted">Цвет строки = характер привычки · пустая клетка остаётся нейтральной</text>
+        </g>
+      </g>
+    </g>
+    <rect width="1400" height="570" rx="26" fill="none" stroke="#3A3035"/>
+  </g>
+
+  <!-- Board footer -->
+  <g transform="translate(1520 2110)">
+    <text x="0" y="-20" class="frame-label">ПРИНЦИПЫ ПРОДОЛЖЕНИЯ ДИЗАЙНА</text>
+    <rect width="1400" height="570" rx="26" fill="#17161C" filter="url(#shadow)"/>
+    <g clip-path="url(#screen-clip)">
+      <rect width="1400" height="570" fill="#0F0E13"/>
+      <text x="52" y="78" class="screen-kicker">ДЛЯ СЛЕДУЮЩЕГО ПРОХОДА</text>
+      <text x="52" y="111" fill="#FFF7EA" font-size="27" font-weight="700">Дизайн держится на ритме,<tspan class="accent"> не на шуме.</tspan></text>
+      <text x="52" y="141" class="screen-subtitle">Это не финальная реализация, а визуальная карта, на которую можно опираться при детализации UI.</text>
+
+      <g transform="translate(52 185)">
+        <rect width="390" height="280" rx="20" class="panel"/>
+        <circle cx="42" cy="43" r="18" fill="#FFB52E" fill-opacity=".15" stroke="#FFB52E" stroke-opacity=".5"/><text x="42" y="49" text-anchor="middle" class="accent" font-size="16">01</text>
+        <text x="76" y="47" class="card-title">Иерархия</text>
+        <text x="24" y="95" class="card-copy">Один главный фокус на экране.</text><text x="24" y="118" class="muted">Кикер → заголовок → действие → детали.</text>
+        <path d="M24 143H366" class="hairline"/>
+        <text x="24" y="171" class="screen-kicker">ТИПОГРАФИКА</text><text x="24" y="199" fill="#FFF7EA" font-size="23" font-weight="700">24 / 13 / 10</text><text x="24" y="223" class="muted">крупный заголовок · карточка · подпись</text>
+      </g>
+      <g transform="translate(484 185)">
+        <rect width="390" height="280" rx="20" class="panel"/>
+        <circle cx="42" cy="43" r="18" fill="#FF7137" fill-opacity=".15" stroke="#FF7137" stroke-opacity=".5"/><text x="42" y="49" text-anchor="middle" class="orange" font-size="16">02</text>
+        <text x="76" y="47" class="card-title">Материал</text>
+        <text x="24" y="95" class="card-copy">Мягкие панели вместо тяжёлого chrome.</text><text x="24" y="118" class="muted">Радиус 14–20 · контур 1 px · тени мягкие.</text>
+        <path d="M24 143H366" class="hairline"/>
+        <rect x="24" y="170" width="110" height="58" rx="16" fill="#18171D" stroke="#382F35"/><rect x="151" y="170" width="110" height="58" rx="16" fill="#FF7137" fill-opacity=".14" stroke="#FF7137" stroke-opacity=".45"/><rect x="278" y="170" width="88" height="58" rx="16" fill="#FFB52E" fill-opacity=".14" stroke="#FFB52E" stroke-opacity=".45"/>
+        <text x="24" y="252" class="muted">surface · focus · positive</text>
+      </g>
+      <g transform="translate(916 185)">
+        <rect width="432" height="280" rx="20" class="panel"/>
+        <circle cx="42" cy="43" r="18" fill="#FF3F5B" fill-opacity=".15" stroke="#FF3F5B" stroke-opacity=".5"/><text x="42" y="49" text-anchor="middle" class="coral" font-size="16">03</text>
+        <text x="76" y="47" class="card-title">Состояния</text>
+        <text x="24" y="95" class="card-copy">Готово, в процессе, просрочено — видны сразу.</text><text x="24" y="118" class="muted">Цвет помогает ориентироваться, но не заменяет текст.</text>
+        <path d="M24 143H408" class="hairline"/>
+        <rect x="24" y="171" width="92" height="28" rx="14" fill="#9AD8A6" fill-opacity=".13" stroke="#9AD8A6" stroke-opacity=".4"/><text x="48" y="189" class="muted">готово</text>
+        <rect x="132" y="171" width="115" height="28" rx="14" fill="#FFB52E" fill-opacity=".13" stroke="#FFB52E" stroke-opacity=".4"/><text x="153" y="189" class="muted">в процессе</text>
+        <rect x="263" y="171" width="117" height="28" rx="14" fill="#FF3F5B" fill-opacity=".13" stroke="#FF3F5B" stroke-opacity=".4"/><text x="286" y="189" class="muted">просрочено</text>
+        <text x="24" y="250" class="screen-kicker">СЛЕДУЮЩИЙ ШАГ</text><text x="24" y="269" class="card-copy">Детализировать мобильную ширину и модальные состояния.</text>
+      </g>
+      <text x="52" y="525" class="muted">Все экраны и группы имеют собственные id: screen-week, screen-tasks, screen-assistant, screen-month, screen-finance, screen-utilities, screen-habits.</text>
+    </g>
+    <rect width="1400" height="570" rx="26" fill="none" stroke="#3A3035"/>
+  </g>
+</svg>
