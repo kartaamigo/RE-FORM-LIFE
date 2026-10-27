@@ -309,6 +309,11 @@ button {
   background-image: none !important;
 }
 
+body[data-page] .main-area {
+  background: var(--rf-bg) !important;
+  background-image: none !important;
+}
+
 .topbar {
   display: flex;
   align-items: flex-start;
@@ -789,6 +794,64 @@ body[data-page="assistant"] .assistant-hero,
 body[data-page="assistant"] .assistant-dialog-hero,
 body[data-page="assistant"] .assistant-voice-visualizer {
   border-color: rgba(255, 181, 46, .3) !important;
+}
+
+body[data-page="assistant"] .assistant-interface-grid,
+body[data-page="assistant"] .assistant-chat-shell,
+body[data-page="assistant"] .assistant-chat-log,
+body[data-page="assistant"] .assistant-chat-compose,
+body[data-page="assistant"] .assistant-dialog-composer,
+body[data-page="assistant"] .assistant-chat-wave,
+body[data-page="assistant"] .assistant-command-library {
+  border-color: var(--rf-line) !important;
+  background: var(--rf-surface) !important;
+  background-image: none !important;
+}
+
+body[data-page="assistant"] .assistant-chat-shell {
+  box-shadow: none !important;
+}
+
+body[data-page="assistant"] .assistant-chat-header h2 {
+  color: var(--rf-text) !important;
+}
+
+body[data-page="assistant"] .assistant-chat-log {
+  color: var(--rf-muted) !important;
+}
+
+body[data-page="assistant"] .assistant-dialog-composer {
+  border-color: var(--rf-line-strong) !important;
+  background: var(--rf-surface-quiet) !important;
+}
+
+body[data-page="assistant"] .assistant-dialog-composer textarea {
+  background: transparent !important;
+}
+
+body[data-page="assistant"] .assistant-chat-wave {
+  color: var(--rf-muted) !important;
+}
+
+body[data-page="assistant"] .assistant-command-library summary {
+  color: var(--rf-text) !important;
+}
+
+body[data-page="month"] .month-metric .metric-icon,
+body[data-page="finance"] .metric-card .metric-icon,
+body[data-page="utilities"] .metric-card .metric-icon,
+body[data-page="habits"] .metric-card .metric-icon {
+  border-color: color-mix(in srgb, var(--page-accent, var(--rf-orange)) 52%, var(--rf-line)) !important;
+  color: var(--page-accent, var(--rf-orange)) !important;
+  background: var(--page-accent-soft, rgba(255, 113, 55, .12)) !important;
+}
+
+body[data-page="month"] .metric-progress i,
+body[data-page="finance"] .metric-progress i,
+body[data-page="utilities"] .metric-progress i,
+body[data-page="habits"] .metric-progress i {
+  background: var(--page-accent, var(--rf-orange)) !important;
+  box-shadow: none !important;
 }
 
 body[data-page="assistant"] .assistant-mic-button {
