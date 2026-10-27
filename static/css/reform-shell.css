@@ -696,6 +696,15 @@ select:focus {
   background: var(--rf-surface) !important;
 }
 
+body[data-page="week"] .legacy-mini-ring,
+body[data-page="week"] .legacy-big-ring {
+  background: conic-gradient(var(--page-accent) 0deg, var(--page-accent) 0deg, var(--rf-line-strong) 0deg) !important;
+}
+
+body[data-page="week"] .legacy-stat-icon {
+  filter: sepia(.5) saturate(1.15) hue-rotate(325deg) brightness(1.12) !important;
+}
+
 .utility-reminder {
   background: rgba(255, 181, 46, .07) !important;
   border-color: rgba(255, 181, 46, .28) !important;
@@ -798,6 +807,70 @@ body[data-page="assistant"] .assistant-mic-button.listening {
 body[data-page="assistant"] .assistant-brand-chip {
   border-color: rgba(255, 181, 46, .28) !important;
   background: rgba(255, 181, 46, .08) !important;
+}
+
+/* First-run and mood prompts use the same surface language as the sections. */
+.welcome-backdrop {
+  background: rgba(8, 7, 10, .78) !important;
+  backdrop-filter: blur(14px);
+}
+
+.welcome-card {
+  width: min(440px, calc(100vw - 36px));
+  padding: 30px 30px 27px !important;
+  border: 1px solid var(--rf-line-strong) !important;
+  border-radius: 18px !important;
+  background: var(--rf-surface) !important;
+  box-shadow: var(--rf-shadow) !important;
+}
+
+.welcome-logo.reform-life-logo {
+  width: 150px !important;
+  height: 112px !important;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 22px rgba(255, 113, 55, .16)) !important;
+}
+
+.welcome-card .modal-kicker { color: var(--rf-orange) !important; }
+
+.welcome-card h2 {
+  color: var(--rf-text) !important;
+  font-family: Duepunto, Rubik, Arial, sans-serif !important;
+  font-weight: 700 !important;
+}
+
+.welcome-card h2 span { color: var(--rf-yellow) !important; }
+
+.welcome-card p { color: var(--rf-muted) !important; }
+
+.welcome-close {
+  color: var(--rf-muted) !important;
+  background: transparent !important;
+}
+
+.mood-prompt {
+  border-color: var(--rf-line-strong) !important;
+  border-radius: 16px !important;
+  background: var(--rf-surface) !important;
+  box-shadow: var(--rf-shadow) !important;
+}
+
+.mood-prompt-kicker,
+.mood-prompt strong { color: var(--rf-text) !important; }
+
+.mood-prompt-kicker { color: var(--page-accent, var(--rf-orange)) !important; }
+
+.mood-choice {
+  border-color: var(--rf-line-strong) !important;
+  color: var(--rf-muted) !important;
+  background: var(--rf-surface-quiet) !important;
+}
+
+.mood-choice:hover,
+.mood-choice:focus-visible {
+  border-color: var(--page-accent, var(--rf-orange)) !important;
+  color: var(--rf-text) !important;
+  background: var(--page-accent-soft, rgba(255, 113, 55, .12)) !important;
 }
 
 @keyframes rf-page-in {
