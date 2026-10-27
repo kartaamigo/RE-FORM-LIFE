@@ -44,6 +44,8 @@ body[data-page="assistant"] .assistant-chat-compose { padding-bottom: 0; overflo
 .assistant-wave-caption { display: flex; justify-content: center; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 11px; }
 #assistantVoiceTitle { color: #bc9876; font-weight: 600; }
 #assistantVoiceStatus { color: #8b9a9f; }
+.assistant-brand-orbit { animation: eveBrandBreathe 4.8s ease-in-out infinite; }
+@keyframes eveBrandBreathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.035); } }
 .assistant-equalizer { display: block; width: 100%; height: 88px; margin-top: 4px; overflow: hidden; }
 .assistant-wave-fill { fill: url(#eveWaveFill); }
 .assistant-chat-wave[data-voice-state="off"] { opacity: .35; }
@@ -112,3 +114,7 @@ body[data-page="assistant"] :is(button, input, textarea, select, summary, a):foc
   .assistant-wave-caption { font-size: 10px; gap: 6px; }
 }
 @media (max-height: 650px) { .assistant-equalizer { height: 48px; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .assistant-brand-orbit { animation: none; }
+}

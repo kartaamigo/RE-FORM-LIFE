@@ -1177,6 +1177,8 @@ async function initAssistantChat() {
       idle: ['Я рядом', conversationActive ? 'Готова продолжить разговор' : 'Скажи «Эва» и команду'],
     };
     if (voiceVisualizer) voiceVisualizer.dataset.voiceState = mode;
+    const brandChip = document.querySelector('.assistant-brand-chip');
+    if (brandChip) brandChip.dataset.voiceState = mode;
     updateWaveState(mode);
     if (voiceTitle) voiceTitle.textContent = labels[mode][0];
     if (voiceStatus) voiceStatus.textContent = labels[mode][1];

@@ -3492,3 +3492,76 @@ body[data-page="assistant"] .assistant-voice-visualizer {
 .assistant-command-library input:focus-visible,
 .assistant-command-library select:focus-visible,
 .assistant-command-library textarea:focus-visible { outline: 2px solid #7389ff; outline-offset: 2px; }
+
+/* RE:FORM LIFE brand lockup from the supplied SVG reference. */
+.brand-logo.reform-life-logo {
+  width: 172px !important;
+  height: auto !important;
+  max-height: 92px;
+  object-fit: contain;
+  mix-blend-mode: normal;
+  filter: brightness(0) invert(1) drop-shadow(0 0 18px rgba(255, 181, 46, .24));
+}
+
+.welcome-logo.reform-life-logo {
+  width: 260px !important;
+  height: auto !important;
+  max-height: 168px;
+  object-fit: contain;
+  mix-blend-mode: normal;
+  filter: brightness(0) invert(1) drop-shadow(0 0 28px rgba(255, 113, 55, .32));
+}
+
+body[data-page="assistant"] .brand-logo.reform-life-logo {
+  filter: brightness(0) invert(1) drop-shadow(0 0 18px rgba(188, 152, 118, .28));
+}
+
+body[data-page="assistant"] .assistant-brand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #f4f1eb;
+}
+
+body[data-page="assistant"] .assistant-brand-chip > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+body[data-page="assistant"] .assistant-brand-chip strong {
+  color: #bc9876;
+  font-size: 10px;
+  letter-spacing: 1.6px;
+}
+
+body[data-page="assistant"] .assistant-brand-chip small {
+  color: #8b9a9f;
+  font-size: 9px;
+}
+
+body[data-page="assistant"] .assistant-brand-orbit {
+  display: grid;
+  width: 78px;
+  height: 32px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(188, 152, 118, .34);
+  border-radius: 999px;
+  background: rgba(67, 78, 96, .72);
+  box-shadow: 0 0 22px rgba(188, 152, 118, .12);
+}
+
+body[data-page="assistant"] .assistant-brand-orbit img {
+  width: 62px;
+  height: 24px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: .9;
+}
+
+body[data-page="assistant"] .assistant-brand-chip[data-voice-state="listening"] .assistant-brand-orbit,
+body[data-page="assistant"] .assistant-brand-chip[data-voice-state="speaking"] .assistant-brand-orbit {
+  border-color: #bc9876;
+  box-shadow: 0 0 22px rgba(188, 152, 118, .38);
+}

@@ -6,6 +6,10 @@
     <section class="panel assistant-chat-shell" aria-label="Единый AI-чат EVE">
       <header class="assistant-chat-header">
         <div>
+          <div class="assistant-brand-chip" aria-label="RE:FORM LIFE · EVE">
+            <span class="assistant-brand-orbit"><img src="{{ url_for('static', filename='img/reform-life-logo.svg') }}" alt=""></span>
+            <span><strong>EVE</strong><small>Эва рядом</small></span>
+          </div>
           <div class="section-kicker">EVE · AI-ЧАТ И УПРАВЛЕНИЕ</div>
           <h2>Чем я могу помочь?</h2>
           <p>Помогу разобраться с планами и привычками. Изменения, предложенные ИИ, покажу для подтверждения.</p>
@@ -123,5 +127,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/eve-commands.js') }}?v=1" defer></script>
+<script src="{{ url_for('static', filename='js/eve-commands.js') }}?v=2" defer></script>
 {% endblock %}

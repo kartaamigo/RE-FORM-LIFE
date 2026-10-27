@@ -4,14 +4,15 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>RE:FORM LIFE · {{ 'Glass / Glow' if concept_variant == 'glass' else 'Soft Panels' }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/concept.css') }}?v=1">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/reform-life-logo.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/concept.css') }}?v=2">
 </head>
-<body class="concept-page {{ concept_variant }}-variant">
+<body class="concept-page {{ concept_variant }}-variant" data-layout="desktop-1920">
   <div class="concept-shell">
     <aside class="concept-sidebar">
       <a class="concept-brand" href="{{ url_for('page_concept') }}" aria-label="RE:FORM LIFE">
-        <span class="brand-spark" aria-hidden="true">✦</span>
-        <span><strong>RE:FORM</strong><small>LIFE</small></span>
+        <span class="concept-brand-mark"><img src="{{ url_for('static', filename='img/reform-life-logo.svg') }}" alt=""></span>
+        <span class="concept-brand-copy"><strong>RE:FORM</strong><small>LIFE · YOUR RHYTHM</small></span>
       </a>
 
       <div class="sidebar-label">МОЁ ПРОСТРАНСТВО</div>
@@ -36,6 +37,10 @@
           <p class="topbar-copy">Соберём сегодняшний ритм без спешки.</p>
         </div>
         <div class="topbar-actions">
+          <div class="topbar-logo-note" aria-label="RE:FORM LIFE">
+            <img src="{{ url_for('static', filename='img/reform-life-logo.svg') }}" alt="">
+            <span>живой ритм</span>
+          </div>
           <div class="variant-switcher" role="tablist" aria-label="Варианты макета">
             <span>МАКЕТЫ</span>
             <a class="{% if concept_variant == 'glass' %}active{% endif %}" href="{{ url_for('page_concept') }}">GLASS</a>
@@ -57,6 +62,10 @@
           <div class="orbit-ring ring-one"></div>
           <div class="orbit-ring ring-two"></div>
           <div class="hero-glow"></div>
+          <div class="hero-logo-plate">
+            <img src="{{ url_for('static', filename='img/reform-life-logo.svg') }}" alt="">
+            <span>двигайся в своём темпе</span>
+          </div>
           <div class="hero-spark">✦</div>
           <div class="hero-orbit-caption">маленькие<br><strong>шаги</strong></div>
         </div>
@@ -110,7 +119,7 @@
           <article class="glass-card note-card" id="notes">
             <div class="section-heading compact"><div><p class="eyebrow">МЫСЛЬ ДНЯ</p><h2>Оставь заметку</h2></div><span class="note-star">✦</span></div>
             <p>«Я не обязан двигаться быстро, чтобы двигаться вперёд.»</p>
-            <button class="text-button" type="button">Добавить свою мысль <span>＋</span></button>
+            <div class="note-footer"><button class="text-button" type="button">Добавить свою мысль <span>＋</span></button><img class="section-logo-mark" src="{{ url_for('static', filename='img/reform-life-logo.svg') }}" alt="" aria-hidden="true"></div>
           </article>
         </div>
       </section>
@@ -121,12 +130,12 @@
           <div class="mood-options"><button type="button">●<small>тяжело</small></button><button type="button">◒<small>спокойно</small></button><button class="selected" type="button">◓<small>хорошо</small></button><button type="button">✦<small>отлично</small></button></div>
         </article>
         <article class="glass-card palette-card">
-          <div><p class="eyebrow">ПАЛИТРА КОНЦЕПТА</p><h2>Glow / Glass</h2></div>
+          <div class="palette-card-copy"><p class="eyebrow">ПАЛИТРА КОНЦЕПТА</p><h2>Glow / Glass</h2><img class="palette-logo" src="{{ url_for('static', filename='img/reform-life-logo.svg') }}" alt="RE:FORM LIFE"></div>
           <div class="swatches"><i class="swatch graphite"><span>#0D0D10</span></i><i class="swatch amber"><span>#FFB52E</span></i><i class="swatch orange"><span>#FF7137</span></i><i class="swatch coral"><span>#FF3F5B</span></i><i class="swatch pearl"><span>#FFF7E9</span></i></div>
         </article>
       </section>
     </main>
   </div>
-  <script src="{{ url_for('static', filename='js/concept.js') }}?v=1" defer></script>
+  <script src="{{ url_for('static', filename='js/concept.js') }}?v=2" defer></script>
 </body>
 </html>
