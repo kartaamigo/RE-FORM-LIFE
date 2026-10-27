@@ -13,6 +13,7 @@
   {% if page_key == 'assistant' %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/eve-orbit.css') }}?v=10">
   {% endif %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/reform-shell.css') }}?v=1">
 </head>
 <body data-page="{{ page_key }}">
   <div class="app-shell">
@@ -21,7 +22,7 @@
         <img class="brand-logo reform-life-logo" src="{{ url_for('static', filename='img/reform-life-logo.svg') }}" alt="{{ app_name }}">
       </a>
 
-      <div class="sidebar-caption">ЛИЧНЫЙ РИТМ</div>
+      <div class="sidebar-caption nav-section-label">ПЛАНИРОВАНИЕ</div>
       <nav class="main-nav" aria-label="Основная навигация">
         <a class="nav-link {% if page_key == 'week' %}active{% endif %}" href="{{ url_for('page_week') }}">
           <img src="{{ url_for('static', filename='img/icon-week.svg') }}" alt="">
@@ -35,10 +36,12 @@
           <img src="{{ url_for('static', filename='img/icon-assistant.svg') }}" alt="">
           <span>Ассистент</span>
         </a>
+        <div class="nav-section-label">ОБЗОР</div>
         <a class="nav-link {% if page_key == 'month' %}active{% endif %}" href="{{ url_for('page_month') }}">
           <img src="{{ url_for('static', filename='img/icon-month.svg') }}" alt="">
           <span>Месячный планер</span>
         </a>
+        <div class="nav-section-label">ПОВСЕДНЕВНАЯ ЖИЗНЬ</div>
         <a class="nav-link {% if page_key == 'finance' %}active{% endif %}" href="{{ url_for('page_finance') }}">
           <img src="{{ url_for('static', filename='img/icon-finance.svg') }}" alt="">
           <span>Финансы</span>
@@ -62,7 +65,7 @@
     <main class="main-area">
       <header class="topbar">
         <div class="topbar-heading {% if page_key == 'month' %}month-heading{% endif %}">
-          {% if page_key == 'month' %}<div class="month-hero-symbol" aria-hidden="true">✦</div>{% endif %}
+          <div class="topbar-symbol" aria-hidden="true"><img src="{{ url_for('static', filename='img/reform-life-logo.svg') }}" alt=""></div>
           <div>
           <div class="eyebrow">{{ app_name }}</div>
           <h1>{{ page_title }}</h1>
@@ -89,9 +92,15 @@
             </div>
             <button class="button primary" id="monthAddTask" type="button">＋ Добавить задачу</button>
           </div>
+          <a class="eve-status-link" href="{{ url_for('page_assistant') }}">
+            <span class="eve-status-orb">✦</span><span><b>EVE рядом</b><small>готова помочь</small></span>
+          </a>
         </div>
         {% else %}
         <div class="topbar-meta">
+          <a class="eve-status-link" href="{{ url_for('page_assistant') }}">
+            <span class="eve-status-orb">✦</span><span><b>EVE рядом</b><small>готова помочь</small></span>
+          </a>
           <span class="today-chip" id="globalToday">—</span>
           <button class="icon-button" id="quickRefresh" type="button" title="Обновить данные">↻</button>
         </div>

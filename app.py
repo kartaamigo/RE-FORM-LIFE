@@ -1124,12 +1124,14 @@ def page_habits():
 
 @app.route("/concept")
 def page_concept():
-    return render_template("concept.html", concept_variant="glass")
+    # Keep the old concept URL as a compatibility link, but open the real
+    # product shell with separate screens instead of the composite showcase.
+    return redirect(url_for("page_week"))
 
 
 @app.route("/concept-flat")
 def page_concept_flat():
-    return render_template("concept.html", concept_variant="flat")
+    return redirect(url_for("page_week"))
 
 
 @app.get("/api/health")
