@@ -34,7 +34,7 @@
   --rf-yellow: #ffb52e;
   --rf-pink: #ff3f5b;
   --rf-green: #79c884;
-  --rf-purple: #ae77d8;
+  --rf-purple: var(--rf-yellow);
   --rf-shadow: 0 22px 60px rgba(0, 0, 0, .22);
 
   /* Legacy selectors use these variables. Keep them on the new palette. */
@@ -156,9 +156,17 @@ button {
 .brand {
   display: flex;
   align-items: center;
+  justify-content: center;
   min-height: 88px;
   padding: 0 5px 20px !important;
   border-bottom: 1px solid var(--rf-line) !important;
+}
+
+.brand-lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
 
 .brand-logo.reform-life-logo {
@@ -169,6 +177,18 @@ button {
   object-position: left center;
   filter: drop-shadow(0 12px 20px rgba(255, 113, 55, .11));
 }
+
+.brand-wordmark {
+  color: var(--rf-text);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.45px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.brand-wordmark strong { font-weight: 700; }
+.brand-wordmark span { color: var(--rf-yellow); }
 
 .sidebar-caption.nav-section-label,
 .nav-section-label {
@@ -220,7 +240,7 @@ button {
   height: 22px !important;
   object-fit: contain;
   opacity: .78;
-  filter: sepia(.38) saturate(.95) hue-rotate(325deg) brightness(1.08) !important;
+  filter: brightness(0) saturate(100%) invert(77%) sepia(77%) saturate(1050%) hue-rotate(351deg) brightness(104%) contrast(103%) !important;
   transition: opacity 160ms ease, filter 160ms ease;
 }
 
@@ -261,7 +281,7 @@ button {
 
 .nav-link.active img {
   opacity: 1;
-  filter: sepia(.55) saturate(1.2) hue-rotate(325deg) brightness(1.28) !important;
+  filter: brightness(0) saturate(100%) invert(77%) sepia(77%) saturate(1050%) hue-rotate(351deg) brightness(108%) contrast(106%) !important;
 }
 
 .sidebar-footer {
@@ -319,6 +339,7 @@ body[data-page] .main-area {
   align-items: flex-start;
   min-height: 76px;
   margin-bottom: 22px !important;
+  animation: rf-reveal 560ms cubic-bezier(.22, 1, .36, 1) 40ms both;
 }
 
 .topbar-heading {
@@ -458,8 +479,32 @@ body[data-page] .main-area {
   flex-direction: column;
   gap: 16px !important;
   min-width: 0;
-  animation: rf-page-in 360ms cubic-bezier(.22, 1, .36, 1) both;
+  animation: rf-page-in 520ms cubic-bezier(.22, 1, .36, 1) both;
+  will-change: opacity, transform;
 }
+
+.page-content > * {
+  animation: rf-reveal 560ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.page-content > *:nth-child(1) { animation-delay: 90ms; }
+.page-content > *:nth-child(2) { animation-delay: 145ms; }
+.page-content > *:nth-child(3) { animation-delay: 200ms; }
+.page-content > *:nth-child(4) { animation-delay: 255ms; }
+.page-content > *:nth-child(5) { animation-delay: 310ms; }
+.page-content > *:nth-child(6) { animation-delay: 365ms; }
+
+.main-nav .nav-link {
+  animation: rf-nav-in 440ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.main-nav .nav-link:nth-of-type(1) { animation-delay: 100ms; }
+.main-nav .nav-link:nth-of-type(2) { animation-delay: 145ms; }
+.main-nav .nav-link:nth-of-type(3) { animation-delay: 190ms; }
+.main-nav .nav-link:nth-of-type(4) { animation-delay: 235ms; }
+.main-nav .nav-link:nth-of-type(5) { animation-delay: 280ms; }
+.main-nav .nav-link:nth-of-type(6) { animation-delay: 325ms; }
+.main-nav .nav-link:nth-of-type(7) { animation-delay: 370ms; }
 
 .metric-card,
 .panel,
@@ -742,7 +787,7 @@ body[data-page="week"] .legacy-big-ring {
 }
 
 body[data-page="week"] .legacy-stat-icon {
-  filter: sepia(.5) saturate(1.15) hue-rotate(325deg) brightness(1.12) !important;
+  filter: brightness(0) saturate(100%) invert(77%) sepia(77%) saturate(1050%) hue-rotate(351deg) brightness(104%) contrast(103%) !important;
 }
 
 .utility-reminder {
@@ -976,6 +1021,16 @@ body[data-page="assistant"] .assistant-brand-chip {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes rf-reveal {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rf-nav-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
 @media (max-width: 1280px) {
   .app-shell { grid-template-columns: 220px minmax(0, 1fr) !important; }
   .main-area { padding-right: 26px !important; padding-left: 26px !important; }
@@ -1014,6 +1069,7 @@ body[data-page="assistant"] .assistant-brand-chip {
   }
   .brand { min-height: 58px; padding-bottom: 10px !important; }
   .brand-logo.reform-life-logo { width: 110px !important; height: 52px; }
+  .brand-wordmark { font-size: 9px; letter-spacing: 1.1px; }
   .main-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px !important; margin-top: 10px !important; }
   .nav-section-label { grid-column: 1 / -1; margin: 10px 8px 2px; }
   .sidebar-footer { display: none !important; }
