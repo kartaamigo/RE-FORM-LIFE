@@ -535,6 +535,41 @@ body[data-page] .main-area {
   padding: 16px 18px !important;
 }
 
+.finance-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: max-content;
+  padding: 4px;
+  border: 1px solid var(--rf-line);
+  border-radius: 11px;
+  background: var(--rf-surface-quiet);
+}
+
+.finance-tab {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--rf-muted);
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background-color 160ms ease;
+}
+
+.finance-tab:hover,
+.finance-tab:focus-visible {
+  color: var(--rf-text);
+  border-color: var(--rf-line-strong);
+}
+
+.finance-tab.active {
+  color: #1b1110;
+  background: var(--page-accent, var(--rf-orange));
+}
+
 .toolbar-title h2,
 .panel-heading h2 {
   color: var(--rf-text);
