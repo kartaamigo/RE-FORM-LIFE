@@ -2088,7 +2088,9 @@ async function initHabits() {
   };
   pageRefresh = load; window.refreshCurrentPage = load; $('#addHabit').onclick = () => openHabitModal(); $('#habitsToday').onclick = () => load(); $('#habitFrequency').onchange = () => { $('#habitDaysField').style.opacity = $('#habitFrequency').value === 'daily' ? '.45' : '1'; };
   $('#habitForm').onsubmit = async event => { event.preventDefault(); const id = $('#habitId').value; const payload = { name: $('#habitName').value.trim(), frequency: $('#habitFrequency').value, color: $('#habitColor').value, schedule_days: $$('#habitDaysField input:checked').map(input => Number(input.value)) }; try { await api(id ? `/api/habits/${id}` : '/api/habits', { method: id ? 'PATCH' : 'POST', body: JSON.stringify(payload) }); closeModal('habitModal'); showToast(id ? 'Привычка обновлена' : 'Привычка добавлена'); await load(); } catch (error) { showToast(error.message, true); } };
-  await load();
+  state.dates = dateRange(addDays(new Date(), -13), new Date());
+  render();
+  void load().catch(error => showToast(error.message, true));
 }
 
 function openHabitModal(habit = null) { $('#habitModalTitle').textContent = habit ? 'Редактировать привычку' : 'Добавить привычку'; $('#habitId').value = habit?.id || ''; $('#habitName').value = habit?.name || ''; $('#habitFrequency').value = habit?.frequency || 'daily'; $('#habitColor').value = habit?.color || '#ff2290'; const selected = habit?.schedule_days || [0, 1, 2, 3, 4, 5, 6]; $$('#habitDaysField input').forEach(input => { input.checked = selected.includes(Number(input.value)); }); $('#habitDaysField').style.opacity = $('#habitFrequency').value === 'daily' ? '.45' : '1'; openModal('habitModal'); }
@@ -2207,13 +2209,15 @@ async function initUtilities() {
   $('#utilityServiceForm').onsubmit = async event => { event.preventDefault(); const accountId = $('#utilityServiceAccount').value; try { await api(`/api/utilities/accounts/${accountId}/services`, { method: 'POST', body: JSON.stringify({ name: $('#utilityServiceName').value.trim(), unit: $('#utilityServiceUnit').value.trim() }) }); closeModal('utilityServiceModal'); showToast('Услуга добавлена'); await load(); if (accountId) { state.expanded.add(Number(accountId)); render(state.reminderSettings); } } catch (error) { showToast(error.message, true); } };
   $('#utilityReminderSettings').onclick = async () => { const result = await api('/api/utilities/reminders/settings'); $('#utilityReminderTime').value = result.settings.reminder_time || '09:00'; $('#utilityNotificationsEnabled').checked = Boolean(result.settings.notifications_enabled); openModal('utilityReminderSettingsModal'); };
   $('#utilityReminderSettingsForm').onsubmit = async event => { event.preventDefault(); try { await api('/api/utilities/reminders/settings', { method: 'PATCH', body: JSON.stringify({ reminder_time: $('#utilityReminderTime').value, notifications_enabled: $('#utilityNotificationsEnabled').checked }) }); closeModal('utilityReminderSettingsModal'); showToast('Настройки напоминаний сохранены'); await load(); } catch (error) { showToast(error.message, true); } };
-  await load();
+  render(state.reminderSettings);
+  void load().catch(error => showToast(error.message, true));
 }
 
 function startPage() {
   bindCommon(); initWelcome(); bindDataSync(); initDatePickers(); $('#taskForm')?.addEventListener('submit', saveTask); $('#noteForm')?.addEventListener('submit', saveNote); $('#sectionForm')?.addEventListener('submit', saveSection);
   const page = document.body.dataset.page; const init = page === 'week' ? initWeek : page === 'tasks' ? initTasks : page === 'assistant' ? initAssistantChat : page === 'month' ? initMonth : page === 'finance' ? initFinance : page === 'utilities' ? initUtilities : initHabits;
-  const bootstrap = page === 'assistant'
+  const skipSections = ['assistant', 'habits', 'utilities'].includes(page);
+  const bootstrap = skipSections
     ? maybeMigrateLegacy()
     : maybeMigrateLegacy().then(() => loadSections());
   bootstrap.then(() => init()).then(() => { pageReady = true; return initMoodPrompt(); }).catch(error => showToast(error.message, true));

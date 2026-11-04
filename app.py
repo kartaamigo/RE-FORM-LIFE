@@ -73,6 +73,8 @@ assistant_pending_actions: dict[str, dict[str, Any]] = {}
 _recent_voice_commands: dict[str, float] = {}
 _recent_voice_commands_lock = threading.Lock()
 _assistant_harness_lock = threading.Lock()
+_database_init_lock = threading.Lock()
+_initialized_database_paths: set[str] = set()
 _VOICE_COMMAND_SOURCES = {"local_voice", "browser_voice", "background"}
 _VOICE_DEDUPE_SECONDS = 3.0
 
@@ -405,15 +407,13 @@ def maybe_send_utility_reminder_notification(
     return sent
 
 
-def get_db() -> sqlite3.Connection:
-    if "db" not in g:
-        db_path = Path(app.config["DATABASE"])
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        conn.execute("PRAGMA synchronous = FULL")
-        conn.execute("PRAGMA busy_timeout = 5000")
+def initialize_database(conn: sqlite3.Connection, db_path: Path) -> None:
+    database_key = str(db_path.resolve())
+    if database_key in _initialized_database_paths:
+        return
+    with _database_init_lock:
+        if database_key in _initialized_database_paths:
+            return
         conn.executescript(SCHEMA)
         conn.executescript(HARNESS_SCHEMA)
         conn.executescript(COMMAND_SCHEMA)
@@ -423,6 +423,19 @@ def get_db() -> sqlite3.Connection:
         ensure_utility_settings(conn)
         seed_savings_categories(conn)
         seed_utility_services(conn)
+        _initialized_database_paths.add(database_key)
+
+
+def get_db() -> sqlite3.Connection:
+    if "db" not in g:
+        db_path = Path(app.config["DATABASE"])
+        db_path.parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(db_path)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("PRAGMA synchronous = FULL")
+        conn.execute("PRAGMA busy_timeout = 5000")
+        initialize_database(conn, db_path)
         g.db = conn
     return g.db
 
