@@ -1217,6 +1217,187 @@ body[data-page="assistant"] .assistant-brand-chip {
   background: var(--page-accent-soft, rgba(255, 113, 55, .12)) !important;
 }
 
+/* Keep EVE inside the shared RE:FORM LIFE palette. The assistant used to
+   reintroduce its legacy blue tokens after the shell had already loaded. */
+body[data-page="assistant"] {
+  --bg: var(--rf-bg);
+  --sidebar: var(--rf-sidebar);
+  --panel: var(--rf-surface);
+  --panel-deep: var(--rf-surface-soft);
+  --panel-soft: var(--rf-surface-quiet);
+  --line: var(--rf-line);
+  --line-bright: var(--rf-line-strong);
+  --text: var(--rf-text);
+  --muted: var(--rf-muted);
+  --dim: var(--rf-dim);
+  --pink: var(--rf-yellow);
+  --pink-soft: rgba(255, 181, 46, .12);
+  --purple: var(--rf-yellow);
+  --green: var(--rf-green);
+  --red: var(--rf-pink);
+  color: var(--rf-text) !important;
+  background: var(--rf-bg) !important;
+}
+
+body[data-page="assistant"] .app-shell,
+body[data-page="assistant"] .main-area {
+  background: var(--rf-bg) !important;
+}
+
+body[data-page="assistant"] .sidebar {
+  background: var(--rf-sidebar) !important;
+  border-right-color: var(--rf-line) !important;
+}
+
+body[data-page="assistant"] .assistant-chat-shell,
+body[data-page="assistant"] .assistant-chat-log,
+body[data-page="assistant"] .assistant-chat-compose,
+body[data-page="assistant"] .assistant-dialog-composer,
+body[data-page="assistant"] .assistant-chat-wave,
+body[data-page="assistant"] .assistant-hero,
+body[data-page="assistant"] .assistant-dialog-hero,
+body[data-page="assistant"] .assistant-voice-visualizer,
+body[data-page="assistant"] .assistant-orbit-panel {
+  background: var(--rf-surface) !important;
+  background-image: none !important;
+  border-color: var(--rf-line) !important;
+}
+
+body[data-page="assistant"] .assistant-chat-shell {
+  box-shadow: none !important;
+}
+
+body[data-page="assistant"] .assistant-chat-compose,
+body[data-page="assistant"] .assistant-dialog-composer {
+  background: var(--rf-surface-quiet) !important;
+  border-color: var(--rf-line-strong) !important;
+}
+
+body[data-page="assistant"] .assistant-dialog-composer textarea {
+  background: transparent !important;
+}
+
+body[data-page="assistant"] .assistant-chat-header h2,
+body[data-page="assistant"] .assistant-command-library summary {
+  color: var(--rf-text) !important;
+}
+
+body[data-page="assistant"] .assistant-chat-header p,
+body[data-page="assistant"] .assistant-chat-log,
+body[data-page="assistant"] .assistant-chat-log small,
+body[data-page="assistant"] .assistant-chat-log .assistant-log-empty,
+body[data-page="assistant"] .assistant-dialog-status,
+body[data-page="assistant"] .assistant-interim,
+body[data-page="assistant"] .assistant-native-status,
+body[data-page="assistant"] .assistant-orbit-panel > p,
+body[data-page="assistant"] #assistantVoiceStatus {
+  color: var(--rf-muted) !important;
+}
+
+body[data-page="assistant"] .assistant-chat-log {
+  scrollbar-color: var(--rf-line-strong) var(--rf-surface);
+}
+
+body[data-page="assistant"] .section-kicker,
+body[data-page="assistant"] #assistantVoiceTitle,
+body[data-page="assistant"] .assistant-chat-actions .assistant-clear-log,
+body[data-page="assistant"] .assistant-settings-toggle,
+body[data-page="assistant"] .assistant-settings-close,
+body[data-page="assistant"] .assistant-composer-tool,
+body[data-page="assistant"] .assistant-composer-send,
+body[data-page="assistant"] .assistant-model-label {
+  color: var(--rf-yellow) !important;
+}
+
+body[data-page="assistant"] .assistant-chat-actions .assistant-hero-badge,
+body[data-page="assistant"] .assistant-brand-chip {
+  background: rgba(255, 181, 46, .1) !important;
+  border-color: rgba(255, 181, 46, .3) !important;
+  color: var(--rf-yellow) !important;
+}
+
+body[data-page="assistant"] .assistant-chat-actions .button.primary,
+body[data-page="assistant"] .assistant-orbit-actions .button.primary {
+  background: var(--rf-yellow) !important;
+  border-color: var(--rf-yellow) !important;
+  color: #151318 !important;
+}
+
+body[data-page="assistant"] .assistant-chat-log .assistant-log-item.user {
+  background: var(--rf-yellow) !important;
+  color: #151318 !important;
+}
+
+body[data-page="assistant"] .assistant-chat-log .assistant-log-item.user p {
+  color: #151318 !important;
+}
+
+body[data-page="assistant"] .assistant-chat-log .assistant-log-item.assistant .assistant-log-avatar {
+  background: var(--rf-yellow) !important;
+}
+
+body[data-page="assistant"] .assistant-command-library,
+body[data-page="assistant"] .assistant-command-entry,
+body[data-page="assistant"] .assistant-settings-panel,
+body[data-page="assistant"] .assistant-settings-drawer {
+  background: var(--rf-surface) !important;
+  border-color: var(--rf-line) !important;
+}
+
+body[data-page="assistant"] .assistant-command-library input,
+body[data-page="assistant"] .assistant-command-library select,
+body[data-page="assistant"] .assistant-command-library textarea,
+body[data-page="assistant"] .assistant-settings-panel input:not([type="checkbox"]),
+body[data-page="assistant"] .assistant-settings-panel select {
+  background: var(--rf-surface-quiet) !important;
+  color: var(--rf-text) !important;
+  border-color: var(--rf-line-strong) !important;
+}
+
+body[data-page="assistant"] .assistant-composer-mic {
+  color: var(--rf-yellow) !important;
+}
+
+body[data-page="assistant"] .assistant-composer-mic.listening {
+  color: #151318 !important;
+}
+
+body[data-page="assistant"] .nav-link {
+  color: #c9bfc0 !important;
+}
+
+body[data-page="assistant"] .nav-link img {
+  filter: brightness(0) saturate(100%) invert(77%) sepia(77%) saturate(1050%) hue-rotate(351deg) brightness(104%) contrast(103%) !important;
+  opacity: .78;
+}
+
+body[data-page="assistant"] .nav-link.active span {
+  background: rgba(255, 181, 46, .12) !important;
+  color: var(--rf-text) !important;
+}
+
+body[data-page="assistant"] .assistant-command-library-content {
+  content-visibility: auto;
+  contain-intrinsic-size: 420px;
+}
+
+body[data-page="assistant"] .assistant-brand-orbit {
+  animation-play-state: paused;
+}
+
+body[data-page="assistant"] .assistant-brand-chip[data-voice-state="listening"] .assistant-brand-orbit,
+body[data-page="assistant"] .assistant-brand-chip[data-voice-state="speaking"] .assistant-brand-orbit {
+  animation-play-state: running;
+}
+
+body[data-page="assistant"] .assistant-equalizer .eve-wave-start {
+  stop-color: var(--rf-yellow);
+}
+
+body[data-page="assistant"] .assistant-equalizer .eve-wave-end {
+  stop-color: var(--rf-muted);
+}
+
 @keyframes rf-page-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }

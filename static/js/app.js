@@ -1041,7 +1041,7 @@ async function initAssistant() {
 
 async function initAssistantChat() {
   const historyKey = 'reform-life.eve-chat.v1';
-  const maxHistoryMessages = 2000;
+  const maxHistoryMessages = 120;
   const state = { log: [], pendingConfirmation: null };
   const status = $('#assistantStatus');
   const interim = $('#assistantInterim');
@@ -1076,6 +1076,7 @@ async function initAssistantChat() {
   let listening = false;
   let pendingTranscript = '';
   let nativeReady = false;
+  let memoryStatusLoaded = false;
   let localTtsReady = false;
   let localTtsAudio = null;
   let localTtsUrl = null;
@@ -1146,6 +1147,10 @@ async function initAssistantChat() {
     settingsToggle?.setAttribute('aria-expanded', String(open));
     if (open) settingsClose?.focus();
     else settingsToggle?.focus();
+    if (open && !memoryStatusLoaded) {
+      memoryStatusLoaded = true;
+      void loadMemoryStatus();
+    }
   };
 
   const wavePath = $('#assistantWavePath');
@@ -1546,8 +1551,10 @@ async function initAssistantChat() {
 
   const loadAssistantHistory = async () => {
     try {
-      const result = await api(`/api/assistant/history?limit=${maxHistoryMessages}`);
-      const pending = await api('/api/assistant/proposals/pending');
+      const [result, pending] = await Promise.all([
+        api(`/api/assistant/history?limit=${maxHistoryMessages}`),
+        api('/api/assistant/proposals/pending'),
+      ]);
       state.pendingConfirmation = pending.proposal || null;
       const messages = Array.isArray(result.messages) ? result.messages : [];
       if (messages.length) {
@@ -1940,9 +1947,7 @@ async function initAssistantChat() {
   window.refreshCurrentPage = () => {};
   renderLog();
   resizeComposer();
-  await loadAssistantHistory();
-  await loadAssistantSettings();
-  await loadMemoryStatus();
+  void Promise.all([loadAssistantHistory(), loadAssistantSettings()]).catch(() => {});
 }
 
 function plural(value, one, few, many) { const n = Math.abs(value) % 100; const last = n % 10; if (n > 10 && n < 20) return many; if (last > 1 && last < 5) return few; if (last === 1) return one; return many; }
@@ -2208,7 +2213,10 @@ async function initUtilities() {
 function startPage() {
   bindCommon(); initWelcome(); bindDataSync(); initDatePickers(); $('#taskForm')?.addEventListener('submit', saveTask); $('#noteForm')?.addEventListener('submit', saveNote); $('#sectionForm')?.addEventListener('submit', saveSection);
   const page = document.body.dataset.page; const init = page === 'week' ? initWeek : page === 'tasks' ? initTasks : page === 'assistant' ? initAssistantChat : page === 'month' ? initMonth : page === 'finance' ? initFinance : page === 'utilities' ? initUtilities : initHabits;
-  maybeMigrateLegacy().then(() => loadSections()).then(() => init()).then(() => { pageReady = true; return initMoodPrompt(); }).catch(error => showToast(error.message, true));
+  const bootstrap = page === 'assistant'
+    ? maybeMigrateLegacy()
+    : maybeMigrateLegacy().then(() => loadSections());
+  bootstrap.then(() => init()).then(() => { pageReady = true; return initMoodPrompt(); }).catch(error => showToast(error.message, true));
 }
 
 document.addEventListener('DOMContentLoaded', startPage);
