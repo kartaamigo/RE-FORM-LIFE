@@ -869,6 +869,207 @@ body[data-page="week"] .legacy-rabbit-img {
   filter: none !important;
 }
 
+body[data-page="week"] .app-shell {
+  transform-origin: center center;
+  transition: transform 420ms cubic-bezier(.22, 1, .36, 1), filter 320ms ease;
+}
+
+body[data-page="week"].week-progress-open .app-shell {
+  transform: scale(.985);
+  filter: blur(2px);
+  will-change: transform, filter;
+}
+
+body[data-page="week"] .legacy-weekly-progress {
+  cursor: pointer;
+  transition: border-color 180ms ease, transform 180ms cubic-bezier(.22, 1, .36, 1), box-shadow 180ms ease;
+}
+
+body[data-page="week"] .legacy-weekly-progress:hover,
+body[data-page="week"] .legacy-weekly-progress:focus-visible {
+  border-color: color-mix(in srgb, var(--rf-yellow) 58%, var(--rf-line)) !important;
+  box-shadow: 0 12px 28px rgba(255, 181, 46, .08);
+  outline: none;
+  transform: translateY(-2px);
+}
+
+.week-progress-backdrop {
+  display: flex !important;
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+  background: rgba(8, 7, 10, .72) !important;
+  backdrop-filter: blur(0);
+  transition: opacity 330ms ease, visibility 0s linear 330ms, backdrop-filter 330ms ease;
+}
+
+.week-progress-backdrop.open {
+  visibility: visible;
+  opacity: 1;
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+  transition-delay: 0s;
+}
+
+.week-progress-dialog {
+  width: min(560px, calc(100vw - 40px));
+  padding: 28px 30px 24px !important;
+  opacity: 0;
+  transform: translateY(14px) scale(.94);
+  filter: blur(4px);
+  transition: opacity 380ms cubic-bezier(.22, 1, .36, 1), transform 460ms cubic-bezier(.22, 1, .36, 1), filter 380ms ease;
+}
+
+.week-progress-backdrop.open .week-progress-dialog {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+}
+
+.week-progress-dialog-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 2px;
+}
+
+.week-progress-dialog-head h2 {
+  margin: 7px 0 5px;
+  color: var(--rf-text);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -.5px;
+}
+
+.week-progress-dialog-percent {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  padding-top: 8px;
+  color: var(--rf-muted);
+}
+
+.week-progress-dialog-percent strong {
+  color: var(--rf-yellow);
+  font-size: 34px;
+  line-height: 1;
+}
+
+.week-progress-dialog-percent span {
+  margin-top: 5px;
+  font-size: 10px;
+  letter-spacing: .7px;
+  text-transform: uppercase;
+}
+
+.week-progress-dialog-bars {
+  display: grid;
+  gap: 15px;
+  margin-top: 26px;
+}
+
+.week-progress-row {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.week-progress-backdrop.open .week-progress-row {
+  animation: rf-progress-row-in 380ms cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.week-progress-row:nth-child(1) { animation-delay: 80ms; }
+.week-progress-row:nth-child(2) { animation-delay: 135ms; }
+.week-progress-row:nth-child(3) { animation-delay: 190ms; }
+
+.week-progress-row > div:first-child {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 7px;
+}
+
+.week-progress-row span,
+.week-progress-row strong {
+  color: var(--rf-muted);
+  font-size: 11px;
+}
+
+.week-progress-row strong {
+  color: var(--rf-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.week-progress-track {
+  height: 9px;
+  overflow: hidden;
+  border: 1px solid var(--rf-line);
+  border-radius: 999px;
+  background: var(--rf-surface-quiet);
+}
+
+.week-progress-track i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--bar-color, var(--rf-yellow));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--bar-color, var(--rf-yellow)) 30%, transparent);
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.week-progress-backdrop.open .week-progress-track i {
+  animation: rf-progress-bar 700ms cubic-bezier(.22, 1, .36, 1) 220ms both;
+}
+
+.week-progress-dialog-footer {
+  display: flex;
+  align-items: flex-end;
+  gap: 28px;
+  margin-top: 26px;
+  padding-top: 17px;
+  border-top: 1px solid var(--rf-line);
+}
+
+.week-progress-dialog-footer div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.week-progress-dialog-footer strong {
+  color: var(--rf-text);
+  font-size: 22px;
+  line-height: 1;
+}
+
+.week-progress-dialog-footer small {
+  color: var(--rf-dim);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.week-progress-dialog-footer > span {
+  margin-left: auto;
+  color: var(--rf-yellow);
+  font-size: 11px;
+  text-align: right;
+}
+
+body[data-page="week"] .legacy-day .day-progress i {
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: rf-progress-bar 620ms cubic-bezier(.22, 1, .36, 1) 280ms both;
+}
+
+body[data-page="week"] .legacy-mood-line i {
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: rf-line-draw 820ms cubic-bezier(.22, 1, .36, 1) 320ms both;
+}
+
 /* Assistant gets a distinct EVE stage while still reading as one section. */
 body[data-page="assistant"] .assistant-hero,
 body[data-page="assistant"] .assistant-dialog-hero,
@@ -1031,6 +1232,21 @@ body[data-page="assistant"] .assistant-brand-chip {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes rf-progress-row-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes rf-progress-bar {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(var(--progress-scale, 1)); }
+}
+
+@keyframes rf-line-draw {
+  from { opacity: .1; transform: scaleX(0); }
+  to { opacity: 1; transform: scaleX(1); }
+}
+
 @media (max-width: 1280px) {
   .app-shell { grid-template-columns: 220px minmax(0, 1fr) !important; }
   .main-area { padding-right: 26px !important; padding-left: 26px !important; }
@@ -1089,6 +1305,13 @@ body[data-page="assistant"] .assistant-brand-chip {
   .legacy-days { min-width: 700px; }
   .assistant-hero { grid-template-columns: minmax(0, 1fr) !important; text-align: center; }
   .assistant-orb-column { order: -1; }
+
+  .week-progress-dialog { width: min(100%, 520px); padding: 24px 20px 20px !important; }
+  .week-progress-dialog-head { gap: 12px; }
+  .week-progress-dialog-head h2 { font-size: 23px; }
+  .week-progress-dialog-percent strong { font-size: 28px; }
+  .week-progress-dialog-footer { gap: 18px; }
+  .week-progress-dialog-footer > span { max-width: 120px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

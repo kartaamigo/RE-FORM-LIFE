@@ -65,7 +65,7 @@
   </div>
 
   <aside class="legacy-right-top">
-    <div class="legacy-card legacy-weekly-progress">
+    <div class="legacy-card legacy-weekly-progress" id="weekProgressTrigger" role="button" tabindex="0" aria-controls="weekProgressModal" aria-expanded="false" title="Открыть детали прогресса">
       <div class="legacy-section-title">Прогресс недели <span>›</span></div>
       <div class="legacy-big-ring" id="largeRing"><strong id="largePercent">0%</strong></div>
       <div class="legacy-ring-stats">
@@ -79,5 +79,40 @@
       <div class="legacy-quote">Маленькие шаги<br>приводят к большим<br><span>результатам</span></div>
     </div>
   </aside>
+</div>
+{% endblock %}
+
+{% block modals %}
+<div class="modal-backdrop week-progress-backdrop" id="weekProgressModal" aria-hidden="true">
+  <section class="modal-card week-progress-dialog" role="dialog" aria-modal="true" aria-labelledby="weekProgressModalTitle">
+    <button class="modal-close" type="button" data-close-modal="weekProgressModal" aria-label="Закрыть прогресс">×</button>
+    <div class="modal-kicker">РАЗБОР НЕДЕЛИ</div>
+    <div class="week-progress-dialog-head">
+      <div>
+        <h2 id="weekProgressModalTitle">Прогресс недели</h2>
+        <p class="modal-copy">Детали того, как собирается твой ритм.</p>
+      </div>
+      <div class="week-progress-dialog-percent"><strong id="weekModalPercent">0%</strong><span>выполнено</span></div>
+    </div>
+    <div class="week-progress-dialog-bars" aria-live="polite">
+      <div class="week-progress-row">
+        <div><span>Выполнено задач</span><strong id="weekModalDoneLabel">0 из 0</strong></div>
+        <div class="week-progress-track"><i id="weekModalDoneBar" style="--progress-scale: 0; --bar-color: var(--rf-yellow)"></i></div>
+      </div>
+      <div class="week-progress-row">
+        <div><span>Осталось</span><strong id="weekModalRemainingLabel">0 задач</strong></div>
+        <div class="week-progress-track"><i id="weekModalRemainingBar" style="--progress-scale: 0; --bar-color: var(--rf-orange)"></i></div>
+      </div>
+      <div class="week-progress-row">
+        <div><span>Дни с задачами</span><strong id="weekModalDaysLabel">0 из 7 дней</strong></div>
+        <div class="week-progress-track"><i id="weekModalDaysBar" style="--progress-scale: 0; --bar-color: var(--rf-pink)"></i></div>
+      </div>
+    </div>
+    <div class="week-progress-dialog-footer">
+      <div><strong id="weekModalRemaining">0</strong><small>осталось</small></div>
+      <div><strong id="weekModalTotal">0</strong><small>всего</small></div>
+      <span>Продолжай в своём ритме</span>
+    </div>
+  </section>
 </div>
 {% endblock %}

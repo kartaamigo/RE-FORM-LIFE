@@ -76,8 +76,27 @@ function bindDataSync() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCurrentPageSafely(); });
 }
 
-function openModal(id) { const modal = $(`#${id}`); if (modal) { modal.classList.add('open'); modal.setAttribute('aria-hidden', 'false'); } }
-function closeModal(id) { const modal = $(`#${id}`); if (modal) { modal.classList.remove('open'); modal.setAttribute('aria-hidden', 'true'); } }
+function openModal(id) {
+  const modal = $(`#${id}`);
+  if (!modal) return;
+  if (id === 'weekProgressModal') {
+    document.body.classList.add('week-progress-open');
+    $('#weekProgressTrigger')?.setAttribute('aria-expanded', 'true');
+  }
+  modal.classList.add('open');
+  modal.setAttribute('aria-hidden', 'false');
+}
+
+function closeModal(id) {
+  const modal = $(`#${id}`);
+  if (!modal) return;
+  modal.classList.remove('open');
+  modal.setAttribute('aria-hidden', 'true');
+  if (id === 'weekProgressModal') {
+    document.body.classList.remove('week-progress-open');
+    $('#weekProgressTrigger')?.setAttribute('aria-expanded', 'false');
+  }
+}
 
 function hideWelcome() {
   const welcome = $('#welcomeModal');
@@ -497,6 +516,12 @@ function renderProgress(percent, ring) {
   const degree = Math.round(percent * 3.6); if (ring) ring.style.background = `conic-gradient(var(--pink) ${degree}deg, #1a2636 ${degree}deg)`;
 }
 
+function setProgressFill(id, ratio) {
+  const fill = $(id); if (!fill) return;
+  const value = Number.isFinite(Number(ratio)) ? Math.max(0, Math.min(1, Number(ratio))) : 0;
+  fill.style.setProperty('--progress-scale', value.toFixed(3));
+}
+
 async function initWeek() {
   const requestedDate = new URLSearchParams(window.location.search).get('date');
   const initialDate = /^\d{4}-\d{2}-\d{2}$/.test(requestedDate || '') ? parseIso(requestedDate) : new Date();
@@ -524,8 +549,10 @@ async function initWeek() {
     }).join('');
     $$('[data-add-date]', root).forEach(button => button.addEventListener('click', () => openTaskModal(null, button.dataset.addDate)));
     bindTaskElements(root, load);
-    const total = state.tasks.length; const done = state.tasks.filter(task => task.done).length; const percent = total ? Math.round(done / total * 100) : 0;
+    const total = state.tasks.length; const done = state.tasks.filter(task => task.done).length; const remaining = Math.max(0, total - done); const percent = total ? Math.round(done / total * 100) : 0; const plannedDays = dates.filter(date => (byDate[isoDate(date)] || []).length > 0).length;
     $('#weekCompleted').textContent = `${done} из ${total}`; $('#weekLeft').textContent = `Осталось ${total - done}`; $('#weekPercent').textContent = `${percent}%`; $('#largePercent').textContent = `${percent}%`; $('#ringDone').textContent = done; $('#ringRemaining').textContent = total - done; $('#ringAll').textContent = total; renderProgress(percent, $('#miniRing')); renderProgress(percent, $('#largeRing'));
+    $('#weekModalPercent').textContent = `${percent}%`; $('#weekModalDoneLabel').textContent = `${done} из ${total}`; $('#weekModalRemainingLabel').textContent = `${remaining} задач`; $('#weekModalDaysLabel').textContent = `${plannedDays} из 7 дней`; $('#weekModalRemaining').textContent = remaining; $('#weekModalTotal').textContent = total;
+    setProgressFill('#weekModalDoneBar', total ? done / total : 0); setProgressFill('#weekModalRemainingBar', total ? remaining / total : 0); setProgressFill('#weekModalDaysBar', plannedDays / 7);
     const moodScore = Number(state.mood?.average_score || 0);
     const moodSymbols = { 1: '☹', 2: '◔', 3: '•', 4: '⌣', 5: '☺' };
     $('#weekMoodIcon').textContent = moodSymbols[moodScore] || '⌣';
@@ -542,6 +569,9 @@ async function initWeek() {
   $('#weekNext').onclick = () => { state.monday = addDays(state.monday, 7); load(); };
   $('#weekPicker').onchange = () => { state.monday = mondayOf(parseIso($('#weekPicker').value)); load(); };
   $('#week-card').onclick = () => openDatePicker($('#weekPicker'), $('#week-card'));
+  const progressTrigger = $('#weekProgressTrigger');
+  progressTrigger?.addEventListener('click', () => openModal('weekProgressModal'));
+  progressTrigger?.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openModal('weekProgressModal'); } });
   if ($('#weekAddTask')) $('#weekAddTask').onclick = () => openTaskModal(null, isoDate(state.monday));
   $('#addNote').onclick = () => openNoteModal();
   $('#weekGoal').onblur = async () => { try { await api(`/api/goals/${isoDate(state.monday)}`, { method: 'PUT', body: JSON.stringify({ text: $('#weekGoal').value.trim() }) }); showToast('Цель сохранена'); } catch (error) { showToast(error.message, true); } };
