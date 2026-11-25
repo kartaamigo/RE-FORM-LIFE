@@ -1,15 +1,71 @@
-<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#000000"><meta name="description" content="Happy birthday, sunshine. Flowers, just for you."><title>Happy birthday, sunshine</title><style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:#000;color:#f5eacb;font-family:Georgia,'Times New Roman',serif}main{min-height:100svh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:max(12px,env(safe-area-inset-top)) 12px max(22px,env(safe-area-inset-bottom));gap:12px}.flowers{position:relative;overflow:hidden;background:#000;width:min(96vw,calc(68svh * .64968),440px);aspect-ratio:408/628;flex-shrink:0}.flowers video{display:block;position:absolute;width:176.470588%;max-width:none;left:-38.235294%;top:-15.923567%;filter:brightness(1.32) contrast(1.12) saturate(1.1);pointer-events:none}h1{font-size:clamp(24px,6.4vw,31px);font-weight:400;letter-spacing:-.02em;line-height:1.18;text-align:center;margin:0}h1 span{display:block;margin-top:4px;color:#f1d79d;font-style:italic;font-size:1.1em}button{position:static;min-height:46px;min-width:190px;margin-top:6px;touch-action:manipulation;border:1px solid #8c7c5a;background:#000;color:#f5eacb;border-radius:24px;font:16px Georgia;padding:10px 20px}button:disabled{opacity:.55}#status{min-height:18px;font:14px/1.3 system-ui,sans-serif;color:#b8ad97;text-align:center;margin:0;max-width:300px}@media(orientation:landscape)and(max-height:550px){main{flex-direction:row;gap:32px}.flowers{height:90svh;width:auto}h1{font-size:25px}}
-</style></head><body><main><div class="flowers" role="img" aria-label="A colourful animated ASCII flower bouquet"><video muted loop playsinline webkit-playsinline preload="auto" aria-hidden="true"></video></div><h1>Happy birthday,<span>sunshine</span></h1><button type="button" disabled>Загружаю цветы…</button><p id="status" role="status" aria-live="polite"></p></main><script>
-const video=document.querySelector('video'),button=document.querySelector('button'),status=document.querySelector('#status');let ready=false,loading=false,blobUrl;
-video.muted=true;video.defaultMuted=true;video.playsInline=true;
-function failed(){button.disabled=false;button.textContent=ready?'Открыть цветок':'Повторить загрузку';status.textContent=ready?'Нажмите кнопку ещё раз для запуска.':'Не удалось загрузить видео. Проверьте интернет и повторите.'}
-function play(){video.muted=true;const result=video.play();if(result)result.catch(failed)}
-async function load(){if(loading)return;loading=true;ready=false;button.disabled=true;button.textContent='Загружаю цветы…';status.textContent='';try{const response=await fetch('flowers.mp4?v=2',{cache:'force-cache'});if(!response.ok)throw Error('Video unavailable');const bytes=await response.arrayBuffer();if(blobUrl)URL.revokeObjectURL(blobUrl);blobUrl=URL.createObjectURL(new Blob([bytes],{type:'video/mp4'}));video.src=blobUrl;ready=true;video.load();button.disabled=false;button.textContent='Открыть цветок';play()}catch(e){failed()}finally{loading=false}}
-button.addEventListener('click',()=>{if(!ready){load();return}status.textContent='';if(!video.paused)video.currentTime=0;play()});
-video.addEventListener('playing',()=>{button.disabled=false;button.textContent='Начать заново';status.textContent=''});
-video.addEventListener('error',()=>{ready=false;failed()});
-video.addEventListener('waiting',()=>{status.textContent='Видео загружается…'});
-load();
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#000"><meta name="description" content="Happy birthday, sunshine. A bouquet made of light."><title>Happy birthday, sunshine</title><style>
+*{box-sizing:border-box}html,body{margin:0;background:#000;color:#f5eacb;min-height:100%;font-family:Georgia,serif}main{min-height:100svh;padding:max(12px,env(safe-area-inset-top)) 12px max(22px,env(safe-area-inset-bottom));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px}canvas{width:min(94vw,470px);height:min(72svh,700px);display:block;touch-action:pan-y}h1{font-weight:400;font-size:clamp(24px,6.4vw,30px);text-align:center;line-height:1.18;margin:0}h1 span{display:block;font-style:italic;font-size:1.1em;color:#f1d79d;margin-top:4px}button{min-height:44px;padding:10px 25px;border:1px solid #665b44;border-radius:24px;background:none;color:#c5b99e;font:15px Georgia;touch-action:manipulation;cursor:pointer;margin-top:2px}button:focus-visible{outline:2px solid #f1d79d;outline-offset:4px}@media(max-height:530px)and(orientation:landscape){main{flex-direction:row;gap:24px}canvas{width:46vw;height:88svh}h1{font-size:24px}}
+</style></head><body><main><canvas role="img" aria-label="A gently blooming bouquet of roses and flowers made entirely from coloured text characters"></canvas><h1>Happy birthday,<span>sunshine</span></h1><button type="button">Начать заново</button></main><script>
+
+'use strict';
+// All geometry, colours and animation are generated locally. No video or network requests.
+const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),button=document.querySelector('button');
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let seed=108;function random(){seed=(1664525*seed+1013904223)>>>0;return seed/4294967296}
+const points=[],colors=[],lookup=new Map();
+function tint(rgb,light){const c=rgb.map(v=>Math.max(0,Math.min(255,Math.round(v*light/16)*16))),key=c.join(',');if(!lookup.has(key)){lookup.set(key,colors.length);colors.push(`rgb(${key})`)}return lookup.get(key)}
+function dot(x,y,z,rgb,light=1,flower=null){points.push({x,y,z,c:tint(rgb,light),flower})}
+const green=[65,141,70],white=[245,231,204],pink=[228,118,179],red=[218,62,103],yellow=[241,188,64];
+const flowers=[
+ {x:-66,y:-80,z:-28,r:47,c:white,kind:'daisy',rx:.1,ry:-.5,a:.4},
+ {x:52,y:-96,z:-32,r:43,c:pink,kind:'rose',rx:-.2,ry:.4,a:0},
+ {x:-105,y:-27,z:-14,r:39,c:red,kind:'rose',rx:.1,ry:-.4,a:.3},
+ {x:100,y:-18,z:-17,r:40,c:white,kind:'rose',rx:.1,ry:.5,a:.2},
+ {x:-40,y:5,z:35,r:54,c:red,kind:'rose',rx:-.12,ry:-.15,a:0},
+ {x:37,y:-27,z:42,r:58,c:white,kind:'rose',rx:.12,ry:.1,a:.3},
+ {x:10,y:52,z:63,r:49,c:pink,kind:'rose',rx:.08,ry:.05,a:.2},
+ {x:-80,y:60,z:8,r:30,c:yellow,kind:'daisy',rx:.3,ry:-.5,a:.2},
+ {x:81,y:60,z:12,r:31,c:pink,kind:'daisy',rx:.2,ry:.3,a:.1}
+];
+function rotate(x,y,z,f){const yy=y*Math.cos(f.rx)-z*Math.sin(f.rx),zz=y*Math.sin(f.rx)+z*Math.cos(f.rx);return [x*Math.cos(f.ry)+zz*Math.sin(f.ry),yy,zz*Math.cos(f.ry)-x*Math.sin(f.ry)]}
+for(let index=0;index<flowers.length;index++){
+ const f=flowers[index];f.delay=.7+index*.13;
+ // Branching stems and lance-shaped leaves.
+ for(let j=0;j<250;j++){let t=j/249;for(let w=-1;w<2;w++)dot(f.x*(1-t)+w*.6,f.y*(1-t)+200*t,f.z*(1-t)-18,green,.6+random()*.35)}
+ for(let k=0;k<2;k++){let yy=60+k*42,side=(index+k)%2?1:-1;for(let i=0;i<320;i++){let t=random(),v=random()*2-1,x=f.x*.4+side*t*45,y=yy-24*Math.sin(t*2)+v*Math.sin(t*Math.PI)*8;dot(x,y,-8+v*3,green,.4+random()*.55)}}
+ const layers=f.kind==='rose'?5:1;
+ for(let layer=0;layer<layers;layer++){
+ const count=f.kind==='rose'?7:11,rr=f.r*(1-layer*.155);
+ for(let petal=0;petal<count;petal++){
+ const a=petal*Math.PI*2/count+layer*.59+f.a;
+ for(let row=0;row<37;row++)for(let col=0;col<27;col++){
+ let t=(row+.3)/37,v=(col-13)/13;
+ let width=rr*(f.kind==='rose'?.49:.20)*Math.pow(Math.sin(Math.PI*t),.65);
+ let radial=rr*(.10+.90*t),x=radial*Math.cos(a)-v*width*Math.sin(a),y=radial*Math.sin(a)+v*width*Math.cos(a);
+ let z=f.kind==='rose'?rr*(.25+Math.sin(t*2.7)*.48-t*t*.27)+layer*7+v*v*rr*.14:Math.sin(t*Math.PI)*13;
+ let q=rotate(x,y,z,f),light=.39+.45*t+.25*Math.abs(v)+random()*.10;
+ if(f.kind==='rose')light*=1-layer*.055;
+ dot(f.x+q[0],f.y+q[1]*.82,f.z+q[2],f.c,light,f);
+ }
+ }
+ }
+ if(f.kind==='daisy')for(let j=0;j<400;j++){let a=random()*6.283,r=Math.sqrt(random())*9;dot(f.x+Math.cos(a)*r,f.y+Math.sin(a)*r*.8,f.z+18,yellow,.6+random()*.4,f)}
+}
+// Transparent blue-green glass vase, drawn as a lathed surface.
+for(let row=0;row<150;row++){
+ let t=row/149,y=95+t*132;
+ let radius= t<.15?31-t*40:t<.72?25+Math.sin((t-.15)/.57*Math.PI)*13:25-(t-.72)*53;
+ for(let k=0;k<130;k++){let a=k/130*Math.PI*2,x=Math.cos(a)*radius,z=Math.sin(a)*radius-12;let edge=Math.pow(Math.abs(Math.cos(a)),9),highlight=Math.pow(Math.max(0,Math.cos(a+1.1)),18);dot(x,y,z,[68,132,163],.18+edge*.65+highlight*.5)}
+}
+for(let k=0;k<350;k++){let a=k/350*Math.PI*2;dot(Math.cos(a)*28,229+Math.sin(a)*4,-10+Math.sin(a)*11,[111,170,183],.48)}
+let W,H,D,cols,rows,cw,ch,depth,pixel,begin=performance.now(),last=0;
+function resize(){const r=canvas.getBoundingClientRect();W=r.width;H=r.height;D=Math.min(devicePixelRatio||1,2);canvas.width=Math.round(W*D);canvas.height=Math.round(H*D);ctx.setTransform(D,0,0,D,0,0);cols=Math.min(210,Math.round(W/1.65));cw=W/cols;ch=cw*1.65;rows=Math.ceil(H/ch);depth=new Float32Array(cols*rows);pixel=new Int16Array(cols*rows)}
+addEventListener('resize',resize);resize();
+function frame(now){requestAnimationFrame(frame);if(document.hidden||now-last<60)return;last=now;ctx.clearRect(0,0,W,H);depth.fill(-Infinity);pixel.fill(-1);
+ let elapsed=(now-begin)/1000,scale=Math.min(W/310,H/420)*.97,turn=reduce?0:Math.sin(Math.max(0,elapsed-5)*.16)*.24,ca=Math.cos(turn),sa=Math.sin(turn);
+ for(const p of points){let x=p.x,y=p.y,z=p.z;
+ if(p.flower){let f=p.flower,t=reduce?1:Math.min(1,Math.max(0,(elapsed-f.delay)/2.5)),e=t*t*t*(t*(t*6-15)+10);if(t===0)continue;x=f.x+(x-f.x)*(.04+.96*e);y=f.y+(y-f.y)*e-(1-e)*f.r*.5;z=f.z+(z-f.z)*e}
+ else if(!reduce&&elapsed<(230-y)/170)continue;
+ const xx=x*ca+z*sa,zz=z*ca-x*sa;let px=Math.round((W*.5+xx*scale)/cw),py=Math.round((H*.49+(y-45)*scale)/ch);if(px<0||py<0||px>=cols||py>=rows)continue;let i=py*cols+px;if(zz>depth[i]){depth[i]=zz;pixel[i]=p.c}
+ }
+ const buckets=Array.from({length:colors.length},()=>[]);for(let i=0;i<pixel.length;i++)if(pixel[i]>=0)buckets[pixel[i]].push(i);
+ ctx.font=`${ch*1.1}px 'Courier New',monospace`;ctx.textBaseline='middle';const glyphs='.:=+*#';
+ for(let c=0;c<buckets.length;c++){if(!buckets[c].length)continue;ctx.fillStyle=colors[c];for(const i of buckets[c]){let x=i%cols,y=Math.floor(i/cols);ctx.fillText(glyphs[(x*7+y*11)%glyphs.length],x*cw,y*ch)}}
+}
+requestAnimationFrame(frame);button.onclick=()=>{begin=performance.now()};
 </script></body></html>
