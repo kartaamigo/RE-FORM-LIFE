@@ -22,8 +22,8 @@ class Adapter:
         a=np.clip(rgb,0,255).astype(np.uint32)
         return (a[...,0]<<16)|(a[...,1]<<8)|a[...,2]
 renderer=Adapter();capture=cv2.VideoCapture(args.video);frames=[]
-for k in range(86):
-    capture.set(cv2.CAP_PROP_POS_MSEC,k*200)
+for k in range(207):
+    capture.set(cv2.CAP_PROP_POS_MSEC,k*(1000/12))
     ok,frame=capture.read()
     if not ok:break
     crop=frame[100:728,156:564]
@@ -42,9 +42,12 @@ const encoded=FRAME_DATA;
 const ramp=RAMP_DATA;
 const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d'),frames=encoded.map(s=>{const b=atob(s),a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return a});
 const palette=Array.from({length:256},(_,v)=>`rgb(${Math.round((v>>5)*255/7)},${Math.round(((v>>2)&7)*255/7)},${Math.round((v&3)*255/3)})`);
-let start=performance.now(),last=-1,W,H,sx,sy,ox,oy;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
-function resize(){const r=canvas.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,2);W=r.width;H=r.height;canvas.width=Math.round(W*d);canvas.height=Math.round(H*d);ctx.setTransform(d,0,0,d,0,0);let scale=Math.min(W/120,H/185);sx=scale;sy=scale;ox=(W-120*sx)/2;oy=(H-185*sy)/2;last=-1}addEventListener('resize',resize);resize();
-function draw(now){requestAnimationFrame(draw);if(document.hidden)return;const frame=reduced?55:Math.floor((now-start)/200)%frames.length;if(frame===last)return;last=frame;ctx.clearRect(0,0,W,H);ctx.font=`${sy*1.25}px 'Courier New',monospace`;ctx.textBaseline='middle';let f=frames[frame],previous=-1;for(let i=0;i<f.length;i+=4){const index=f[i]|(f[i+1]<<8),color=f[i+2];if(color!==previous){ctx.fillStyle=palette[color];previous=color}ctx.fillText(ramp[f[i+3]],ox+(index%120)*sx,oy+Math.floor(index/120)*sy)}}requestAnimationFrame(draw);document.querySelector('button').onclick=()=>{start=performance.now();last=-1};
+let start=performance.now(),W,H,sx,sy,ox,oy;const reduced=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const layers=[document.createElement('canvas'),document.createElement('canvas')],cache=[-1,-1];let dpr=1;
+function resize(){const r=canvas.getBoundingClientRect();dpr=Math.min(devicePixelRatio||1,2);W=r.width;H=r.height;canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);let scale=Math.min(W/120,H/185);sx=scale;sy=scale;ox=(W-120*sx)/2;oy=(H-185*sy)/2;for(const layer of layers){layer.width=canvas.width;layer.height=canvas.height}cache.fill(-1)}addEventListener('resize',resize);resize();
+function paint(slot,frame){if(cache[slot]===frame)return;const c=layers[slot].getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,W,H);c.font=`${sy*1.25}px 'Courier New',monospace`;c.textBaseline='middle';const f=frames[frame];let previous=-1;for(let i=0;i<f.length;i+=4){const index=f[i]|(f[i+1]<<8),color=f[i+2];if(color!==previous){c.fillStyle=palette[color];previous=color}c.fillText(ramp[f[i+3]],ox+(index%120)*sx,oy+Math.floor(index/120)*sy)}cache[slot]=frame}
+function draw(now){requestAnimationFrame(draw);if(document.hidden)return;const position=reduced?132:((now-start)*12/1000)%frames.length,frame=Math.floor(position),next=(frame+1)%frames.length,t=reduced?0:position-frame,slot=frame%2,other=1-slot;paint(slot,frame);paint(other,next);ctx.clearRect(0,0,W,H);ctx.globalAlpha=1-t;ctx.drawImage(layers[slot],0,0,W,H);ctx.globalCompositeOperation='lighter';ctx.globalAlpha=t;ctx.drawImage(layers[other],0,0,W,H);ctx.globalAlpha=1;ctx.globalCompositeOperation='source-over'}requestAnimationFrame(draw);document.querySelector('button').onclick=()=>{start=performance.now();cache.fill(-1)};
+
 </script></body></html>'''
 html=html.replace('FRAME_DATA',json.dumps(frames,separators=(',',':'))).replace('RAMP_DATA',json.dumps(ramp))
 (root/'dist/index.html').write_text(html,encoding='utf-8')
