@@ -38,7 +38,7 @@ for(const f of flowers){
    let light=.38+.48*Math.sin(t*2.1)+edge*.17+vein+random()*.1;
    if(t<.29)light*=.6+t;
    let speck=(t<.6&&random()<.06)? .40:1;
-   point(f.x+q[0],f.y+q[1],f.z+q[2],f.c,light*speck,.24+(180-f.y)/1400,'-');
+   point(f.x+q[0],f.y+q[1],f.z+q[2],f.c,light*speck,.24+(180-f.y)/1400,'-'); Object.assign(pts[pts.length-1],{flower:f,local:q,t});
   }
  }
  for(let k=0;k<6;k++){let a=k*Math.PI/3+.4;for(let j=0;j<65;j++){let t=j/64,q=rotate(Math.cos(a)*t*19,Math.sin(a)*t*17-6*t,8+t*37,f);point(f.x+q[0],f.y+q[1],f.z+q[2],[182,167,84],.8,.37+(180-f.y)/1400,'.')}
@@ -49,8 +49,29 @@ for(let i=0;i<160;i++)stars.push([random(),random(),random()]);
 let W,H,D,cols,rows,depth,cell,started=performance.now(),last=0;
 function resize(){const r=canvas.getBoundingClientRect();W=r.width;H=r.height;D=Math.min(devicePixelRatio||1,2);canvas.width=W*D;canvas.height=H*D;ctx.setTransform(D,0,0,D,0,0);cols=210;cell=W/cols;rows=Math.ceil(H/cell/1.3);depth=new Float32Array(cols*rows)}
 addEventListener('resize',resize);resize();
-function draw(now){if(now-last<65){requestAnimationFrame(draw);return}last=now;let progress=reduced?1:Math.min(1,(now-started)/3200);ctx.clearRect(0,0,W,H);depth.fill(-Infinity);const pixels=new Int32Array(cols*rows);pixels.fill(-1);let scale=Math.min(W/325,H/490)*.94,angle=reduced?0:Math.sin(now*.00032)*.16,ca=Math.cos(angle),sa=Math.sin(angle);
-for(const p of pts){let grow=reduced?1:Math.min(1,Math.max(0,(progress-p.stage)*4.2));if(!grow)continue;let x=p.x*ca+p.z*sa,z=p.z*ca-p.x*sa,y=228+(p.y-228)*grow;let px=Math.round((W*.5+x*scale)/cell),py=Math.round((H*.49+y*scale)/(cell*1.3));if(px<0||px>=cols||py<0||py>=rows)continue;let i=py*cols+px;if(z>depth[i]){depth[i]=z;pixels[i]=p.c}}
+function draw(now){if(now-last<65){requestAnimationFrame(draw);return}last=now;let progress=reduced?1:Math.min(1,(now-started)/7800);ctx.clearRect(0,0,W,H);depth.fill(-Infinity);const pixels=new Int32Array(cols*rows);pixels.fill(-1);let scale=Math.min(W/325,H/490)*.94,angle=reduced?0:Math.sin(now*.00032)*.16,ca=Math.cos(angle),sa=Math.sin(angle);
+for(const p of pts){
+ let grow=reduced?1:Math.min(1,Math.max(0,(progress-p.stage)*3));
+ if(!grow)continue;
+ let ease=grow*grow*(3-2*grow),px0=p.x,py0=p.y,pz0=p.z;
+ if(p.flower){
+  const f=p.flower,q=p.local;
+  // A closed upright bud gradually spreads and curls each petal into its final surface.
+  const open=ease, budWidth=.045+.955*open;
+  px0=f.x+q[0]*budWidth;
+  py0=f.y+q[1]*open-(1-open)*f.r*p.t*.62;
+  pz0=f.z+q[2]*open+(1-open)*Math.sin(p.t*Math.PI)*5;
+ }else if(p.glyph==='|'){
+  // Stems grow from their base: reveal their tips along the existing curve.
+  if((228-p.y)/440>progress*2.7)continue;
+ }else if(p.glyph==='-'){
+  if(grow<.4)continue;
+ }else if(grow<.75)continue;
+ let x=px0*ca+pz0*sa,z=pz0*ca-px0*sa;
+ let px=Math.round((W*.5+x*scale)/cell),py=Math.round((H*.49+py0*scale)/(cell*1.3));
+ if(px<0||px>=cols||py<0||py>=rows)continue;
+ let i=py*cols+px;if(z>depth[i]){depth[i]=z;pixels[i]=p.c}
+}
 ctx.fillStyle='#9a9584';for(const [x,y,b] of stars){ctx.globalAlpha=.18+b*.4;ctx.fillRect(x*W,y*H,b>.8?1:.65,.65)}ctx.globalAlpha=1;ctx.font=`bold ${cell*1.6}px 'Courier New',monospace`;ctx.textBaseline='middle';
 for(let c=0;c<palette.length;c++){ctx.fillStyle=`rgb(${palette[c]})`;for(let i=0;i<pixels.length;i++)if(pixels[i]===c){let x=i%cols,y=(i/cols)|0;ctx.fillText((x+y)%7===0?'=':(x+y)%3===0?':':'-',x*cell,y*cell*1.3)}}
 if(!reduced||progress<1)requestAnimationFrame(draw)}requestAnimationFrame(draw);
