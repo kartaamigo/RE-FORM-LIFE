@@ -1,0 +1,21 @@
+'use strict';
+const video=document.querySelector('video'),button=document.querySelector('button'),screen=document.querySelector('#universe'),cx=screen.getContext('2d'),box=document.querySelector('.flowers');
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let width,height,dpr,particles=[],stars=[],phase='flowers',start=0,previous=0,seed=11;
+function random(){seed=(1664525*seed+1013904223)>>>0;return seed/4294967296}
+function gaussian(){return Math.sqrt(-2*Math.log(Math.max(.00001,random())))*Math.cos(random()*Math.PI*2)}
+function resize(){width=innerWidth;height=innerHeight;dpr=Math.min(devicePixelRatio||1,2);screen.width=width*dpr;screen.height=height*dpr;cx.setTransform(dpr,0,0,dpr,0,0)}addEventListener('resize',resize);resize();
+for(let i=0;i<160;i++)stars.push({x:random(),y:random(),s:.3+random()*1.3,p:random()*6});
+function rgb(h){let f=n=>{let k=(n+h*12)%12;return 255*(1-.7*Math.max(-1,Math.min(k-3,9-k,1)))};return [f(0),f(8),f(4)]}
+function samples(){let c=document.createElement('canvas');c.width=160;c.height=285;let ctx=c.getContext('2d',{willReadFrequently:true});ctx.drawImage(video,156,0,408,728,0,0,160,285);let pixels=ctx.getImageData(0,0,160,285).data,result=[];for(let y=2;y<283;y+=2)for(let x=1;x<159;x+=2){let i=(y*160+x)*4;if(Math.max(pixels[i],pixels[i+1],pixels[i+2])>35)result.push({x:x/160,y:y/285,c:[pixels[i],pixels[i+1],pixels[i+2]]})}return result}
+function travel(){if(phase!=='flowers')return;let src=samples(),r=box.getBoundingClientRect();particles=[];seed=11;
+for(let i=0;i<4200;i++){let d=random(),arm=i%4,a=arm*Math.PI/2+d*5.5,radius=10+d*290,spread=4+d*26;let x=radius*Math.cos(a)+gaussian()*spread,y=radius*Math.sin(a)+gaussian()*spread;y*=.55;let tx=x*Math.cos(.45)-y*Math.sin(.45),ty=x*Math.sin(.45)+y*Math.cos(.45);let s=src.length?src[i%src.length]:{x:.5,y:.5,c:[210,180,230]};particles.push({sx:r.left+s.x*r.width,sy:r.top+s.y*r.height,x:tx,y:ty,from:s.c,to:rgb(.73-d*.55),s:.5+random()*1.3,delay:random()*.12,twist:random()*6})}
+for(let i=0;i<300;i++){let a=random()*Math.PI*2,radius=gaussian()*22,s=src[i%Math.max(1,src.length)]||{x:.5,y:.5,c:[250,200,150]};particles.push({sx:r.left+s.x*r.width,sy:r.top+s.y*r.height,x:radius*Math.cos(a),y:radius*Math.sin(a)*.55,from:s.c,to:[255,237,168],s:.8+random()*1.6,delay:0,twist:random()*6})}
+phase='travel';start=performance.now();document.body.classList.add('travel');setTimeout(()=>{if(phase!=='flowers')video.pause()},2100)}
+video.muted=true;video.loop=true;video.addEventListener('timeupdate',()=>{if(video.currentTime>=11.5)travel()});video.play().catch(()=>{button.textContent='Play your gift'});
+button.onclick=()=>{phase='flowers';document.body.classList.remove('travel');particles=[];video.currentTime=0;video.play().catch(()=>{});button.textContent='Watch again'};
+function draw(now){requestAnimationFrame(draw);if(now-previous<32)return;previous=now;cx.clearRect(0,0,width,height);if(phase==='flowers')return;
+let duration=reduced?800:6200,p=Math.min(1,(now-start)/duration),ease=p*p*p*(p*(p*6-15)+10),r=box.getBoundingClientRect(),centerX=width/2,centerY=r.top+r.height*.52,scale=Math.min(width*.9/700,r.height*.9/490,1.25);let rotation=reduced?0:Math.max(0,(now-start-duration))*.000018;
+for(let s of stars){cx.globalAlpha=Math.min(1,p*1.7)*(.2+.6*(.5+.5*Math.sin(now*.0007+s.p)));cx.fillStyle='#e6e2ff';cx.fillRect(s.x*width,s.y*height,s.s,s.s)}cx.globalAlpha=1;
+for(let q of particles){let t=Math.min(1,Math.max(0,(p-q.delay)/(1-q.delay))),e=t*t*t*(t*(t*6-15)+10);let tx=centerX+(q.x*Math.cos(rotation)-q.y*Math.sin(rotation))*scale,ty=centerY+(q.x*Math.sin(rotation)+q.y*Math.cos(rotation))*scale;let sweep=Math.sin(t*Math.PI)*(1-t)*Math.min(width*.22,100);let x=q.sx+(tx-q.sx)*e+Math.sin(q.twist+t*6)*sweep,y=q.sy+(ty-q.sy)*e+Math.cos(q.twist+t*6)*sweep;let c=q.from.map((v,i)=>Math.round(v+(q.to[i]-v)*e));cx.fillStyle=`rgba(${c.join(',')},${.45+.5*e})`;let size=q.s*(.55+scale*.6);cx.fillRect(x,y,size,size)}
+let glow=cx.createRadialGradient(centerX,centerY,0,centerX,centerY,55*scale);glow.addColorStop(0,`rgba(255,226,149,${ease*.32})`);glow.addColorStop(.2,`rgba(223,135,240,${ease*.12})`);glow.addColorStop(1,'rgba(120,70,220,0)');cx.fillStyle=glow;cx.fillRect(centerX-60*scale,centerY-60*scale,120*scale,120*scale);if(p===1)phase='galaxy'}requestAnimationFrame(draw);
