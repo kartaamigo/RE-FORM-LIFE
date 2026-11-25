@@ -4,7 +4,7 @@ const canvas=document.querySelector('canvas'),ctx=canvas.getContext('2d');
 const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
 let seed=17;function random(){seed=(1664525*seed+1013904223)>>>0;return seed/4294967296}
 const pts=[],stars=[];const palette=[];
-function color(rgb,light){const c=rgb.map(v=>Math.max(0,Math.min(255,Math.round(v*light/12)*12)));const key=c.join(',');let i=palette.indexOf(key);if(i<0){i=palette.length;palette.push(key)}return i}
+function color(rgb,light){const c=rgb.map(v=>Math.max(0,Math.min(255,Math.round(v*light*1.35/12)*12)));const key=c.join(',');let i=palette.indexOf(key);if(i<0){i=palette.length;palette.push(key)}return i}
 function point(x,y,z,rgb,light,stage,glyph){pts.push({x,y,z,c:color(rgb,light),stage,glyph})}
 const green=[92,195,58];
 // Rear flowers first; the depth buffer resolves overlapping petals, stems and stamens.
@@ -19,7 +19,7 @@ const flowers=[
  {x:0,y:-96,z:44,r:76,c:[225,30,43],rx:.14,ry:-.22,a:-.15},
  {x:-42,y:17,z:54,r:76,c:[226,117,204],rx:-.25,ry:-.15,a:.24},
  {x:44,y:66,z:75,r:80,c:[243,231,200],rx:.35,ry:.22,a:-.12},
- {x:0,y:132,z:91,r:68,c:[240,197,151],rx:-.2,ry:-.35,a:.2}
+ {x:0,y:113,z:91,r:62,c:[240,197,151],rx:-.2,ry:-.35,a:.2}
 ];
 function rotate(x,y,z,f){let a=y*Math.cos(f.rx)-z*Math.sin(f.rx),b=y*Math.sin(f.rx)+z*Math.cos(f.rx);return [x*Math.cos(f.ry)+b*Math.sin(f.ry),a,b*Math.cos(f.ry)-x*Math.sin(f.ry)]}
 for(const f of flowers){
@@ -51,7 +51,7 @@ function resize(){const r=canvas.getBoundingClientRect();W=r.width;H=r.height;D=
 addEventListener('resize',resize);resize();
 function draw(now){if(now-last<65){requestAnimationFrame(draw);return}last=now;let progress=reduced?1:Math.min(1,(now-started)/3200);ctx.clearRect(0,0,W,H);depth.fill(-Infinity);const pixels=new Int32Array(cols*rows);pixels.fill(-1);let scale=Math.min(W/325,H/490)*.94,angle=reduced?0:Math.sin(now*.00032)*.16,ca=Math.cos(angle),sa=Math.sin(angle);
 for(const p of pts){let grow=reduced?1:Math.min(1,Math.max(0,(progress-p.stage)*4.2));if(!grow)continue;let x=p.x*ca+p.z*sa,z=p.z*ca-p.x*sa,y=228+(p.y-228)*grow;let px=Math.round((W*.5+x*scale)/cell),py=Math.round((H*.49+y*scale)/(cell*1.3));if(px<0||px>=cols||py<0||py>=rows)continue;let i=py*cols+px;if(z>depth[i]){depth[i]=z;pixels[i]=p.c}}
-ctx.fillStyle='#9a9584';for(const [x,y,b] of stars){ctx.globalAlpha=.18+b*.4;ctx.fillRect(x*W,y*H,b>.8?1:.65,.65)}ctx.globalAlpha=1;ctx.font=`${cell*1.6}px 'Courier New',monospace`;ctx.textBaseline='middle';
+ctx.fillStyle='#9a9584';for(const [x,y,b] of stars){ctx.globalAlpha=.18+b*.4;ctx.fillRect(x*W,y*H,b>.8?1:.65,.65)}ctx.globalAlpha=1;ctx.font=`bold ${cell*1.6}px 'Courier New',monospace`;ctx.textBaseline='middle';
 for(let c=0;c<palette.length;c++){ctx.fillStyle=`rgb(${palette[c]})`;for(let i=0;i<pixels.length;i++)if(pixels[i]===c){let x=i%cols,y=(i/cols)|0;ctx.fillText((x+y)%7===0?'=':(x+y)%3===0?':':'-',x*cell,y*cell*1.3)}}
 if(!reduced||progress<1)requestAnimationFrame(draw)}requestAnimationFrame(draw);
 document.querySelector('#replay').onclick=()=>{started=performance.now();if(reduced)requestAnimationFrame(draw)};
